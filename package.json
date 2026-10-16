@@ -1,0 +1,29 @@
+{
+  "name": "kombi",
+  "private": true,
+  "version": "0.1.0",
+  "description": "kombi.ba — najam kombija u Sarajevu",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace @kombi/api & npm run dev --workspace @kombi/web",
+    "dev:api": "npm run dev --workspace @kombi/api",
+    "dev:web": "npm run dev --workspace @kombi/web",
+    "build": "npm run build --workspace @kombi/api && npm run build --workspace @kombi/web",
+    "start:api": "npm run start --workspace @kombi/api",
+    "start:web": "npm run start --workspace @kombi/web",
+    "test": "npm run test --workspace @kombi/shared && npm run test --workspace @kombi/api",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "hash-password": "npm run hash-password --workspace @kombi/api --"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3",
+    "vitest": "^4.1.12"
+  }
+}

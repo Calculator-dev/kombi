@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Build output
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# Local database (embedded Postgres used in development)
+apps/api/data/
+
+# Environment files: secrets, admin password hash, SMTP login
+.env
+.env.*
+!.env.example
+
+# Keys and certificates
+*.pem
+*.key
+
+# Tests and coverage
+coverage/
+test-results/
+playwright-report/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Caches and deployment tool folders
+.cache/
+.turbo/
+.vercel/
+.eslintcache
+
+# Editors and operating systems
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
