@@ -1,5 +1,5 @@
 import { eq, sql } from "drizzle-orm";
-import { DEFAULT_SETTINGS, settingsSchema, type Settings } from "@kombi/shared";
+import { DEFAULT_SETTINGS, settingsSchema, upgradeSettings, type Settings } from "@kombi/shared";
 import { schema, type Executor } from "../db";
 
 const { settings } = schema;
@@ -11,7 +11,7 @@ export async function getSettings(db: Executor): Promise<Settings> {
     return structuredClone(DEFAULT_SETTINGS);
   }
   // Merge with defaults so settings added in later versions get a value.
-  const parsed = settingsSchema.safeParse({ ...DEFAULT_SETTINGS, ...row.data });
+  const parsed = settingsSchema.safeParse(upgradeSettings({ ...DEFAULT_SETTINGS, ...row.data }));
   return parsed.success ? parsed.data : structuredClone(DEFAULT_SETTINGS);
 }
 

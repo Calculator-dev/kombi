@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, date, index, integer, jsonb, pgSequence, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import type { BookingStatus, ContactChannel, ExtraId, PickupId, Quote, Settings } from "@kombi/shared";
+import type { BookingStatus, ContactChannel, Quote, Settings } from "@kombi/shared";
 
 /** Human-readable booking numbers: KB-2026-0001, KB-2026-0002, … */
 export const bookingRefSeq = pgSequence("booking_ref_seq", { startWith: 1 });
@@ -27,8 +27,8 @@ export const bookings = pgTable(
     birthDate: date("birth_date", { mode: "string" }),
     licenseSince: integer("license_since"),
     notes: text("notes"),
-    extras: jsonb("extras").$type<ExtraId[]>().notNull().default([]),
-    pickup: text("pickup").$type<PickupId>().notNull(),
+    extras: jsonb("extras").$type<string[]>().notNull().default([]),
+    pickup: text("pickup").notNull(),
     pickupAddress: text("pickup_address"),
     pickupTime: text("pickup_time"),
     returnTime: text("return_time"),

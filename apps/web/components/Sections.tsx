@@ -86,7 +86,7 @@ export function Destinations() {
 
 export function Prices({ settings }: { settings: Settings }) {
   const weekly = Math.round(settings.dailyRate * (1 - settings.weeklyDiscountPct / 100));
-  const extra = (e: Settings["extras"][keyof Settings["extras"]]) =>
+  const extra = (e: Settings["extras"][number]) =>
     e.perDay !== undefined ? `${e.perDay} KM/dan` : `${e.flat} KM`;
   return (
     <section id="cijene" className="section" aria-labelledby="cijene-h">
@@ -115,15 +115,15 @@ export function Prices({ settings }: { settings: Settings }) {
           </div>
           <div>
             <h3>Dodaci</h3>
-            {Object.values(settings.extras)
+            {settings.extras
               .filter((e) => e.enabled)
               .map((e) => (
-                <div className="line" key={e.label}><span>{e.label}</span><span className="fill" /><b>{extra(e)}</b></div>
+                <div className="line" key={e.id}><span>{e.label}</span><span className="fill" /><b>{extra(e)}</b></div>
               ))}
-            {Object.values(settings.pickup)
+            {settings.pickup
               .filter((p) => p.enabled && p.fee > 0)
               .map((p) => (
-                <div className="line" key={p.label}><span>{p.label}</span><span className="fill" /><b>{p.fee} KM</b></div>
+                <div className="line" key={p.id}><span>{p.label}</span><span className="fill" /><b>{p.fee} KM</b></div>
               ))}
           </div>
           <p className="included">Uključeno: {SITE.included.join(", ")}</p>

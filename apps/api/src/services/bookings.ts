@@ -1,5 +1,5 @@
 import { and, asc, eq, gte, sql, type SQL } from "drizzle-orm";
-import { quote, type BookingRequest, type BookingStatus, type Settings } from "@kombi/shared";
+import { findPickup, quote, type BookingRequest, type BookingStatus, type Settings } from "@kombi/shared";
 import { schema, type Database, type Executor } from "../db";
 import type { BookingRow } from "../db/schema";
 import { HttpError } from "../errors";
@@ -50,7 +50,7 @@ export async function createBooking(
         notes: req.notes ?? null,
         extras: req.extras,
         pickup: req.pickup,
-        pickupAddress: req.pickup === "office" ? null : (req.pickupAddress ?? null),
+        pickupAddress: findPickup(settings, req.pickup)?.detailsLabel ? (req.pickupAddress ?? null) : null,
         pickupTime: req.pickupTime ?? null,
         returnTime: req.returnTime ?? null,
         quote: q,

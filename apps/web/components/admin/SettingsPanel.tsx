@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { EXTRA_IDS, PICKUP_IDS, type Settings } from "@kombi/shared";
+import { MAX_EXTRAS, MAX_PICKUPS, type Settings } from "@kombi/shared";
 import { ApiError, api } from "@/lib/api";
 
 const num = (v: string) => (v === "" ? 0 : Math.max(0, Math.round(Number(v))));
+/** Key for a new option. Bookings keep the key, so it never changes once saved. */
+const newId = () => `o${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 export function SettingsPanel({ settings, onSaved }: { settings: Settings; onSaved: (s: Settings) => void }) {
   const [s, setS] = useState<Settings>(settings);
@@ -83,34 +85,73 @@ export function SettingsPanel({ settings, onSaved }: { settings: Settings; onSav
 
       <section>
         <h2 className="display h-md" style={{ marginBottom: 8 }}>Dodaci</h2>
-        {EXTRA_IDS.map((id) => {
-          const e = s.extras[id];
-          const upd = (patch: Partial<typeof e>) => top("extras", { ...s.extras, [id]: { ...e, ...patch } });
+        {s.extras.map((e, i) => {
+          const upd = (patch: Partial<typeof e>) => top("extras", s.extras.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+          const perDay = e.perDay !== undefined;
           return (
-            <div className="season" key={id}>
+            <div className="season" key={e.id}>
               <label className="field">Naziv<input value={e.label} onChange={(ev) => upd({ label: ev.target.value })} /></label>
-              {e.perDay !== undefined
-                ? numberField("KM / dan", e.perDay, (n) => upd({ perDay: n }))
+              <label className="field">
+                Naplata
+                <select
+                  value={perDay ? "perDay" : "flat"}
+                  onChange={(ev) =>
+                    upd(ev.target.value === "perDay" ? { perDay: e.flat ?? 0, flat: undefined } : { flat: e.perDay ?? 0, perDay: undefined })
+                  }
+                >
+                  <option value="perDay">Po danu</option>
+                  <option value="flat">Jednokratno</option>
+                </select>
+              </label>
+              {perDay
+                ? numberField("KM / dan", e.perDay ?? 0, (n) => upd({ perDay: n }))
                 : numberField("KM jednokratno", e.flat ?? 0, (n) => upd({ flat: n }))}
               <label className="check"><input type="checkbox" checked={e.enabled} onChange={(ev) => upd({ enabled: ev.target.checked })} />Nudi se</label>
+              <button type="button" className="small-btn" onClick={() => top("extras", s.extras.filter((_, j) => j !== i))}>Ukloni</button>
             </div>
           );
         })}
+        {s.extras.length < MAX_EXTRAS && (
+          <button
+            type="button"
+            className="small-btn"
+            style={{ marginTop: 16 }}
+            onClick={() => top("extras", [...s.extras, { id: newId(), label: "Novi dodatak", flat: 0, enabled: true }])}
+          >
+            + Dodaj dodatak
+          </button>
+        )}
       </section>
 
       <section>
         <h2 className="display h-md" style={{ marginBottom: 8 }}>Preuzimanje</h2>
-        {PICKUP_IDS.map((id) => {
-          const p = s.pickup[id];
-          const upd = (patch: Partial<typeof p>) => top("pickup", { ...s.pickup, [id]: { ...p, ...patch } });
+        {s.pickup.map((p, i) => {
+          const upd = (patch: Partial<typeof p>) => top("pickup", s.pickup.map((x, j) => (j === i ? { ...x, ...patch } : x)));
           return (
-            <div className="season" key={id}>
+            <div className="season" key={p.id}>
               <label className="field">Naziv<input value={p.label} onChange={(ev) => upd({ label: ev.target.value })} /></label>
               {numberField("Naknada (KM)", p.fee, (n) => upd({ fee: n }))}
-              <label className="check"><input type="checkbox" checked={p.enabled} disabled={id === "office"} onChange={(ev) => upd({ enabled: ev.target.checked })} />Nudi se</label>
+              <label className="field">
+                Kupac upisuje (prazno = ništa)
+                <input value={p.detailsLabel} placeholder="npr. Adresa preuzimanja" onChange={(ev) => upd({ detailsLabel: ev.target.value })} />
+              </label>
+              <label className="check"><input type="checkbox" checked={p.enabled} onChange={(ev) => upd({ enabled: ev.target.checked })} />Nudi se</label>
+              {s.pickup.length > 1 && (
+                <button type="button" className="small-btn" onClick={() => top("pickup", s.pickup.filter((_, j) => j !== i))}>Ukloni</button>
+              )}
             </div>
           );
         })}
+        {s.pickup.length < MAX_PICKUPS && (
+          <button
+            type="button"
+            className="small-btn"
+            style={{ marginTop: 16 }}
+            onClick={() => top("pickup", [...s.pickup, { id: newId(), label: "Novo mjesto", fee: 0, detailsLabel: "", enabled: true }])}
+          >
+            + Dodaj mjesto preuzimanja
+          </button>
+        )}
       </section>
     </>
   );

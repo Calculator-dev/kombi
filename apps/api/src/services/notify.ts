@@ -47,8 +47,9 @@ export function createNotifier(config: Config): Notifier {
         [
           `${b.name} šalje upit za ${fmt(b.start)} – ${fmt(b.end)} (${b.quote.days} dana).`,
           `Ukupno: ${b.total} KM`,
+          b.quote.extraLines.length ? `Dodaci: ${b.quote.extraLines.map((l) => l.label).join(", ")}` : "",
           `Kontakt: ${b.phone} (${CHANNEL[b.contactChannel] ?? b.contactChannel}), ${b.email}`,
-          `Preuzimanje: ${b.pickup}${b.pickupAddress ? `, ${b.pickupAddress}` : ""}${b.pickupTime ? ` u ${b.pickupTime}` : ""}`,
+          `Preuzimanje: ${b.quote.pickupLabel ?? b.pickup}${b.pickupAddress ? `, ${b.pickupAddress}` : ""}${b.pickupTime ? ` u ${b.pickupTime}` : ""}`,
           b.notes ? `Napomena: ${b.notes}` : "",
           "",
           `Potvrdite ili odbijte: ${config.WEB_ORIGIN}/admin`,

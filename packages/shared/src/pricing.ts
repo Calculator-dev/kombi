@@ -1,11 +1,11 @@
 import { addDays, diffDays, eachDate, isIsoDate, monthDay, type IsoDate } from "./dates";
-import type { ExtraId, PickupId, Season, Settings } from "./settings";
+import { findExtra, findPickup, type Season, type Settings } from "./settings";
 
 export interface QuoteInput {
   start: IsoDate; // pickup day
   end: IsoDate; // return day
-  extras?: ExtraId[];
-  pickup?: PickupId;
+  extras?: string[];
+  pickup?: string;
 }
 
 export interface QuoteLine {
@@ -22,6 +22,8 @@ export interface Quote {
   discount: number;
   extraLines: QuoteLine[];
   pickupLine: QuoteLine | null;
+  /** Name of the chosen pickup place (kept so old bookings still show it after the option changes). */
+  pickupLabel?: string;
   total: number;
   deposit: number;
   minDays: number;
@@ -105,17 +107,21 @@ export function quote(input: QuoteInput, settings: Settings): Quote {
 
   const extraLines: QuoteLine[] = [];
   for (const id of new Set(input.extras ?? [])) {
-    const extra = settings.extras[id];
+    const extra = findExtra(settings, id);
     if (!extra || !extra.enabled) continue;
     const amount = extra.perDay !== undefined ? extra.perDay * days : (extra.flat ?? 0);
     extraLines.push({ label: extra.label, amount });
   }
 
   let pickupLine: QuoteLine | null = null;
+  let pickupLabel: string | undefined;
   if (input.pickup) {
-    const p = settings.pickup[input.pickup];
+    const p = findPickup(settings, input.pickup);
     if (!p || !p.enabled) errors.push("Odabrano mjesto preuzimanja nije dostupno.");
-    else if (p.fee > 0) pickupLine = { label: p.label, amount: p.fee };
+    else {
+      pickupLabel = p.label;
+      if (p.fee > 0) pickupLine = { label: p.label, amount: p.fee };
+    }
   }
 
   const total =
@@ -129,6 +135,7 @@ export function quote(input: QuoteInput, settings: Settings): Quote {
     discount,
     extraLines,
     pickupLine,
+    pickupLabel,
     total,
     deposit: settings.deposit,
     minDays,

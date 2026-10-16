@@ -154,4 +154,29 @@ describe("admin API", () => {
     expect((await request(app).get("/api/settings")).body.dailyRate).toBe(140);
     await agent.put("/api/admin/settings").send({ ...settings, dailyRate: -5 }).expect(400);
   });
+
+  it("books options the owner added", async () => {
+    const agent = await adminAgent();
+    const settings = (await agent.get("/api/admin/settings").expect(200)).body;
+    await agent
+      .put("/api/admin/settings")
+      .send({
+        ...settings,
+        extras: [...settings.extras, { id: "roofRack", label: "Krovni nosač", flat: 25, enabled: true }],
+        pickup: [...settings.pickup, { id: "bus", label: "Autobuska stanica", fee: 20, detailsLabel: "Broj linije", enabled: true }],
+      })
+      .expect(200);
+
+    const missing = await request(app)
+      .post("/api/bookings")
+      .send(booking({ start: "2026-12-01", end: "2026-12-03", extras: ["roofRack"], pickup: "bus" }))
+      .expect(400);
+    expect(Object.keys(missing.body.fields)).toContain("pickupAddress");
+
+    const res = await request(app)
+      .post("/api/bookings")
+      .send(booking({ start: "2026-12-01", end: "2026-12-03", extras: ["roofRack"], pickup: "bus", pickupAddress: "Linija 31" }))
+      .expect(201);
+    expect(res.body.total).toBe(2 * 140 + 25 + 20);
+  });
 });

@@ -44,7 +44,7 @@ export function BookingRow({
         <div className="meta dim">
           {[
             ...extras,
-            PICKUP[b.pickup] + (b.pickupAddress ? `: ${b.pickupAddress}` : ""),
+            (b.quote.pickupLabel ?? PICKUP[b.pickup] ?? b.pickup) + (b.pickupAddress ? `: ${b.pickupAddress}` : ""),
             b.pickupTime ? `u ${b.pickupTime}` : null,
           ]
             .filter(Boolean)

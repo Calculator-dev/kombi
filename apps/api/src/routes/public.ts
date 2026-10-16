@@ -6,8 +6,8 @@ import {
   diffDays,
   isIsoDate,
   quote,
-  EXTRA_IDS,
-  PICKUP_IDS,
+  MAX_EXTRAS,
+  optionId,
   todayIn,
   addDays,
 } from "@kombi/shared";
@@ -46,8 +46,8 @@ export function publicRoutes({ db, config, notifier, now }: Deps): Router {
       .object({
         start: isoDate,
         end: isoDate,
-        extras: z.array(z.enum(EXTRA_IDS)).default([]),
-        pickup: z.enum(PICKUP_IDS).optional(),
+        extras: z.array(optionId).max(MAX_EXTRAS).default([]),
+        pickup: optionId.optional(),
       })
       .parse(req.body);
     res.json(quote(input, await getSettings(db.orm)));
@@ -62,13 +62,14 @@ export function publicRoutes({ db, config, notifier, now }: Deps): Router {
   });
 
   r.post("/bookings", bookingLimiter, async (req, res) => {
-    const body = bookingRequestSchema.parse(req.body);
+    const settings = await getSettings(db.orm);
+    const body = bookingRequestSchema(settings).parse(req.body);
     if (body.website) {
       // Honeypot filled in: pretend success, store nothing.
       res.status(201).json({ ref: "KB-0000", status: "pending" });
       return;
     }
-    const booking = await createBooking(db.orm, body, await getSettings(db.orm), today());
+    const booking = await createBooking(db.orm, body, settings, today());
     void notifier.bookingRequested(booking);
     res.status(201).json({
       ref: booking.ref,

@@ -3,13 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import {
-  EXTRA_IDS,
   bookingRequestSchema,
   dayWord,
+  findPickup,
   quote,
   type ContactChannel,
-  type ExtraId,
-  type PickupId,
   type Settings,
 } from "@kombi/shared";
 import { ApiError, api } from "@/lib/api";
@@ -18,7 +16,8 @@ import { SITE, VAN } from "@/lib/site";
 import { Logo } from "./Header";
 
 const TIMES = Array.from({ length: 13 }, (_, i) => `${String(8 + i).padStart(2, "0")}:00`);
-const PICKUP_TAGS: Record<PickupId, string> = { office: "A", address: "B", airport: "C" };
+const PLACEHOLDERS: Record<string, string> = { address: "Ulica i broj, Sarajevo", airport: "npr. TK 1021" };
+const tag = (i: number) => String.fromCharCode(65 + i); // A, B, C…
 const STEPS = ["Dodaci", "Vozač", "Potvrda"];
 
 interface Props {
@@ -44,8 +43,8 @@ interface Form {
 
 export function BookingFlow({ settings, start, end }: Props) {
   const [step, setStep] = useState(1);
-  const [extras, setExtras] = useState<ExtraId[]>([]);
-  const [pickup, setPickup] = useState<PickupId>("office");
+  const [extras, setExtras] = useState<string[]>([]);
+  const [pickup, setPickup] = useState<string>(() => settings.pickup.find((p) => p.enabled)?.id ?? "");
   const [form, setForm] = useState<Form>({
     pickupAddress: "",
     pickupTime: "12:00",
@@ -67,7 +66,8 @@ export function BookingFlow({ settings, start, end }: Props) {
 
   const q = quote({ start, end, extras, pickup }, settings);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
-  const toggle = (id: ExtraId) => setExtras((x) => (x.includes(id) ? x.filter((e) => e !== id) : [...x, id]));
+  const pickupDetails = findPickup(settings, pickup)?.detailsLabel ?? "";
+  const toggle = (id: string) => setExtras((x) => (x.includes(id) ? x.filter((e) => e !== id) : [...x, id]));
 
   function payload() {
     return {
@@ -75,7 +75,7 @@ export function BookingFlow({ settings, start, end }: Props) {
       end,
       extras,
       pickup,
-      pickupAddress: pickup === "office" ? undefined : form.pickupAddress,
+      pickupAddress: pickupDetails ? form.pickupAddress : undefined,
       pickupTime: form.pickupTime,
       returnTime: form.returnTime,
       name: form.name,
@@ -91,7 +91,7 @@ export function BookingFlow({ settings, start, end }: Props) {
   }
 
   function validate(fields: string[]) {
-    const r = bookingRequestSchema.safeParse(payload());
+    const r = bookingRequestSchema(settings).safeParse(payload());
     const errs: Record<string, string> = {};
     if (!r.success) for (const i of r.error.issues) {
       const k = String(i.path[0] ?? "_");
@@ -162,11 +162,10 @@ export function BookingFlow({ settings, start, end }: Props) {
                   Dodaci
                 </h1>
                 <div className="extras">
-                  {EXTRA_IDS.filter((id) => settings.extras[id].enabled).map((id) => {
-                    const e = settings.extras[id];
-                    const on = extras.includes(id);
+                  {settings.extras.filter((e) => e.enabled).map((e) => {
+                    const on = extras.includes(e.id);
                     return (
-                      <button key={id} type="button" className="extra" aria-pressed={on} onClick={() => toggle(id)}>
+                      <button key={e.id} type="button" className="extra" aria-pressed={on} onClick={() => toggle(e.id)}>
                         <span className="box" aria-hidden="true">{on ? "✕" : ""}</span>
                         <span className="name">{e.label}</span>
                         <span className="price">{e.perDay !== undefined ? `+${e.perDay} KM/dan` : `+${e.flat} KM`}</span>
@@ -183,20 +182,19 @@ export function BookingFlow({ settings, start, end }: Props) {
                   po dogovoru
                 </h2>
                 <div className="places" role="radiogroup" aria-label="Mjesto preuzimanja">
-                  {(Object.keys(settings.pickup) as PickupId[])
-                    .filter((id) => settings.pickup[id].enabled)
-                    .map((id) => {
-                      const p = settings.pickup[id];
+                  {settings.pickup
+                    .filter((p) => p.enabled)
+                    .map((p, i) => {
                       return (
                         <button
-                          key={id}
+                          key={p.id}
                           type="button"
                           role="radio"
-                          aria-checked={pickup === id}
+                          aria-checked={pickup === p.id}
                           className="place"
-                          onClick={() => setPickup(id)}
+                          onClick={() => setPickup(p.id)}
                         >
-                          <span className="tag">{PICKUP_TAGS[id]}</span>
+                          <span className="tag">{tag(i)}</span>
                           <span className="name">{p.label}</span>
                           <span className="price">{p.fee ? `+${p.fee} KM` : "Besplatno"}</span>
                         </button>
@@ -204,14 +202,14 @@ export function BookingFlow({ settings, start, end }: Props) {
                     })}
                 </div>
                 <div className="fields" style={{ marginTop: 24 }}>
-                  {pickup !== "office" &&
+                  {pickupDetails &&
                     field(
                       "pickupAddress",
-                      pickup === "airport" ? "Broj leta ili napomena" : "Adresa preuzimanja",
+                      pickupDetails,
                       <input
                         value={form.pickupAddress}
                         onChange={(e) => set("pickupAddress", e.target.value)}
-                        placeholder={pickup === "airport" ? "npr. TK 1021" : "Ulica i broj, Sarajevo"}
+                        placeholder={PLACEHOLDERS[pickup]}
                       />,
                     )}
                   {field(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SETTINGS, quote, todayIn, eachDate, type Settings } from "./index";
+import { DEFAULT_SETTINGS, quote, settingsSchema, todayIn, eachDate, upgradeSettings, type Settings } from "./index";
 
 const settings: Settings = structuredClone(DEFAULT_SETTINGS);
 
@@ -44,8 +44,37 @@ describe("quote", () => {
     expect(quote({ start: "2026-12-31", end: "2027-01-02" }, s).total).toBe(400);
   });
 
+  it("prices options the owner added", () => {
+    const s: Settings = {
+      ...settings,
+      extras: [...settings.extras, { id: "x1", label: "Krovni nosač", flat: 25, enabled: true }],
+      pickup: [...settings.pickup, { id: "x2", label: "Autobuska stanica", fee: 20, detailsLabel: "", enabled: true }],
+    };
+    const q = quote({ start: "2026-10-21", end: "2026-10-24", extras: ["x1"], pickup: "x2" }, s);
+    expect(q.total).toBe(360 + 25 + 20);
+    expect(q.pickupLabel).toBe("Autobuska stanica");
+  });
+
   it("rejects reversed dates", () => {
     expect(quote({ start: "2026-10-24", end: "2026-10-21" }, settings).errors).toHaveLength(1);
+  });
+});
+
+describe("settings", () => {
+  it("upgrades extras and pickup stored as fixed objects", () => {
+    const old = {
+      ...DEFAULT_SETTINGS,
+      extras: { childSeat: { label: "Sjedište", perDay: 12, enabled: false } },
+      pickup: { office: { label: "Ured", fee: 0, enabled: true }, airport: { label: "Aerodrom", fee: 40, enabled: true } },
+    };
+    const s = settingsSchema.parse(upgradeSettings(old));
+    expect(s.extras).toEqual([{ id: "childSeat", label: "Sjedište", perDay: 12, enabled: false }]);
+    expect(s.pickup.map((p) => [p.id, p.detailsLabel])).toEqual([["office", ""], ["airport", "Broj leta ili napomena"]]);
+  });
+
+  it("rejects duplicate option keys", () => {
+    const dup = { ...DEFAULT_SETTINGS, extras: [...DEFAULT_SETTINGS.extras, DEFAULT_SETTINGS.extras[0]] };
+    expect(settingsSchema.safeParse(dup).success).toBe(false);
   });
 });
 
