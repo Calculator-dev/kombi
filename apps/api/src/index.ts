@@ -4,7 +4,11 @@ import { createDb } from "./db";
 import { createNotifier } from "./services/notify";
 
 const config = loadConfig();
-const db = await createDb({ url: config.DATABASE_URL, dataDir: config.PGLITE_DIR });
+const db = await createDb({
+  url: config.DATABASE_URL,
+  dataDir: config.PGLITE_DIR,
+  ssl: { mode: config.DATABASE_SSL, ca: config.DATABASE_CA_CERT },
+});
 const app = createApp({ db, config, notifier: createNotifier(config) });
 
 const server = app.listen(config.PORT, () => {

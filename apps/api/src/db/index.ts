@@ -42,10 +42,21 @@ function migrationsFolder(): string {
  * (PGlite) is used — on disk for development, in memory for tests — so the
  * same schema and migrations run everywhere. Pending migrations run on start.
  */
-export async function createDb(opts: { url?: string; dataDir?: string | null }): Promise<Db> {
+export interface DbSsl {
+  mode: "off" | "require" | "verify";
+  ca?: string;
+}
+
+function sslOptions(ssl: DbSsl | undefined): pg.PoolConfig["ssl"] {
+  if (!ssl || ssl.mode === "off") return false;
+  // "require" encrypts but trusts any certificate; "verify" also checks it (against `ca`, or the system CAs).
+  return ssl.mode === "require" ? { rejectUnauthorized: false } : { rejectUnauthorized: true, ca: ssl.ca };
+}
+
+export async function createDb(opts: { url?: string; dataDir?: string | null; ssl?: DbSsl }): Promise<Db> {
   const folder = migrationsFolder();
   if (opts.url) {
-    const pool = new pg.Pool({ connectionString: opts.url, max: 10 });
+    const pool = new pg.Pool({ connectionString: opts.url, max: 10, ssl: sslOptions(opts.ssl) });
     const orm = drizzlePg(pool, { schema });
     await migratePg(orm, { migrationsFolder: folder });
     return { kind: "postgres", orm: orm as unknown as Database, close: () => pool.end() };

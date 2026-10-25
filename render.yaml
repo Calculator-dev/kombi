@@ -1,19 +1,11 @@
-# Render Blueprint: PostgreSQL + API + website, all on the free tier.
+# Render Blueprint: API + website on the free tier; the database is on Supabase.
 # Render dashboard → New → Blueprint → pick this repository.
 #
 # Free tier limits: services sleep after 15 minutes without traffic (the first
-# visit after that takes ~1 minute), and the free database expires after 30 days.
-# Switch `plan` to starter / basic-256mb before taking real bookings.
+# visit after that takes ~1 minute). Switch `plan` to starter for real traffic.
 #
 # Render gives each service a URL from its name (https://kombi-api.onrender.com).
 # If a name is taken, Render adds a suffix: then update API_URL and WEB_ORIGIN.
-
-databases:
-  - name: kombi-db
-    databaseName: kombi
-    user: kombi
-    plan: free
-    region: frankfurt
 
 services:
   - type: web
@@ -27,10 +19,11 @@ services:
     envVars:
       - key: PORT
         value: 4000
+      # Supabase → Connect → Session pooler (port 5432) URI, with the database password.
       - key: DATABASE_URL
-        fromDatabase:
-          name: kombi-db
-          property: connectionString
+        sync: false
+      - key: DATABASE_SSL
+        value: require
       - key: JWT_SECRET
         generateValue: true
       # Output of `npm run hash-password -- "..."`, WITHOUT the surrounding quotes.

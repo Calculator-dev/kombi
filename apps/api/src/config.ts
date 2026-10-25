@@ -6,6 +6,10 @@ const schema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().int().default(4000),
   DATABASE_URL: z.string().optional().transform((v) => v || undefined),
+  /** off: plain connection (local Postgres). require: encrypted. verify: encrypted and certificate checked. */
+  DATABASE_SSL: z.enum(["off", "require", "verify"]).default("off"),
+  /** CA certificate (PEM) for DATABASE_SSL=verify, e.g. Supabase's. "\n" escapes are allowed. */
+  DATABASE_CA_CERT: z.string().optional().transform((v) => (v ? v.replace(/\\n/g, "\n") : undefined)),
   PGLITE_DIR: z.string().default("./data/pglite"),
   JWT_SECRET: z.string().optional().transform((v) => v || undefined),
   ADMIN_PASSWORD_HASH: z.string().optional().transform((v) => v || undefined),

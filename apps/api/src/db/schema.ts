@@ -2,6 +2,9 @@ import { sql } from "drizzle-orm";
 import { check, date, index, integer, jsonb, pgSequence, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import type { BookingStatus, ContactChannel, Quote, Settings } from "@kombi/shared";
 
+// Row-Level Security is on for every table with no policies: on Supabase this keeps the
+// tables closed to its public REST API. The API connects as the table owner, which bypasses RLS.
+
 /** Human-readable booking numbers: KB-2026-0001, KB-2026-0002, … */
 export const bookingRefSeq = pgSequence("booking_ref_seq", { startWith: 1 });
 
@@ -45,7 +48,7 @@ export const bookings = pgTable(
     check("bookings_status_check", sql`${t.status} in ('pending', 'confirmed', 'declined', 'cancelled')`),
     check("bookings_dates_check", sql`${t.end} > ${t.start}`),
   ],
-);
+).enableRLS();
 
 export const blockedRanges = pgTable(
   "blocked_ranges",
@@ -57,7 +60,7 @@ export const blockedRanges = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("blocked_dates_idx").on(t.start, t.end), check("blocked_dates_check", sql`${t.end} >= ${t.start}`)],
-);
+).enableRLS();
 
 /** Single-row table with the owner's prices and rules. */
 export const settings = pgTable(
@@ -68,7 +71,7 @@ export const settings = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("settings_single_row", sql`${t.id} = 1`)],
-);
+).enableRLS();
 
 export type BookingRow = typeof bookings.$inferSelect;
 export type NewBooking = typeof bookings.$inferInsert;
