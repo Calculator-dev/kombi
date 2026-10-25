@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   bookingRequestSchema,
   dayWord,
@@ -62,6 +62,13 @@ export function BookingFlow({ settings, start, end }: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [failure, setFailure] = useState<{ message: string; taken?: boolean } | null>(null);
   const [sending, setSending] = useState(false);
+  // The API can take a while to wake up; after a few seconds, say so.
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!sending) return setSlow(false);
+    const t = setTimeout(() => setSlow(true), 4000);
+    return () => clearTimeout(t);
+  }, [sending]);
   const [done, setDone] = useState<{ ref: string; total: number } | null>(null);
 
   const q = quote({ start, end, extras, pickup }, settings);
@@ -303,10 +310,20 @@ export function BookingFlow({ settings, start, end }: Props) {
               ) : (
                 <button type="button" className="btn-ghost" onClick={() => setStep(1)}>Nazad</button>
               )}
-              <button type="button" className="btn-dark" onClick={next} disabled={sending || q.errors.length > 0}>
+              <button
+                type="button"
+                className="btn-dark"
+                onClick={next}
+                disabled={sending || q.errors.length > 0}
+                aria-busy={sending}
+              >
+                {sending && <span className="spinner" aria-hidden="true" />}
                 {step === 1 ? "Dalje" : sending ? "Šaljem…" : "Pošalji upit"}
               </button>
             </div>
+          )}
+          {sending && slow && (
+            <p className="slow-note" role="status">Šaljemo upit, ovo može potrajati do minute. Ne zatvarajte stranicu.</p>
           )}
         </main>
 
