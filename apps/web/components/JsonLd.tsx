@@ -1,8 +1,11 @@
-import type { Settings } from "@kombi/shared";
-import { FAQ, SITE, VAN } from "@/lib/site";
+import type { PublicVan } from "@kombi/shared";
+import { FAQ, SITE } from "@/lib/site";
 
-/** Structured data so Google can show the business, price and FAQ in results. */
-export function JsonLd({ settings, path = "/" }: { settings: Settings; path?: string }) {
+const FUEL: Record<string, string> = { Dizel: "Diesel", Benzin: "Gasoline", Hibrid: "Hybrid", Električni: "Electric" };
+
+/** Structured data so Google can show the business, prices and FAQ in results. */
+export function JsonLd({ path = "/", fromPrice, van }: { path?: string; fromPrice?: number | null; van?: PublicVan }) {
+  const price = van?.pricing.dailyRate ?? fromPrice ?? undefined;
   const data = [
     {
       "@context": "https://schema.org",
@@ -11,26 +14,27 @@ export function JsonLd({ settings, path = "/" }: { settings: Settings; path?: st
       name: SITE.name,
       url: SITE.url,
       telephone: SITE.phone.startsWith("[") ? undefined : SITE.phone,
-      priceRange: `od ${settings.dailyRate} KM/dan`,
+      priceRange: price ? `od ${price} KM/dan` : undefined,
       currenciesAccepted: "BAM, EUR",
-      areaServed: ["Sarajevo", "Bosna i Hercegovina"],
-      address: { "@type": "PostalAddress", addressLocality: "Sarajevo", addressCountry: "BA" },
-      geo: { "@type": "GeoCoordinates", latitude: 43.8563, longitude: 18.4131 },
-      makesOffer: {
-        "@type": "Offer",
-        priceCurrency: "BAM",
-        price: settings.dailyRate,
-        url: `${SITE.url}${path}`,
-        itemOffered: {
-          "@type": "Car",
-          name: `${VAN.name} ${VAN.year}`,
-          brand: { "@type": "Brand", name: "Toyota" },
-          vehicleSeatingCapacity: VAN.seats,
-          fuelType: "Diesel",
-          vehicleTransmission: "Manual",
-          vehicleModelDate: String(VAN.year),
-        },
-      },
+      areaServed: ["Bosna i Hercegovina"],
+      address: { "@type": "PostalAddress", addressLocality: SITE.city, addressCountry: "BA" },
+      makesOffer: van
+        ? {
+            "@type": "Offer",
+            priceCurrency: "BAM",
+            price: van.pricing.dailyRate,
+            url: `${SITE.url}${path}`,
+            itemOffered: {
+              "@type": "Car",
+              name: `${van.name} ${van.year}`,
+              image: van.photos[0]?.url,
+              vehicleSeatingCapacity: van.seats,
+              fuelType: FUEL[van.fuel],
+              vehicleTransmission: van.gearbox === "Automatski" ? "Automatic" : "Manual",
+              vehicleModelDate: String(van.year),
+            },
+          }
+        : undefined,
     },
     {
       "@context": "https://schema.org",

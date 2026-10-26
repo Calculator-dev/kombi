@@ -4,18 +4,25 @@ import { useState } from "react";
 import { addDays, eachDate, todayIn } from "@kombi/shared";
 import { MONTHS, km, shortDate } from "@/lib/format";
 import { BookingRow } from "./BookingRow";
-import type { AdminBooking, Block } from "./types";
+import { VanSelect } from "./VanSelect";
+import type { AdminBooking, Block, OwnerVan } from "./types";
 
 interface Props {
+  vans: OwnerVan[];
   bookings: AdminBooking[];
   blocks: Block[];
   onStatus: (id: string, s: "confirmed" | "declined" | "cancelled") => void;
   onRefresh: () => void;
 }
 
-export function Overview({ bookings, blocks, onStatus, onRefresh }: Props) {
+export function Overview({ vans, bookings: allBookings, blocks: allBlocks, onStatus, onRefresh }: Props) {
   const today = todayIn();
   const [offset, setOffset] = useState(0);
+  const [vanId, setVanId] = useState<string>("");
+  // The calendar shows one van at a time; the numbers can cover all of them.
+  const calendarVan = vanId || vans[0]?.id || "";
+  const bookings = vanId ? allBookings.filter((b) => b.vanId === vanId) : allBookings;
+  const blocks = allBlocks.filter((b) => b.vanId === calendarVan);
   const pending = bookings.filter((b) => b.status === "pending" && !b.holdExpired);
   const confirmed = bookings.filter((b) => b.status === "confirmed");
   const upcoming = confirmed.filter((b) => b.start >= today).sort((a, b) => a.start.localeCompare(b.start));
@@ -30,10 +37,11 @@ export function Overview({ bookings, blocks, onStatus, onRefresh }: Props) {
 
   const state = new Map<string, string>();
   for (const bl of blocks) for (const d of eachDate(bl.start, bl.end)) state.set(d, "blocked");
-  for (const b of pending) for (const d of eachDate(b.start, b.end)) state.set(d, "pending");
-  for (const b of confirmed) for (const d of eachDate(b.start, b.end)) state.set(d, "confirmed");
+  for (const b of pending) if (b.vanId === calendarVan) for (const d of eachDate(b.start, b.end)) state.set(d, "pending");
+  for (const b of confirmed) if (b.vanId === calendarVan) for (const d of eachDate(b.start, b.end)) state.set(d, "confirmed");
 
   const busy = monthDates.filter((d) => state.get(d) === "confirmed").length;
+  const calendarName = vans.find((v) => v.id === calendarVan)?.name;
   const monthRevenue = confirmed
     .filter((b) => b.start.slice(0, 7) === first.slice(0, 7))
     .reduce((s, b) => s + b.total, 0);
@@ -43,11 +51,14 @@ export function Overview({ bookings, blocks, onStatus, onRefresh }: Props) {
     <>
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
         <h1 className="display h-lg">Pregled</h1>
-        <button type="button" className="small-btn" onClick={onRefresh}>Osvježi</button>
+        <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+          {vans.length > 1 && <VanSelect vans={vans} value={vanId} onChange={setVanId} allLabel="Svi kombiji" />}
+          <button type="button" className="small-btn" onClick={onRefresh}>Osvježi</button>
+        </div>
       </div>
       <dl className="stats">
         <div className={pending.length ? "hot" : undefined}><dt>Upiti na čekanju</dt><dd>{pending.length}</dd></div>
-        <div><dt>Zauzetost, {MONTHS[m]!.toLowerCase()}</dt><dd>{Math.round((busy / days) * 100)}%</dd></div>
+        <div><dt>Zauzetost, {MONTHS[m]!.toLowerCase()}{vans.length > 1 ? `, ${calendarName}` : ""}</dt><dd>{Math.round((busy / days) * 100)}%</dd></div>
         <div><dt>Sljedeće preuzimanje</dt><dd>{upcoming[0] ? shortDate(upcoming[0].start) : "—"}</dd></div>
         <div><dt>Potvrđeno, {MONTHS[m]!.toLowerCase()}</dt><dd>{km(monthRevenue)}</dd></div>
       </dl>
@@ -61,7 +72,10 @@ export function Overview({ bookings, blocks, onStatus, onRefresh }: Props) {
         </section>
         <section className="panel-dark mini" aria-labelledby="cal-h">
           <div className="t-bar" style={{ marginBottom: 14 }}>
-            <h2 id="cal-h" className="display" style={{ fontSize: 40 }}>{MONTHS[m]} {y}</h2>
+            <h2 id="cal-h" className="display" style={{ fontSize: 40 }}>
+              {MONTHS[m]} {y}
+              {vans.length > 1 && <span className="cal-van">{calendarName}</span>}
+            </h2>
             <div className="pager">
               <button type="button" aria-label="Prethodni mjesec" onClick={() => setOffset((o) => o - 1)}>←</button>
               <button type="button" aria-label="Sljedeći mjesec" onClick={() => setOffset((o) => o + 1)}>→</button>

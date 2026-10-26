@@ -11,40 +11,13 @@ export const SITE = {
   viberHref: "viber://chat?number=%2B387",
   whatsappHref: "https://wa.me/387",
   email: "[email]@kombi.ba",
-  cancellationDays: "[X]",
-  minDriverAge: "[21]",
-  minLicenseYears: "[2]",
   replyWithin: "[2 sata]",
-  included: ["[osiguranje]", "[PDV]", "[kilometraža]", "pomoć na putu 0–24h"],
 };
-
-export const VAN = {
-  name: "Toyota Proace Verso",
-  short: "Toyota Proace Verso 8+1",
-  year: 2024,
-  engine: "2.0 D-4D",
-  fuel: "Dizel",
-  gearbox: "Manuelni",
-  seats: 9,
-  license: "B",
-  length: "≈ 5 m",
-  height: "≈ 2 m",
-};
-
-/** Approximate road distances from Sarajevo. */
-export const DESTINATIONS: [string, string][] = [
-  ["Jahorina", "~30 km"],
-  ["Mostar", "~130 km"],
-  ["Neum", "~190 km"],
-  ["Makarska", "~240 km"],
-  ["Dubrovnik", "~270 km"],
-  ["Budva", "~290 km"],
-];
 
 export const FAQ: { q: string; a: string }[] = [
   {
     q: "Gdje preuzimam kombi?",
-    a: "Po dogovoru: na našoj lokaciji u Sarajevu, na vašoj adresi ili na Aerodromu Sarajevo.",
+    a: "Svaki kombi ima svoja mjesta preuzimanja, navedena na njegovoj stranici: lokacija vlasnika, vaša adresa ili aerodrom.",
   },
   {
     q: "Mogu li na more u Hrvatsku ili Crnu Goru?",
@@ -52,7 +25,7 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Moram li platiti unaprijed?",
-    a: "Ne. Pošaljete upit, mi potvrdimo termin, a plaćate pri preuzimanju.",
+    a: "Ne. Pošaljete upit, vlasnik kombija potvrdi termin, a plaćate pri preuzimanju.",
   },
   {
     q: "Kada dobijam depozit nazad?",
@@ -60,7 +33,7 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Koja vozačka dozvola mi treba?",
-    a: `B kategorija, najmanje ${SITE.minLicenseYears} godine vozačkog iskustva.`,
+    a: "Za većinu kombija B kategorija. Tačan uslov (godine vozača i vozačkog iskustva) piše pod „Uslovi najma“ na stranici kombija.",
   },
 ];
 
@@ -72,10 +45,10 @@ export const LANDINGS: Record<
   "najam-kombija-sarajevo": {
     title: "Najam kombija Sarajevo — 9 sjedišta, cijena odmah",
     description:
-      "Najam kombija u Sarajevu: Toyota Proace Verso 8+1, 2024. Slobodni termini i tačna cijena odmah, preuzimanje po dogovoru, bez plaćanja unaprijed.",
+      "Najam kombija u Sarajevu: kombiji za 8 i 9 osoba, bez vozača. Slobodni termini i tačna cijena odmah, preuzimanje po dogovoru, bez plaćanja unaprijed.",
     h1: ["Najam kombija", "u Sarajevu"],
     intro:
-      "Toyota Proace Verso 2024 za 9 osoba, bez vozača. Pogledajte slobodne dane u kalendaru i dobijte tačnu cijenu prije slanja upita.",
+      "Kombiji za 8 i 9 osoba, bez vozača. Odaberite datume, pogledajte koji su slobodni i tačnu cijenu prije slanja upita.",
   },
   "kombi-za-more": {
     title: "Kombi za more — iz Sarajeva do Makarske, Neuma, Budve",
@@ -88,7 +61,7 @@ export const LANDINGS: Record<
   "rent-a-kombi-aerodrom-sarajevo": {
     title: "Rent a kombi Aerodrom Sarajevo — preuzimanje na aerodromu",
     description:
-      "Kombi za 9 osoba čeka vas na Aerodromu Sarajevo. Idealno za porodice i grupe iz dijaspore. Rezervacija bez plaćanja unaprijed.",
+      "Kombi za cijelu porodicu čeka vas na Aerodromu Sarajevo. Idealno za porodice i grupe iz dijaspore. Rezervacija bez plaćanja unaprijed.",
     h1: ["Kombi na", "aerodromu"],
     intro:
       "Slijećete s porodicom ili grupom? Kombi vas čeka na Aerodromu Sarajevo, a vraćate ga tamo gdje se dogovorimo.",

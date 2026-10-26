@@ -15,6 +15,27 @@
       "when": 1792967896297,
       "tag": "0001_enable_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792968593291,
+      "tag": "0002_vans_and_owners",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792968605771,
+      "tag": "0003_drop_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792970606546,
+      "tag": "0004_van_terms",
+      "breakpoints": true
     }
   ]
 }

@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { MAX_EXTRAS, MAX_PICKUPS, type Settings } from "@kombi/shared";
-import { ApiError, api } from "@/lib/api";
+import { ApiError } from "@/lib/api";
 
 const num = (v: string) => (v === "" ? 0 : Math.max(0, Math.round(Number(v))));
 /** Key for a new option. Bookings keep the key, so it never changes once saved. */
 const newId = () => `o${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
-export function SettingsPanel({ settings, onSaved }: { settings: Settings; onSaved: (s: Settings) => void }) {
+/** A van's prices, seasons, extras and pickup places. */
+export function SettingsPanel({ settings, onSave }: { settings: Settings; onSave: (s: Settings) => Promise<Settings> }) {
   const [s, setS] = useState<Settings>(settings);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -19,9 +20,7 @@ export function SettingsPanel({ settings, onSaved }: { settings: Settings; onSav
     setBusy(true);
     setMsg(null);
     try {
-      const saved = await api<Settings>("/admin/settings", { method: "PUT", json: s });
-      onSaved(saved);
-      setS(saved);
+      setS(await onSave(s));
       setMsg({ ok: true, text: "Sačuvano. Nove cijene vrijede za nove upite." });
     } catch (e) {
       const text = e instanceof ApiError ? Object.entries(e.fields).map(([k, v]) => `${k}: ${v}`).join("; ") || e.message : "Nije sačuvano.";
@@ -41,7 +40,7 @@ export function SettingsPanel({ settings, onSaved }: { settings: Settings; onSav
   return (
     <>
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
-        <h1 className="display h-lg">Cijene</h1>
+        <h2 className="display h-md">Cijene</h2>
         <button type="button" className="btn-dark" onClick={save} disabled={busy}>
           {busy ? "Spremam…" : "Sačuvaj cijene"}
         </button>

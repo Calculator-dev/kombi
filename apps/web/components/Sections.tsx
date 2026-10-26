@@ -1,11 +1,22 @@
 import type { ReactNode } from "react";
-import type { Settings } from "@kombi/shared";
+import type { PublicVan, Settings, Terms } from "@kombi/shared";
 import { km } from "@/lib/format";
-import { DESTINATIONS, FAQ, SITE, VAN } from "@/lib/site";
-import { BookingWidget } from "./BookingWidget";
+import { FAQ, SITE } from "@/lib/site";
+import { Gallery } from "./Gallery";
 import { VanDrawing } from "./VanDrawing";
 
-export function Hero({ title, intro, settings }: { title: ReactNode; intro: string; settings: Settings }) {
+/** Title and intro on the left, the calendar ticket (passed in) on the right. */
+export function Hero({
+  title,
+  intro,
+  specs,
+  children,
+}: {
+  title: ReactNode;
+  intro: string;
+  specs: [string, string][];
+  children: ReactNode;
+}) {
   return (
     <section aria-labelledby="hero-title">
       <div className="wrap hero-title">
@@ -17,74 +28,46 @@ export function Hero({ title, intro, settings }: { title: ReactNode; intro: stri
         <div className="hero-copy">
           <p className="lead">{intro}</p>
           <dl className="specs">
-            <div><dt>Model</dt><dd>{VAN.name}</dd></div>
-            <div><dt>Od</dt><dd>{settings.dailyRate} KM / dan</dd></div>
-            <div><dt>Preuzimanje</dt><dd>Po dogovoru</dd></div>
-            <div><dt>Plaćanje</dt><dd>Pri preuzimanju</dd></div>
-            <div><dt>Granica</dt><dd>Hrvatska, Crna Gora, Srbija</dd></div>
+            {specs.map(([t, d]) => (
+              <div key={t}><dt>{t}</dt><dd>{d}</dd></div>
+            ))}
           </dl>
         </div>
-        <BookingWidget settings={settings} />
+        {children}
       </div>
     </section>
   );
 }
 
-export function VanSection() {
+/** Photos, specs and description of one van. */
+export function VanDetails({ van }: { van: PublicVan }) {
   return (
     <section id="kombi" className="section" aria-labelledby="kombi-h">
       <div className="wrap">
         <div className="van-head">
-          <h2 id="kombi-h" className="display h-lg">
-            {VAN.name}
-            <br />
-            8+1
-          </h2>
-          <p className="caption">Bočni profil, godište {VAN.year}</p>
+          <h2 id="kombi-h" className="display h-lg">O kombiju</h2>
+          <p className="caption">{van.location}, godište {van.year}</p>
         </div>
-        <VanDrawing />
+        {van.photos.length ? (
+          <Gallery photos={van.photos} name={van.name} />
+        ) : (
+          <VanDrawing label={van.name} />
+        )}
         <dl className="grid-specs">
-          <div><dt>Sjedišta</dt><dd>{VAN.seats}</dd></div>
-          <div><dt>Gorivo</dt><dd>{VAN.fuel}</dd></div>
-          <div><dt>Motor</dt><dd>{VAN.engine}</dd></div>
-          <div><dt>Mjenjač</dt><dd>{VAN.gearbox}</dd></div>
-          <div><dt>Godište</dt><dd>{VAN.year}</dd></div>
-          <div><dt>Dozvola</dt><dd>{VAN.license}</dd></div>
+          <div><dt>Sjedišta</dt><dd>{van.seats}</dd></div>
+          <div><dt>Gorivo</dt><dd>{van.fuel}</dd></div>
+          <div><dt>Mjenjač</dt><dd>{van.gearbox}</dd></div>
+          <div><dt>Godište</dt><dd>{van.year}</dd></div>
+          <div><dt>Dozvola</dt><dd>{van.license}</dd></div>
+          <div><dt>Motor</dt><dd>{van.engine || "—"}</dd></div>
         </dl>
-        {/* Replace with real photos: put files in /public/van and use next/image. */}
-        <div className="photos">
-          <div className="photo">[Foto] Eksterijer</div>
-          <div className="photo">[Foto] Sjedišta</div>
-          <div className="photo">[Foto] Prtljažnik</div>
-        </div>
+        {van.description && <p className="lead van-desc">{van.description}</p>}
       </div>
     </section>
   );
 }
 
-export function Destinations() {
-  return (
-    <section className="dest" aria-labelledby="dest-h">
-      <div className="wrap">
-        <h2 id="dest-h" className="display h-md">
-          Gdje ćete
-          <br />
-          ovaj put?
-        </h2>
-        <ul>
-          {DESTINATIONS.map(([place, dist]) => (
-            <li key={place}>
-              {place}
-              <span>{dist}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
-  );
-}
-
-export function Prices({ settings }: { settings: Settings }) {
+export function Prices({ settings, included }: { settings: Settings; included: string[] }) {
   const weekly = Math.round(settings.dailyRate * (1 - settings.weeklyDiscountPct / 100));
   const extra = (e: Settings["extras"][number]) =>
     e.perDay !== undefined ? `${e.perDay} KM/dan` : `${e.flat} KM`;
@@ -126,22 +109,31 @@ export function Prices({ settings }: { settings: Settings }) {
                 <div className="line" key={p.id}><span>{p.label}</span><span className="fill" /><b>{p.fee} KM</b></div>
               ))}
           </div>
-          <p className="included">Uključeno: {SITE.included.join(", ")}</p>
+          {included.length > 0 && <p className="included">Uključeno: {included.join(", ")}</p>}
         </div>
       </div>
     </section>
   );
 }
 
-export function Rules({ settings }: { settings: Settings }) {
+/** A van's rental terms, as its owner set them. */
+export function Rules({ terms, settings }: { terms: Terms; settings: Settings }) {
+  const years = (n: number) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? "godinu" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "godine" : "godina"}`;
   const rules: [string, string][] = [
-    ["Vozač", `Najmanje ${SITE.minDriverAge} godina i ${SITE.minLicenseYears} godine vozačke B kategorije.`],
-    ["Dokumenti", "Lična karta ili pasoš i vozačka dozvola."],
-    ["Gorivo", "Preuzimate pun rezervoar, vraćate pun rezervoar."],
-    ["Granica", "Najavite u upitu, pripremamo zeleni karton."],
-    ["Depozit", `${km(settings.deposit)} pri preuzimanju, vraća se pri povratku.`],
-    ["Otkazivanje", `Besplatno do ${SITE.cancellationDays} dana prije preuzimanja.`],
+    [
+      "Vozač",
+      `Najmanje ${years(terms.minDriverAge)}${terms.minLicenseYears ? ` i ${years(terms.minLicenseYears)} vozačke dozvole` : ""}.`,
+    ],
+    ["Dokumenti", terms.documents],
+    ["Gorivo", terms.fuel],
+    ["Granica", terms.border],
+    ["Depozit", `${km(settings.deposit)}, plaća se pri preuzimanju i vraća pri povratku.`],
+    [
+      "Otkazivanje",
+      terms.cancellationDays ? `Besplatno do ${terms.cancellationDays} dana prije preuzimanja.` : "Besplatno do dana prije preuzimanja.",
+    ],
   ];
+  if (terms.notes) rules.push(["Ostalo", terms.notes]);
   return (
     <section id="uslovi" className="section" aria-labelledby="uslovi-h">
       <div className="wrap split">
@@ -151,12 +143,14 @@ export function Rules({ settings }: { settings: Settings }) {
           najma
         </h2>
         <ul className="rules">
-          {rules.map(([t, d]) => (
-            <li key={t}>
-              <strong>{t}</strong>
-              <p>{d}</p>
-            </li>
-          ))}
+          {rules
+            .filter(([, d]) => d)
+            .map(([t, d]) => (
+              <li key={t}>
+                <strong>{t}</strong>
+                <p>{d}</p>
+              </li>
+            ))}
         </ul>
       </div>
     </section>
@@ -215,14 +209,10 @@ export function Contact() {
   );
 }
 
-/** Everything below the hero, shared by the homepage and landing pages. */
-export function PageBody({ settings }: { settings: Settings }) {
+/** Everything below the van list, shared by the homepage and landing pages. */
+export function PageBody() {
   return (
     <>
-      <VanSection />
-      <Destinations />
-      <Prices settings={settings} />
-      <Rules settings={settings} />
       <Faq />
       <Reviews />
       <Contact />

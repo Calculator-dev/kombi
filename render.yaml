@@ -24,10 +24,22 @@ services:
         sync: false
       - key: DATABASE_SSL
         value: require
-      - key: JWT_SECRET
-        generateValue: true
-      # Output of `npm run hash-password -- "..."`, WITHOUT the surrounding quotes.
-      - key: ADMIN_PASSWORD_HASH
+      # Logins: Supabase Auth of the same project.
+      - key: SUPABASE_URL
+        sync: false
+      # Comma-separated: these emails are platform admins (approve owners, see every van).
+      - key: PLATFORM_ADMIN_EMAILS
+        sync: false
+      # Van photos (Backblaze B2, S3-compatible).
+      - key: BACKBLAZE_ENDPOINT
+        sync: false
+      - key: BACKBLAZE_REGION
+        sync: false
+      - key: BACKBLAZE_KEY_ID
+        sync: false
+      - key: BACKBLAZE_APP_KEY
+        sync: false
+      - key: BACKBLAZE_BUCKET_NAME
         sync: false
       - key: WEB_ORIGIN
         value: https://kombi-web.onrender.com
@@ -55,3 +67,8 @@ services:
         value: https://kombi-api.onrender.com
       - key: NEXT_PUBLIC_SITE_URL
         value: https://kombi-web.onrender.com
+      # Supabase Auth in the admin panel. Both values are public (the publishable key, not the secret one).
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        sync: false

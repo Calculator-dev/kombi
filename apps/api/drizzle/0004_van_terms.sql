@@ -1,0 +1,1 @@
+ALTER TABLE "vans" ADD COLUMN "terms" jsonb DEFAULT '{}'::jsonb NOT NULL;

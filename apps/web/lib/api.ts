@@ -10,11 +10,15 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
-  const { json, ...rest } = init;
+export async function api<T>(path: string, init: RequestInit & { json?: unknown; token?: string } = {}): Promise<T> {
+  const { json, token, ...rest } = init;
   const res = await fetch(`/api${path}`, {
     ...rest,
-    headers: { ...(json !== undefined ? { "Content-Type": "application/json" } : {}), ...rest.headers },
+    headers: {
+      ...(json !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...rest.headers,
+    },
     body: json !== undefined ? JSON.stringify(json) : rest.body,
     credentials: "same-origin",
   });
@@ -29,4 +33,12 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
     );
   }
   return data as T;
+}
+
+/** Calls the admin API as the logged-in Supabase user. */
+export async function adminApi<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
+  const { supabase } = await import("./supabase");
+  const { data } = await supabase().auth.getSession();
+  if (!data.session) throw new ApiError(401, "unauthorized", "Prijavite se ponovo.");
+  return api<T>(`/admin${path}`, { ...init, token: data.session.access_token });
 }

@@ -1,4 +1,5 @@
 import type { ErrorRequestHandler } from "express";
+import { MulterError } from "multer";
 import { ZodError } from "zod";
 
 export class HttpError extends Error {
@@ -22,6 +23,11 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   }
   if (err instanceof HttpError) {
     res.status(err.status).json({ error: err.code, message: err.message });
+    return;
+  }
+  if (err instanceof MulterError) {
+    const message = err.code === "LIMIT_FILE_SIZE" ? "Fotografija je prevelika (najviše 15 MB)." : "Neispravan upload.";
+    res.status(400).json({ error: "upload_error", message });
     return;
   }
   if (err?.type === "entity.parse.failed") {
