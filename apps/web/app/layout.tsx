@@ -10,11 +10,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
   title: {
-    default: "Najam kombija Sarajevo — Toyota Proace Verso 8+1 | kombi.ba",
+    default: "Najam kombija u BiH — slobodni kombiji i cijena odmah | kombi.ba",
     template: "%s | kombi.ba",
   },
   description:
-    "Najam kombija u Sarajevu: Toyota Proace Verso 2024, 9 sjedišta, bez vozača. Slobodni termini i tačna cijena odmah. Preuzimanje po dogovoru, plaćanje pri preuzimanju.",
+    "Najam kombija za 8 i 9 osoba, bez vozača. Odaberite datume i odmah vidite slobodne kombije i tačnu cijenu. Plaćanje pri preuzimanju.",
   openGraph: { type: "website", locale: "bs_BA", siteName: SITE.name },
   formatDetection: { telephone: false },
 };

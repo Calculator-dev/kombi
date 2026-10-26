@@ -1,34 +1,32 @@
-import { and, asc, eq, gte, sql, type SQL } from "drizzle-orm";
-import { findPickup, quote, type BookingRequest, type BookingStatus, type Settings } from "@kombi/shared";
+import { and, asc, eq, gte, inArray, sql, type SQL } from "drizzle-orm";
+import { findPickup, quote, type BookingRequest, type BookingStatus } from "@kombi/shared";
 import { schema, type Database, type Executor } from "../db";
-import type { BookingRow } from "../db/schema";
+import type { BookingRow, UserRow, VanRow } from "../db/schema";
 import { HttpError } from "../errors";
-import { hasConflict, lockCalendar } from "./availability";
+import { hasConflict, lockVanCalendar } from "./availability";
+import { pricingOf } from "./vans";
 
-const { bookings } = schema;
+const { bookings, vans } = schema;
 
-export type Booking = BookingRow & { holdExpired: boolean };
+export type Booking = BookingRow & { holdExpired: boolean; vanName: string };
 
-function withHold(row: BookingRow): Booking {
+function withHold(row: BookingRow, vanName: string): Booking {
   return {
     ...row,
+    vanName,
     holdExpired: row.status === "pending" && row.holdUntil !== null && row.holdUntil.getTime() <= Date.now(),
   };
 }
 
-export async function createBooking(
-  db: Database,
-  req: BookingRequest,
-  settings: Settings,
-  today: string,
-): Promise<Booking> {
+export async function createBooking(db: Database, req: BookingRequest, van: VanRow, today: string): Promise<Booking> {
   if (req.start < today) throw new HttpError(400, "date_in_past", "Datum preuzimanja je u prošlosti.");
-  const q = quote(req, settings);
+  const pricing = pricingOf(van);
+  const q = quote(req, pricing);
   if (q.errors.length) throw new HttpError(400, "invalid_dates", q.errors.join(" "));
 
   return db.transaction(async (tx) => {
-    await lockCalendar(tx);
-    if (await hasConflict(tx, req.start, req.end)) {
+    await lockVanCalendar(tx, van.id);
+    if (await hasConflict(tx, van.id, req.start, req.end)) {
       throw new HttpError(409, "dates_taken", "Neko je upravo zauzeo ove datume. Odaberite druge.");
     }
     // Both drivers (node-postgres and PGlite) return { rows }.
@@ -38,6 +36,7 @@ export async function createBooking(
       .insert(bookings)
       .values({
         ref,
+        vanId: van.id,
         status: "pending",
         start: req.start,
         end: req.end,
@@ -50,50 +49,66 @@ export async function createBooking(
         notes: req.notes ?? null,
         extras: req.extras,
         pickup: req.pickup,
-        pickupAddress: findPickup(settings, req.pickup)?.detailsLabel ? (req.pickupAddress ?? null) : null,
+        pickupAddress: findPickup(pricing, req.pickup)?.detailsLabel ? (req.pickupAddress ?? null) : null,
         pickupTime: req.pickupTime ?? null,
         returnTime: req.returnTime ?? null,
         quote: q,
         total: q.total,
-        holdUntil: sql`now() + make_interval(hours => ${settings.pendingHoldHours}::int)`,
+        holdUntil: sql`now() + make_interval(hours => ${pricing.pendingHoldHours}::int)`,
       })
       .returning();
-    return withHold(row!);
+    return withHold(row!, van.name);
   });
+}
+
+/** Only bookings of vans this user manages (every van for an admin). */
+function ownedBy(user: UserRow): SQL | undefined {
+  return user.role === "admin" ? undefined : eq(vans.ownerId, user.id);
 }
 
 export async function listBookings(
   db: Executor,
-  opts: { status?: BookingStatus; upcoming?: boolean } = {},
+  user: UserRow,
+  opts: { status?: BookingStatus; upcoming?: boolean; vanId?: string } = {},
 ): Promise<Booking[]> {
-  const where: (SQL | undefined)[] = [
-    opts.status ? eq(bookings.status, opts.status) : undefined,
-    opts.upcoming ? gte(bookings.end, sql`current_date`) : undefined,
-  ];
   const rows = await db
-    .select()
+    .select({ b: bookings, vanName: vans.name })
     .from(bookings)
-    .where(and(...where))
+    .innerJoin(vans, eq(vans.id, bookings.vanId))
+    .where(
+      and(
+        ownedBy(user),
+        opts.vanId ? eq(bookings.vanId, opts.vanId) : undefined,
+        opts.status ? eq(bookings.status, opts.status) : undefined,
+        opts.upcoming ? gte(bookings.end, sql`current_date`) : undefined,
+      ),
+    )
     .orderBy(sql`case ${bookings.status} when 'pending' then 0 else 1 end`, asc(bookings.start))
     .limit(500);
-  return rows.map(withHold);
+  return rows.map((r) => withHold(r.b, r.vanName));
 }
 
-export async function getBooking(db: Executor, id: string): Promise<Booking | null> {
-  const [row] = await db.select().from(bookings).where(eq(bookings.id, id));
-  return row ? withHold(row) : null;
+/** The booking, if the user manages its van; otherwise "not found". */
+export async function getBooking(db: Executor, user: UserRow, id: string): Promise<Booking | null> {
+  const [row] = await db
+    .select({ b: bookings, vanName: vans.name })
+    .from(bookings)
+    .innerJoin(vans, eq(vans.id, bookings.vanId))
+    .where(and(eq(bookings.id, id), ownedBy(user)));
+  return row ? withHold(row.b, row.vanName) : null;
 }
 
-export async function setBookingStatus(db: Database, id: string, status: BookingStatus): Promise<Booking> {
+export async function setBookingStatus(db: Database, user: UserRow, id: string, status: BookingStatus): Promise<Booking> {
+  const found = await getBooking(db, user, id);
+  if (!found) throw new HttpError(404, "not_found", "Rezervacija ne postoji.");
   return db.transaction(async (tx) => {
-    await lockCalendar(tx);
-    const current = await getBooking(tx, id);
-    if (!current) throw new HttpError(404, "not_found", "Rezervacija ne postoji.");
+    await lockVanCalendar(tx, found.vanId);
+    const current = (await getBooking(tx, user, id))!;
     if (status === "pending" && current.status !== "pending") {
       throw new HttpError(400, "invalid_status", "Rezervacija se ne može vratiti na čekanje.");
     }
     if (status === "confirmed" && current.status !== "confirmed") {
-      if (await hasConflict(tx, current.start, current.end, id)) {
+      if (await hasConflict(tx, current.vanId, current.start, current.end, id)) {
         throw new HttpError(409, "dates_taken", "Ovi datumi su u međuvremenu zauzeti ili blokirani.");
       }
     }
@@ -102,6 +117,12 @@ export async function setBookingStatus(db: Database, id: string, status: Booking
       .set({ status, updatedAt: sql`now()`, holdUntil: status === "pending" ? current.holdUntil : null })
       .where(eq(bookings.id, id))
       .returning();
-    return withHold(row!);
+    return withHold(row!, current.vanName);
   });
+}
+
+export async function vanIdsWithBookings(db: Executor, vanIds: string[]): Promise<Set<string>> {
+  if (!vanIds.length) return new Set();
+  const rows = await db.selectDistinct({ id: bookings.vanId }).from(bookings).where(inArray(bookings.vanId, vanIds));
+  return new Set(rows.map((r) => r.id));
 }

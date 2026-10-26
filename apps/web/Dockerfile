@@ -11,7 +11,11 @@ COPY apps/web apps/web
 ARG NEXT_PUBLIC_SITE_URL=https://kombi.ba
 # Next.js bakes the /api/* rewrite target into the build, so the API address is needed here too.
 ARG API_URL=http://localhost:4000
-ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL API_URL=$API_URL NEXT_TELEMETRY_DISABLED=1
+# NEXT_PUBLIC_* values are compiled into the browser code, so they're needed at build time.
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL API_URL=$API_URL NEXT_TELEMETRY_DISABLED=1 \
+    NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 RUN npm run build --workspace @kombi/web
 
 FROM node:22-alpine

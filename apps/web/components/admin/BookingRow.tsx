@@ -36,7 +36,7 @@ export function BookingRow({
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <strong>{b.name}</strong>
           <span className="badge" data-s={s}>{STATUS[s]}</span>
-          <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{b.ref}</span>
+          <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{b.ref} · {b.vanName}</span>
         </div>
         <div className="meta">
           {shortDate(b.start)} → {shortDate(b.end)}, {b.quote.days} dana, <strong>{km(b.total)}</strong>

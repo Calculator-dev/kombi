@@ -1,5 +1,5 @@
 # Production-like stack: PostgreSQL + API + website.
-#   cp .env.example .env   (fill in JWT_SECRET and ADMIN_PASSWORD_HASH)
+#   fill in apps/api/.env (Supabase, Backblaze, PLATFORM_ADMIN_EMAILS)
 #   docker compose up -d --build
 # Put a reverse proxy with HTTPS (e.g. Caddy) in front of port 3000.
 services:
@@ -22,13 +22,20 @@ services:
     restart: unless-stopped
     depends_on:
       db: { condition: service_healthy }
-    env_file: .env
+    env_file: apps/api/.env
     environment:
       DATABASE_URL: postgres://kombi:${POSTGRES_PASSWORD:-change-me}@db:5432/kombi
+      DATABASE_SSL: "off"
       PORT: 4000
 
   web:
-    build: { context: ., dockerfile: apps/web/Dockerfile, args: { API_URL: http://api:4000 } }
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        API_URL: http://api:4000
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}
     restart: unless-stopped
     depends_on: [api]
     environment:

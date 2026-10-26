@@ -1,51 +1,56 @@
-import type { RequestHandler } from "express";
-import bcrypt from "bcryptjs";
-import { SignJWT, jwtVerify } from "jose";
+import type { RequestHandler, Response } from "express";
+import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 import type { Config } from "./config";
+import type { Db } from "./db";
+import type { UserRow } from "./db/schema";
 import { HttpError } from "./errors";
+import { ensureUser } from "./services/users";
 
-export const SESSION_COOKIE = "kombi_admin";
-const SESSION_DAYS = 7;
+/**
+ * Logins are handled by Supabase Auth (sign-up, email confirmation, password
+ * reset). The browser sends its Supabase access token; we check its signature
+ * against the project's public keys and look up (or create) our own user row.
+ */
+export function createAuth(config: Config, db: Db, keys?: JWTVerifyGetKey) {
+  const issuer = config.SUPABASE_URL ? `${config.SUPABASE_URL.replace(/\/$/, "")}/auth/v1` : undefined;
+  const jwks =
+    keys ??
+    (issuer ? createRemoteJWKSet(new URL(config.SUPABASE_JWKS_URL ?? `${issuer}/.well-known/jwks.json`)) : undefined);
 
-export function createAuth(config: Config) {
-  const key = new TextEncoder().encode(config.JWT_SECRET);
-
-  async function checkPassword(password: string): Promise<boolean> {
-    if (!config.ADMIN_PASSWORD_HASH) return false;
-    return bcrypt.compare(password, config.ADMIN_PASSWORD_HASH);
-  }
-
-  async function issue(): Promise<string> {
-    return new SignJWT({ role: "admin" })
-      .setProtectedHeader({ alg: "HS256" })
-      .setIssuedAt()
-      .setExpirationTime(`${SESSION_DAYS}d`)
-      .sign(key);
-  }
-
-  async function verify(token: string | undefined): Promise<boolean> {
-    if (!token) return false;
+  async function verify(token: string): Promise<{ id: string; email: string } | null> {
+    if (!jwks) return null;
     try {
-      const { payload } = await jwtVerify(token, key, { algorithms: ["HS256"] });
-      return payload.role === "admin";
+      const { payload } = await jwtVerify(token, jwks, { issuer, audience: "authenticated" });
+      if (typeof payload.sub !== "string" || typeof payload.email !== "string" || !payload.email) return null;
+      return { id: payload.sub, email: payload.email };
     } catch {
-      return false;
+      return null;
     }
   }
 
-  const cookieOptions = {
-    httpOnly: true,
-    sameSite: "lax" as const,
-    secure: config.NODE_ENV === "production",
-    path: "/",
-    maxAge: SESSION_DAYS * 86_400_000,
+  const requireUser: RequestHandler = async (req, res, next) => {
+    try {
+      const token = req.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
+      const claims = token ? await verify(token) : null;
+      if (!claims) throw new HttpError(401, "unauthorized", "Prijavite se ponovo.");
+      const user = await ensureUser(db.orm, claims, config.PLATFORM_ADMIN_EMAILS);
+      if (user.status === "suspended") throw new HttpError(403, "suspended", "Vaš račun je suspendovan. Kontaktirajte nas.");
+      res.locals.user = user;
+      next();
+    } catch (err) {
+      next(err);
+    }
   };
 
-  const requireAdmin: RequestHandler = async (req, _res, next) => {
-    if (await verify(req.cookies?.[SESSION_COOKIE])) return next();
-    next(new HttpError(401, "unauthorized", "Prijavite se ponovo."));
+  const requireAdmin: RequestHandler = (_req, res, next) => {
+    next(currentUser(res).role === "admin" ? undefined : new HttpError(403, "forbidden", "Samo za administratore."));
   };
 
-  return { checkPassword, issue, verify, requireAdmin, cookieOptions };
+  return { verify, requireUser, requireAdmin };
 }
 export type Auth = ReturnType<typeof createAuth>;
+
+/** The logged-in user; only valid after `requireUser`. */
+export function currentUser(res: Response): UserRow {
+  return res.locals.user as UserRow;
+}

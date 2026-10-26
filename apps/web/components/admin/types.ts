@@ -1,8 +1,25 @@
-import type { BookingStatus, Quote } from "@kombi/shared";
+import type { BookingStatus, PublicVan, Quote, UserRole, UserStatus, VanStatus } from "@kombi/shared";
+
+export interface Me {
+  id: string;
+  email: string;
+  name: string | null;
+  phone: string | null;
+  role: UserRole;
+  status: UserStatus;
+}
+
+export interface OwnerVan extends PublicVan {
+  status: VanStatus;
+  ownerId: string | null;
+  updatedAt: string;
+}
 
 export interface AdminBooking {
   id: string;
   ref: string;
+  vanId: string;
+  vanName: string;
   status: BookingStatus;
   start: string;
   end: string;
@@ -26,6 +43,7 @@ export interface AdminBooking {
 
 export interface Block {
   id: string;
+  vanId: string;
   start: string;
   end: string;
   reason: string | null;

@@ -1,28 +1,37 @@
 # kombi.ba
 
-Website for renting a van (Toyota Proace Verso 8+1) in Sarajevo: live availability
-calendar, instant price, booking requests, and an admin panel for the owner.
+Marketplace for renting vans in Bosnia and Herzegovina: van owners list their vans with
+photos and prices, customers pick dates, see which vans are free and the exact price,
+and send a booking request.
 
 | Part | Tech | Folder |
 | --- | --- | --- |
 | Website | Next.js 16 (App Router) + TypeScript | `apps/web` |
 | API | Node.js 22 + Express 5 + TypeScript | `apps/api` |
 | Shared logic | Pricing, dates, validation (Zod), used by both | `packages/shared` |
-| Database | PostgreSQL via **Drizzle ORM** (PGlite embedded Postgres in development and tests) | `apps/api/src/db` |
+| Database | PostgreSQL via **Drizzle ORM** (Supabase in production, PGlite embedded Postgres in tests) | `apps/api/src/db` |
+| Logins | **Supabase Auth** (sign-up, email confirmation, password reset) | `apps/api/src/auth.ts` |
+| Photos | **Backblaze B2** (S3-compatible), resized to WebP by the API | `apps/api/src/services/storage.ts` |
 
 ## How it works
 
-1. A visitor picks pickup and return dates in the calendar. Taken days are crossed out.
+1. A visitor picks dates on the homepage and sees which vans are free then, with the
+   exact price of each. On a van's page, its taken days are crossed out.
 2. The price is calculated instantly in the browser with the **same function** the API
    uses, so the number they see is the number that gets stored.
-3. They choose extras and a pickup place (our location, their address, or the airport),
+3. They choose the van's extras and a pickup place (each owner sets their own),
    fill in driver details and send a request. **No payment online**; they pay at pickup.
 4. The request **holds the dates** (24 h by default) so nobody else can take them while
-   the owner decides. The owner gets an email, then confirms or declines in `/admin`.
+   the owner decides. The van's owner gets an email, then confirms or declines in `/admin`.
 5. The customer gets an email when the booking is confirmed.
 
 Double bookings are impossible: every booking write runs in a transaction behind a
-Postgres advisory lock, and both pending holds and confirmed bookings block dates.
+Postgres advisory lock per van, and both pending holds and confirmed bookings block dates.
+
+**Owners and admins:** anyone can sign up at `/admin` as a van owner, add vans, photos and
+prices. Their vans appear on the site once a platform admin (emails in
+`PLATFORM_ADMIN_EMAILS`) approves them under "Vlasnici". Owners only ever see their own
+vans, bookings and blocked days; admins see everything.
 
 **Dates:** the van is occupied from the pickup day through the return day (inclusive),
 and the customer pays for `return − pickup` days. Example: 21 → 24 October = 3 days.
@@ -34,18 +43,20 @@ Requirements: Node.js 22.12 or newer. No database installation needed.
 ```bash
 npm install
 
-# 1. Create an admin password (min. 10 characters)
-npm run hash-password -- "choose-a-strong-password"
+# 1. Configure the API and the website
+cp apps/api/.env.example apps/api/.env      # Supabase, Backblaze, your email in PLATFORM_ADMIN_EMAILS
+cp apps/web/.env.example apps/web/.env.local  # Supabase URL + publishable key
 
-# 2. Configure the API
-cp apps/api/.env.example apps/api/.env
-#    paste the ADMIN_PASSWORD_HASH line into apps/api/.env
-
-# 3. Start API (port 4000) and website (port 3000)
+# 2. Start API (port 4000) and website (port 3000)
 npm run dev
 ```
 
 Open http://localhost:3000 for the site and http://localhost:3000/admin for the admin panel.
+Sign up there with an email from `PLATFORM_ADMIN_EMAILS` to become an admin.
+
+In Supabase → Authentication → URL Configuration, add `http://localhost:3000/admin` and
+your production `/admin` address to the redirect URLs, so confirmation and password-reset
+links lead back to the admin panel.
 On Windows, run `npm run dev:api` and `npm run dev:web` in two terminals instead.
 
 Without `DATABASE_URL`, the API uses an embedded Postgres stored in `apps/api/data/`.
@@ -132,16 +143,14 @@ and create a Google Business Profile.
 
 ## Deploying
 
-**Option A, one server (e.g. a VPS in the EU):** copy `.env.example` to `.env`, fill in
-`JWT_SECRET`, `ADMIN_PASSWORD_HASH` and SMTP, then `docker compose up -d --build`. Put Caddy
-or Nginx in front of port 3000 for HTTPS.
+**Option A, Render:** `render.yaml` sets up the API and website; the database is Supabase.
+Fill in the variables it asks for (Supabase, Backblaze, `PLATFORM_ADMIN_EMAILS`).
 
-**Option B, managed:** website on Vercel (set `API_URL` and `NEXT_PUBLIC_SITE_URL`), API on
-Railway/Render/Fly with a managed PostgreSQL (set the variables from `apps/api/.env.example`,
-with `NODE_ENV=production`).
+**Option B, one server (e.g. a VPS in the EU):** fill in `apps/api/.env`, then
+`docker compose up -d --build`. Put Caddy or Nginx in front of port 3000 for HTTPS.
 
-In production the API refuses to start without `DATABASE_URL`, `JWT_SECRET` and
-`ADMIN_PASSWORD_HASH`.
+In production the API refuses to start without `DATABASE_URL`, `SUPABASE_URL` and the
+Backblaze variables.
 
 ## Next steps
 

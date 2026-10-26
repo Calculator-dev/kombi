@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   addDays,
@@ -17,7 +18,10 @@ import { api } from "@/lib/api";
 import { MONTHS, km, shortDate } from "@/lib/format";
 
 interface Props {
-  settings: Settings;
+  /** With a van: its free days and exact price. Without: pick dates to search all vans. */
+  van?: { id: string; slug: string; pricing: Settings };
+  initialStart?: IsoDate;
+  initialEnd?: IsoDate;
 }
 
 function monthStart(base: IsoDate, offset: number): { y: number; m: number; first: IsoDate } {
@@ -32,25 +36,34 @@ function daysInMonth(y: number, m: number) {
   return new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
 }
 
-/** The ticket: availability calendar + live price. */
-export function BookingWidget({ settings }: Props) {
+/** The ticket: a calendar to pick dates, with a van's availability and live price. */
+export function BookingWidget({ van, initialStart, initialEnd }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [today, setToday] = useState<IsoDate>(() => todayIn());
   const [offset, setOffset] = useState(0);
-  const [start, setStart] = useState<IsoDate | null>(null);
-  const [end, setEnd] = useState<IsoDate | null>(null);
+  const [start, setStart] = useState<IsoDate | null>(initialStart ?? null);
+  const [end, setEnd] = useState<IsoDate | null>(initialEnd ?? null);
   const [taken, setTaken] = useState<Set<IsoDate>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(van));
   const [loadError, setLoadError] = useState(false);
+  const settings = van?.pricing;
+
+  useEffect(() => {
+    setStart(initialStart ?? null);
+    setEnd(initialEnd ?? null);
+  }, [initialStart, initialEnd]);
 
   const months = useMemo(() => [monthStart(today, offset), monthStart(today, offset + 1)], [today, offset]);
 
   useEffect(() => {
+    if (!van) return;
     const from = months[0]!.first;
     const last = months[1]!;
     const to = `${last.first.slice(0, 8)}${String(daysInMonth(last.y, last.m)).padStart(2, "0")}`;
     let cancelled = false;
     setLoading(true);
-    api<Availability & { today: IsoDate }>(`/availability?from=${from}&to=${to}`)
+    api<Availability & { today: IsoDate }>(`/vans/${van.slug}/availability?from=${from}&to=${to}`)
       .then((a) => {
         if (cancelled) return;
         setTaken((prev) => new Set([...prev, ...a.unavailable]));
@@ -62,7 +75,7 @@ export function BookingWidget({ settings }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [months]);
+  }, [months, van]);
 
   function pick(d: IsoDate) {
     if (!start || end || d <= start) {
@@ -78,19 +91,27 @@ export function BookingWidget({ settings }: Props) {
     setEnd(d);
   }
 
-  const q = start && end ? quote({ start, end }, settings) : null;
-  const ready = q !== null && q.errors.length === 0;
+  const q = start && end && settings ? quote({ start, end }, settings) : null;
+  const ready = van ? q !== null && q.errors.length === 0 : Boolean(start && end);
+  const days = start && end ? Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000) : 0;
+
+  function search() {
+    if (!start || !end) return;
+    router.replace(`${pathname}?start=${start}&end=${end}`, { scroll: false });
+    document.getElementById("kombiji")?.scrollIntoView({ behavior: "smooth" });
+  }
 
   let hint = "Odaberite dan preuzimanja";
   if (loadError) hint = "Kalendar se nije učitao. Osvježite stranicu ili nas kontaktirajte.";
   else if (start && !end) hint = "Sada odaberite dan povratka";
   else if (q?.errors.length) hint = q.errors[0]!;
   else if (q) hint = `${q.days} ${dayWord(q.days)} — kliknite za promjenu`;
+  else if (start && end) hint = `${days} ${dayWord(days)} — kliknite za promjenu`;
 
   return (
     <section id="rezervacija" className="ticket" aria-labelledby="ticket-title">
       <div className="t-head">
-        <span id="ticket-title">Rezervacija</span>
+        <span id="ticket-title">{van ? "Rezervacija" : "Kada vam treba kombi?"}</span>
         <span>Bez vozača</span>
       </div>
       <div className="t-dates">
@@ -171,58 +192,72 @@ export function BookingWidget({ settings }: Props) {
 
         <div className="legend">
           <span><i className="free" />Slobodno</span>
-          <span><i className="taken" />Zauzeto</span>
+          {van && <span><i className="taken" />Zauzeto</span>}
           <span><i className="mine" />Vaši datumi</span>
         </div>
       </div>
 
-      <div className="receipt" aria-live="polite">
-        {q && q.rentalLines.length ? (
-          q.rentalLines.map((l) => (
-            <div className="line" key={l.rate}>
-              <span>{l.label}</span>
+      {van && settings ? (
+        <>
+          <div className="receipt" aria-live="polite">
+            {q && q.rentalLines.length ? (
+              q.rentalLines.map((l) => (
+                <div className="line" key={l.rate}>
+                  <span>{l.label}</span>
+                  <span className="fill" />
+                  <span>{km(l.amount)}</span>
+                </div>
+              ))
+            ) : (
+              <div className="line">
+                <span>Najam od {settings.dailyRate} KM/dan</span>
+                <span className="fill" />
+                <span>—</span>
+              </div>
+            )}
+            {q && q.discount > 0 && (
+              <div className="line minus">
+                <span>Popust 7+ dana −{q.discountPct}%</span>
+                <span className="fill" />
+                <span>−{km(q.discount)}</span>
+              </div>
+            )}
+            <div className="line dim">
+              <span>Depozit (vraća se)</span>
               <span className="fill" />
-              <span>{km(l.amount)}</span>
+              <span>{km(settings.deposit)}</span>
             </div>
-          ))
-        ) : (
-          <div className="line">
-            <span>Najam od {settings.dailyRate} KM/dan</span>
-            <span className="fill" />
-            <span>—</span>
           </div>
-        )}
-        {q && q.discount > 0 && (
-          <div className="line minus">
-            <span>Popust 7+ dana −{q.discountPct}%</span>
-            <span className="fill" />
-            <span>−{km(q.discount)}</span>
-          </div>
-        )}
-        <div className="line dim">
-          <span>Depozit (vraća se)</span>
-          <span className="fill" />
-          <span>{km(settings.deposit)}</span>
-        </div>
-      </div>
 
-      <div className="t-foot">
-        <div className="t-total">
-          <span className="t-label">Ukupno</span>
-          <span>
-            <strong>{km(ready ? q.total : 0)}</strong>
-            <small>≈ {kmToEur(ready ? q.total : 0)} €</small>
-          </span>
+          <div className="t-foot">
+            <div className="t-total">
+              <span className="t-label">Ukupno</span>
+              <span>
+                <strong>{km(ready && q ? q.total : 0)}</strong>
+                <small>≈ {kmToEur(ready && q ? q.total : 0)} €</small>
+              </span>
+            </div>
+            <Link
+              className="btn-accent"
+              href={ready ? `/rezervacija?van=${van.slug}&start=${start}&end=${end}` : "#rezervacija"}
+              aria-disabled={!ready}
+              tabIndex={ready ? undefined : -1}
+            >
+              Pošalji upit <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+        </>
+      ) : (
+        <div className="t-foot">
+          <div className="t-total">
+            <span className="t-label">Period</span>
+            <span><strong>{ready ? `${days} ${dayWord(days)}` : "—"}</strong></span>
+          </div>
+          <button type="button" className="btn-accent" disabled={!ready} onClick={search}>
+            Slobodni kombiji <span aria-hidden="true">→</span>
+          </button>
         </div>
-        <Link
-          className="btn-accent"
-          href={ready ? `/rezervacija?start=${start}&end=${end}` : "#rezervacija"}
-          aria-disabled={!ready}
-          tabIndex={ready ? undefined : -1}
-        >
-          Pošalji upit <span aria-hidden="true">→</span>
-        </Link>
-      </div>
+      )}
     </section>
   );
 }

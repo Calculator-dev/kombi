@@ -3,7 +3,8 @@ import type { Config } from "../config";
 import type { Booking } from "./bookings";
 
 export interface Notifier {
-  bookingRequested(b: Booking): Promise<void>;
+  /** `ownerEmail`: the van's owner; null for vans the platform runs itself. */
+  bookingRequested(b: Booking, ownerEmail: string | null): Promise<void>;
   bookingConfirmed(b: Booking): Promise<void>;
 }
 
@@ -40,12 +41,14 @@ export function createNotifier(config: Config): Notifier {
   }
 
   return {
-    async bookingRequested(b) {
+    async bookingRequested(b, ownerEmail) {
+      // The owner decides; the platform gets a copy.
+      const to = [...new Set([ownerEmail, config.OWNER_EMAIL].filter((e): e is string => Boolean(e)))].join(", ");
       await send(
-        config.OWNER_EMAIL,
-        `Novi upit ${b.ref}: ${fmt(b.start)} – ${fmt(b.end)}, ${b.total} KM`,
+        to || undefined,
+        `Novi upit ${b.ref} za ${b.vanName}: ${fmt(b.start)} – ${fmt(b.end)}, ${b.total} KM`,
         [
-          `${b.name} šalje upit za ${fmt(b.start)} – ${fmt(b.end)} (${b.quote.days} dana).`,
+          `${b.name} šalje upit za ${b.vanName}, ${fmt(b.start)} – ${fmt(b.end)} (${b.quote.days} dana).`,
           `Ukupno: ${b.total} KM`,
           b.quote.extraLines.length ? `Dodaci: ${b.quote.extraLines.map((l) => l.label).join(", ")}` : "",
           `Kontakt: ${b.phone} (${CHANNEL[b.contactChannel] ?? b.contactChannel}), ${b.email}`,
@@ -60,7 +63,7 @@ export function createNotifier(config: Config): Notifier {
       await send(
         b.email,
         `kombi.ba — primili smo vaš upit ${b.ref}`,
-        `Zdravo ${b.name},\n\nprimili smo upit za ${fmt(b.start)} – ${fmt(b.end)}, ukupno ${b.total} KM.\n` +
+        `Zdravo ${b.name},\n\nprimili smo upit za ${b.vanName}, ${fmt(b.start)} – ${fmt(b.end)}, ukupno ${b.total} KM.\n` +
           `Termin čuvamo za vas dok ga ne potvrdimo. Javit ćemo vam se uskoro.\n\nkombi.ba`,
       );
     },
@@ -68,7 +71,7 @@ export function createNotifier(config: Config): Notifier {
       await send(
         b.email,
         `kombi.ba — rezervacija ${b.ref} je potvrđena`,
-        `Zdravo ${b.name},\n\nvaša rezervacija za ${fmt(b.start)} – ${fmt(b.end)} je potvrđena.\n` +
+        `Zdravo ${b.name},\n\nvaša rezervacija za ${b.vanName}, ${fmt(b.start)} – ${fmt(b.end)} je potvrđena.\n` +
           `Ukupno: ${b.total} KM, depozit ${b.quote.deposit} KM pri preuzimanju.\n` +
           `Javit ćemo vam se da dogovorimo tačno mjesto i vrijeme preuzimanja.\n\nkombi.ba`,
       );

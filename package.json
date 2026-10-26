@@ -2,7 +2,7 @@
   "name": "kombi",
   "private": true,
   "version": "0.1.0",
-  "description": "kombi.ba — najam kombija u Sarajevu",
+  "description": "kombi.ba \u2014 najam kombija u Sarajevu",
   "workspaces": [
     "packages/*",
     "apps/*"
@@ -18,8 +18,7 @@
     "start:api": "npm run start --workspace @kombi/api",
     "start:web": "npm run start --workspace @kombi/web",
     "test": "npm run test --workspace @kombi/shared && npm run test --workspace @kombi/api",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "hash-password": "npm run hash-password --workspace @kombi/api --"
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
     "@types/node": "22.20.5",

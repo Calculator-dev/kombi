@@ -8,11 +8,11 @@ import {
   findPickup,
   quote,
   type ContactChannel,
-  type Settings,
+  type PublicVan,
 } from "@kombi/shared";
 import { ApiError, api } from "@/lib/api";
 import { km, shortDate } from "@/lib/format";
-import { SITE, VAN } from "@/lib/site";
+import { SITE } from "@/lib/site";
 import { Logo } from "./Header";
 
 const TIMES = Array.from({ length: 13 }, (_, i) => `${String(8 + i).padStart(2, "0")}:00`);
@@ -21,7 +21,7 @@ const tag = (i: number) => String.fromCharCode(65 + i); // A, B, C…
 const STEPS = ["Dodaci", "Vozač", "Potvrda"];
 
 interface Props {
-  settings: Settings;
+  van: PublicVan;
   start: string;
   end: string;
 }
@@ -41,7 +41,8 @@ interface Form {
   website: string;
 }
 
-export function BookingFlow({ settings, start, end }: Props) {
+export function BookingFlow({ van, start, end }: Props) {
+  const settings = van.pricing;
   const [step, setStep] = useState(1);
   const [extras, setExtras] = useState<string[]>([]);
   const [pickup, setPickup] = useState<string>(() => settings.pickup.find((p) => p.enabled)?.id ?? "");
@@ -78,6 +79,7 @@ export function BookingFlow({ settings, start, end }: Props) {
 
   function payload() {
     return {
+      vanId: van.id,
       start,
       end,
       extras,
@@ -269,7 +271,7 @@ export function BookingFlow({ settings, start, end }: Props) {
                 <label className="check">
                   <input type="checkbox" checked={form.acceptTerms} onChange={(e) => set("acceptTerms", e.target.checked)} />
                   <span>
-                    Prihvatam <Link href="/#uslovi" target="_blank">uslove najma</Link>.
+                    Prihvatam <Link href={`/kombi/${van.slug}#uslovi`} target="_blank">uslove najma</Link> za ovaj kombi.
                   </span>
                 </label>
                 {errors.acceptTerms && <span className="field-error">{errors.acceptTerms}</span>}
@@ -299,14 +301,14 @@ export function BookingFlow({ settings, start, end }: Props) {
           {failure && (
             <p className="alert" role="alert">
               {failure.message}{" "}
-              {failure.taken && <Link href="/#rezervacija">Odaberite druge datume</Link>}
+              {failure.taken && <Link href={`/kombi/${van.slug}#rezervacija`}>Odaberite druge datume</Link>}
             </p>
           )}
 
           {step < 3 && (
             <div className="actions">
               {step === 1 ? (
-                <Link className="btn-ghost" href="/#rezervacija">Promijeni datume</Link>
+                <Link className="btn-ghost" href={`/kombi/${van.slug}?start=${start}&end=${end}#rezervacija`}>Promijeni datume</Link>
               ) : (
                 <button type="button" className="btn-ghost" onClick={() => setStep(1)}>Nazad</button>
               )}
@@ -330,9 +332,13 @@ export function BookingFlow({ settings, start, end }: Props) {
         <aside aria-label="Pregled rezervacije">
           <div className="t-head"><span>Vaš upit</span><span>Bez vozača</span></div>
           <div style={{ padding: 20, borderBottom: "1px dashed var(--dark-line)" }}>
-            <div className="display" style={{ fontSize: 40, lineHeight: 0.95 }}>{VAN.short}</div>
+            {van.photos[0] && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className="aside-photo" src={van.photos[0].thumbUrl} alt="" width={640} height={480} />
+            )}
+            <div className="display" style={{ fontSize: 40, lineHeight: 0.95 }}>{van.name}</div>
             <div className="mono" style={{ marginTop: 8, fontSize: 13, color: "var(--dark-muted)" }}>
-              {VAN.year}, {VAN.engine} {VAN.fuel.toLowerCase()}, {VAN.gearbox.toLowerCase()}
+              {[van.year, van.engine, van.fuel.toLowerCase(), van.gearbox.toLowerCase(), van.location].filter(Boolean).join(", ")}
             </div>
           </div>
           <div className="t-dates">
