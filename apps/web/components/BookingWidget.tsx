@@ -15,13 +15,16 @@ import {
   type Settings,
 } from "@kombi/shared";
 import { api } from "@/lib/api";
+import { trackEcommerce, type TrackedVan } from "@/lib/analytics";
 import { MONTHS, km, shortDate } from "@/lib/format";
 
 interface Props {
   /** With a van: its free days and exact price. Without: pick dates to search all vans. */
-  van?: { id: string; slug: string; pricing: Settings };
+  van?: Partial<TrackedVan> & { id: string; slug: string; pricing: Settings };
   initialStart?: IsoDate;
   initialEnd?: IsoDate;
+  /** Search mode on /kombiji: called after new dates are applied (e.g. to close the panel). */
+  onSearched?: () => void;
 }
 
 function monthStart(base: IsoDate, offset: number): { y: number; m: number; first: IsoDate } {
@@ -37,7 +40,7 @@ function daysInMonth(y: number, m: number) {
 }
 
 /** The ticket: a calendar to pick dates, with a van's availability and live price. */
-export function BookingWidget({ van, initialStart, initialEnd }: Props) {
+export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const [today, setToday] = useState<IsoDate>(() => todayIn());
@@ -95,10 +98,20 @@ export function BookingWidget({ van, initialStart, initialEnd }: Props) {
   const ready = van ? q !== null && q.errors.length === 0 : Boolean(start && end);
   const days = start && end ? Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000) : 0;
 
+  /** Opens the search with these dates; on /kombiji itself, keeps the filters already set. */
   function search() {
     if (!start || !end) return;
-    router.replace(`${pathname}?start=${start}&end=${end}`, { scroll: false });
-    document.getElementById("kombiji")?.scrollIntoView({ behavior: "smooth" });
+    const onSearch = pathname === "/kombiji";
+    const params = new URLSearchParams(onSearch ? window.location.search : "");
+    params.set("start", start);
+    params.set("end", end);
+    params.delete("page");
+    if (onSearch) {
+      router.replace(`/kombiji?${params}`, { scroll: false });
+      onSearched?.();
+    } else {
+      router.push(`/kombiji?${params}`);
+    }
   }
 
   let hint = "Odaberite dan preuzimanja";
@@ -242,6 +255,10 @@ export function BookingWidget({ van, initialStart, initialEnd }: Props) {
               href={ready ? `/rezervacija?van=${van.slug}&start=${start}&end=${end}` : "#rezervacija"}
               aria-disabled={!ready}
               tabIndex={ready ? undefined : -1}
+              onClick={() =>
+                ready && q && van.name &&
+                trackEcommerce("begin_checkout", [van as TrackedVan], { value: q.total, prices: [q.total], start_date: start, end_date: end, days: q.days })
+              }
             >
               Pošalji upit <span aria-hidden="true">→</span>
             </Link>

@@ -10,6 +10,7 @@ import {
   optionId,
   quote,
   todayIn,
+  vanSearchSchema,
   type VanCard,
 } from "@kombi/shared";
 import type { Deps } from "../app";
@@ -17,7 +18,7 @@ import { HttpError } from "../errors";
 import { busyVans, unavailableDates } from "../services/availability";
 import { createBooking } from "../services/bookings";
 import { getUser } from "../services/users";
-import { getPublicVan, listPublicVans, pricingOf, toCard, toPublicVan } from "../services/vans";
+import { getPublicVan, listPublicVans, pricingOf, searchVans, toCard, toPublicVan } from "../services/vans";
 
 const isoDate = z.string().refine(isIsoDate, "Neispravan datum");
 const slug = z.string().regex(/^[a-z0-9-]{1,80}$/);
@@ -56,6 +57,13 @@ export function publicRoutes({ db, config, notifier, storage, now }: Deps): Rout
     }
     res.set("Cache-Control", dates ? "no-store" : "public, max-age=60");
     res.json(cards);
+  });
+
+  /** The /kombiji search: filters, sorting and pages (see vanSearchSchema). */
+  r.get("/search", async (req, res) => {
+    const q = vanSearchSchema.parse(req.query);
+    res.set("Cache-Control", q.start ? "no-store" : "public, max-age=60");
+    res.json(await searchVans(db.orm, storage, q));
   });
 
   r.get("/vans/:slug", async (req, res) => {

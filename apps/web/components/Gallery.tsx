@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PhotoUrls } from "@kombi/shared";
+import { track as trackEvent } from "@/lib/analytics";
 
 /**
  * A van's photos: the cover and thumbnails on the page; clicking one opens a
@@ -22,6 +23,7 @@ export function Gallery({ photos, name }: { photos: PhotoUrls[]; name: string })
   }, [photos.length]);
 
   function open(i: number) {
+    trackEvent("view_photos", { item_name: name, photo_index: i + 1, photo_count: photos.length });
     setIndex(i);
     dialog.current?.showModal();
     // The page behind shouldn't scroll (or show its scrollbar) while the viewer is open.

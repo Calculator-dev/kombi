@@ -11,6 +11,7 @@ import {
   type PublicVan,
 } from "@kombi/shared";
 import { ApiError, api } from "@/lib/api";
+import { track, trackEcommerce } from "@/lib/analytics";
 import { km, shortDate } from "@/lib/format";
 import { SITE } from "@/lib/site";
 import { Logo } from "./Header";
@@ -113,7 +114,10 @@ export function BookingFlow({ van, start, end }: Props) {
   async function next() {
     setFailure(null);
     if (step === 1) {
-      if (validate(["pickupAddress"])) setStep(2);
+      if (validate(["pickupAddress"])) {
+        setStep(2);
+        track("checkout_progress", { checkout_step: 2, item_id: van.slug, extras: extras.join(","), pickup, value: q.total });
+      }
       return;
     }
     if (!validate(["name", "email", "phone", "birthDate", "licenseSince", "notes", "acceptTerms"])) return;
@@ -122,8 +126,19 @@ export function BookingFlow({ van, start, end }: Props) {
       const res = await api<{ ref: string; total: number }>("/bookings", { method: "POST", json: payload() });
       setDone(res);
       setStep(3);
+      // A request, not a payment: GA4's "generate_lead". The booking number is not personal data.
+      trackEcommerce("generate_lead", [{ ...van, dailyRate: van.pricing.dailyRate }], {
+        value: res.total,
+        prices: [res.total],
+        transaction_id: res.ref,
+        start_date: start,
+        end_date: end,
+        days: q.days,
+        contact_channel: form.contactChannel,
+      });
       window.scrollTo({ top: 0 });
     } catch (e) {
+      track("booking_error", { item_id: van.slug, error_code: e instanceof ApiError ? e.code : "network" });
       if (e instanceof ApiError) {
         setErrors(e.fields);
         setFailure({ message: e.message, taken: e.code === "dates_taken" });

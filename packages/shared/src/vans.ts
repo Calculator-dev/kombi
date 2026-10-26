@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isIsoDate } from "./dates";
 import type { Quote } from "./pricing";
 import type { Settings } from "./settings";
 
@@ -17,6 +18,23 @@ export const GEARBOXES = ["Manuelni", "Automatski"] as const;
 
 export const MAX_PHOTOS = 12;
 
+/** Equipment a van can have; customers can filter by it. */
+export const FEATURES = [
+  ["ac", "Klima"],
+  ["towbar", "Kuka za prikolicu"],
+  ["roofRack", "Krovni nosač"],
+  ["isofix", "ISOFIX"],
+  ["navigation", "Navigacija"],
+  ["carplay", "Apple CarPlay / Android Auto"],
+  ["cruise", "Tempomat"],
+  ["parkingSensors", "Parking senzori"],
+  ["rearCamera", "Kamera za vožnju unazad"],
+  ["winterTyres", "Zimske gume"],
+] as const;
+export type FeatureId = (typeof FEATURES)[number][0];
+export const FEATURE_IDS = FEATURES.map(([id]) => id) as [FeatureId, ...FeatureId[]];
+export const featureLabel = (id: string) => FEATURES.find(([f]) => f === id)?.[1] ?? id;
+
 /** What an owner fills in about a van. */
 export const vanDetailsSchema = z.object({
   name: z.string().trim().min(2, "Upišite naziv").max(80),
@@ -28,6 +46,15 @@ export const vanDetailsSchema = z.object({
   license: z.string().trim().min(1).max(10).default("B"),
   location: z.string().trim().min(2, "Upišite grad").max(80),
   description: z.string().trim().max(2000).default(""),
+  /** Large suitcases that fit with all seats in use. */
+  luggage: z.number().int().min(0).max(40).default(0),
+  /** Engine power in horsepower; 0 = not given. */
+  powerHp: z.number().int().min(0).max(1000).default(0),
+  features: z
+    .array(z.enum(FEATURE_IDS))
+    .max(FEATURE_IDS.length)
+    .default([])
+    .transform((f) => [...new Set(f)]),
 });
 export type VanDetails = z.infer<typeof vanDetailsSchema>;
 
@@ -81,7 +108,8 @@ export interface PublicVan extends VanDetails {
 }
 
 /** A van in a list, optionally with availability and price for chosen dates. */
-export interface VanCard extends Pick<VanDetails, "name" | "year" | "seats" | "fuel" | "gearbox" | "location"> {
+export interface VanCard
+  extends Pick<VanDetails, "name" | "year" | "seats" | "fuel" | "gearbox" | "location" | "luggage" | "powerHp" | "features"> {
   id: string;
   slug: string;
   photo: PhotoUrls | null;
@@ -104,4 +132,76 @@ export function slugify(text: string): string {
       .replace(/^-+|-+$/g, "")
       .slice(0, 60) || "kombi"
   );
+}
+
+export const SORTS = [
+  ["total", "Najjeftinije ukupno"],
+  ["daily", "Najjeftinije po danu"],
+  ["seats", "Najviše sjedišta"],
+  ["newest", "Najnovije godište"],
+] as const;
+export type Sort = (typeof SORTS)[number][0];
+
+export const SEARCH_PAGE_SIZE = 24;
+
+const optInt = (min: number, max: number) =>
+  z.preprocess((v) => (v === "" || v === undefined ? undefined : Number(v)), z.number().int().min(min).max(max).optional());
+
+/**
+ * The search on /kombiji, as it appears in the address (?start=…&seats=8…).
+ * Shared so the page and the API read the same parameters the same way.
+ */
+export const vanSearchSchema = z
+  .object({
+    start: z.string().refine(isIsoDate).optional().catch(undefined),
+    end: z.string().refine(isIsoDate).optional().catch(undefined),
+    seats: optInt(1, 60).catch(undefined),
+    luggage: optInt(0, 40).catch(undefined),
+    gearbox: z.enum(GEARBOXES).optional().catch(undefined),
+    fuel: z.enum(FUELS).optional().catch(undefined),
+    city: z.string().trim().max(80).optional().catch(undefined),
+    priceMin: optInt(0, 100_000).catch(undefined),
+    priceMax: optInt(0, 100_000).catch(undefined),
+    yearMin: optInt(1990, 2100).catch(undefined),
+    /** Comma-separated: the van must have all of them. */
+    features: z
+      .preprocess(
+        (v) => (typeof v === "string" ? v.split(",").filter(Boolean) : v),
+        z.array(z.enum(FEATURE_IDS)).max(FEATURE_IDS.length),
+      )
+      .optional()
+      .catch(undefined),
+    sort: z.enum(SORTS.map(([s]) => s) as [Sort, ...Sort[]]).optional().catch(undefined),
+    /** With dates: also list vans that are taken then. */
+    taken: z.preprocess((v) => v === "1" || v === true, z.boolean()).optional().catch(undefined),
+    page: optInt(1, 1000).catch(undefined),
+  })
+  .transform((q) => {
+    // Dates only count as a pair, in the right order.
+    const dated = q.start && q.end && q.end > q.start;
+    return { ...q, start: dated ? q.start : undefined, end: dated ? q.end : undefined };
+  });
+export type VanSearch = z.infer<typeof vanSearchSchema>;
+
+/** The search back as a query string, leaving out empty values. */
+export function searchToQuery(q: Partial<VanSearch>): string {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) {
+    if (v === undefined || v === "" || v === false || (Array.isArray(v) && !v.length)) continue;
+    if (k === "page" && v === 1) continue;
+    p.set(k, Array.isArray(v) ? v.join(",") : v === true ? "1" : String(v));
+  }
+  return p.toString();
+}
+
+export interface SearchResult {
+  items: VanCard[];
+  /** Matching vans, before paging. */
+  total: number;
+  /** Of those, free on the chosen dates (equals total without dates). */
+  free: number;
+  page: number;
+  pageSize: number;
+  /** Cities that have vans, for the city filter. */
+  cities: string[];
 }

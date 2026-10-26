@@ -1,4 +1,9 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
+import { Suspense } from "react";
+import { Analytics } from "@/components/Analytics";
+import { CookieConsent } from "@/components/CookieConsent";
+import { CONSENT_DEFAULT_SCRIPT } from "@/lib/consent";
 import { SITE } from "@/lib/site";
 // Fonts are self-hosted (no request to Google): faster, and nothing to declare under GDPR.
 import "@fontsource-variable/archivo/wdth.css";
@@ -28,7 +33,17 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="bs">
-      <body>{children}</body>
+      <body>
+        {/* Consent defaults must exist before Google Tag Manager loads. */}
+        <Script id="consent-default" strategy="beforeInteractive">
+          {CONSENT_DEFAULT_SCRIPT}
+        </Script>
+        {children}
+        <Suspense>
+          <Analytics />
+          <CookieConsent />
+        </Suspense>
+      </body>
     </html>
   );
 }

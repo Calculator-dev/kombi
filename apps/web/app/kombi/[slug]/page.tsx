@@ -53,7 +53,9 @@ export default async function VanPage({ params }: Props) {
           ]}
         >
           <Suspense>
-            <VanTicket van={{ id: van.id, slug: van.slug, pricing: van.pricing }} />
+            <VanTicket
+              van={{ id: van.id, slug: van.slug, name: van.name, seats: van.seats, location: van.location, dailyRate: van.pricing.dailyRate, pricing: van.pricing }}
+            />
           </Suspense>
         </Hero>
         <VanDetails van={van} />

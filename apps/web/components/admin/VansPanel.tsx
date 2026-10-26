@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FUELS, GEARBOXES, vanDetailsSchema, type VanDetails } from "@kombi/shared";
+import { FEATURES, FUELS, GEARBOXES, vanDetailsSchema, type FeatureId, type VanDetails } from "@kombi/shared";
 import { ApiError, adminApi } from "@/lib/api";
 import { km } from "@/lib/format";
 import { PhotoManager } from "./PhotoManager";
@@ -207,6 +207,9 @@ const EMPTY: VanDetails = {
   license: "B",
   location: "",
   description: "",
+  luggage: 0,
+  powerHp: 0,
+  features: [],
 };
 
 function DetailsForm({ van, onSaved }: { van?: OwnerVan; onSaved: (v: OwnerVan) => void }) {
@@ -269,7 +272,24 @@ function DetailsForm({ van, onSaved }: { van?: OwnerVan; onSaved: (v: OwnerVan) 
         )}
         {field("engine", "Motor (neobavezno)", <input value={d.engine} placeholder="npr. 2.0 D-4D" onChange={(e) => set("engine", e.target.value)} />)}
         {field("license", "Vozačka kategorija", <input value={d.license} onChange={(e) => set("license", e.target.value)} />)}
+        {field("luggage", "Velikih kofera (sa svim putnicima)", <input inputMode="numeric" value={d.luggage} onChange={(e) => set("luggage", int(e.target.value))} />)}
+        {field("powerHp", "Snaga motora (KS, neobavezno)", <input inputMode="numeric" value={d.powerHp || ""} placeholder="npr. 150" onChange={(e) => set("powerHp", int(e.target.value))} />)}
       </div>
+      <fieldset className="feature-picks">
+        <legend>Oprema (kupci filtriraju po ovome)</legend>
+        {FEATURES.map(([id, label]) => (
+          <label key={id} className="check">
+            <input
+              type="checkbox"
+              checked={d.features.includes(id)}
+              onChange={(e) =>
+                set("features", e.target.checked ? [...d.features, id] : d.features.filter((f: FeatureId) => f !== id))
+              }
+            />
+            {label}
+          </label>
+        ))}
+      </fieldset>
       {field(
         "description",
         "Opis (oprema, prtljag, napomene)",
@@ -284,6 +304,6 @@ function DetailsForm({ van, onSaved }: { van?: OwnerVan; onSaved: (v: OwnerVan) 
 }
 
 function pick(v: OwnerVan): VanDetails {
-  const { name, year, seats, fuel, gearbox, engine, license, location, description } = v;
-  return { name, year, seats, fuel, gearbox, engine, license, location, description };
+  const { name, year, seats, fuel, gearbox, engine, license, location, description, luggage, powerHp, features } = v;
+  return { name, year, seats, fuel, gearbox, engine, license, location, description, luggage, powerHp, features };
 }

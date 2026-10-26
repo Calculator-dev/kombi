@@ -141,6 +141,45 @@ All routes are under `/api`. The website forwards `/api/*` to the API (see
 After launch: set up Google Search Console and submit `https://kombi.ba/sitemap.xml`,
 and create a Google Business Profile.
 
+## Analytics (Google Tag Manager) and cookies
+
+Set `NEXT_PUBLIC_GTM_ID` (e.g. `GTM-ABC1234`) on the website; without it no tracking
+script loads. The admin panel is never tracked.
+
+**Consent:** Google Consent Mode v2. Everything starts as `denied`; the cookie banner
+updates it (analytics → `analytics_storage`, marketing → `ad_storage`, `ad_user_data`,
+`ad_personalization`). The choice is kept in the `kombi_consent` cookie for 6 months and
+can be changed via "Postavke kolačića" in the footer. Policy page: `/kolacici` (update its
+cookie list when you add tags in GTM).
+
+**Events pushed to `dataLayer`** (no names, emails or phone numbers, ever):
+
+| Event | When | Useful fields |
+| --- | --- | --- |
+| `page_view` | every page, also on in-app navigation | `page_path`, `page_title` |
+| `search` | results shown on /kombiji | `start_date`, `end_date`, `filter_*`, `sort`, `results_total`, `results_free` |
+| `view_item_list` | same, GA4 e-commerce | `ecommerce.items` |
+| `select_item` | click on a van card | `item_list_name`, `ecommerce.items` |
+| `view_item` | van page | `ecommerce.items`, `ecommerce.value` |
+| `view_photos` | photo viewer opened | `item_name`, `photo_index` |
+| `begin_checkout` | "Pošalji upit" on a van page | `ecommerce.value`, `days` |
+| `checkout_progress` | booking form step 2 | `checkout_step`, `extras`, `pickup` |
+| `generate_lead` | booking request sent | `transaction_id` (booking number), `ecommerce.value` |
+| `booking_error` | request failed | `error_code` |
+| `contact` | Viber / WhatsApp / phone / email link clicked | `method` |
+| `faq_open` | FAQ answer opened | `question` |
+| `consent_update` | cookie choice saved | `consent_analytics`, `consent_marketing` |
+
+**In GTM:**
+1. Google tag with your GA4 measurement ID, trigger *Initialization – All Pages*, and set
+   `send_page_view` to `false` (the site sends `page_view` itself, also on in-app navigation).
+2. GA4 event tag with event name `{{Event}}`, trigger *Custom Event* matching
+   `page_view|search|view_item_list|select_item|view_item|view_photos|begin_checkout|checkout_progress|generate_lead|booking_error|contact|faq_open`
+   (regex), and *Send ecommerce data* from the data layer.
+3. Mark `generate_lead` (and `contact`) as key events in GA4.
+4. Ads/Meta tags: fire on `generate_lead`; they respect Consent Mode on their own, Meta's
+   needs a consent check (`consent_marketing`) as the trigger condition.
+
 ## Deploying
 
 **Option A, Render:** `render.yaml` sets up the API and website; the database is Supabase.

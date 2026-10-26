@@ -57,6 +57,12 @@ export const vans = pgTable(
     license: text("license").notNull().default("B"),
     location: text("location").notNull(),
     description: text("description").notNull().default(""),
+    /** Large suitcases that fit with all seats in use. */
+    luggage: integer("luggage").notNull().default(0),
+    /** Engine power in horsepower; 0 = not given. */
+    powerHp: integer("power_hp").notNull().default(0),
+    /** Equipment ids (see FEATURES in @kombi/shared). */
+    features: jsonb("features").$type<string[]>().notNull().default([]),
     photos: jsonb("photos").$type<StoredPhoto[]>().notNull().default([]),
     /** Prices, seasons, extras and pickup places of this van. */
     pricing: jsonb("pricing").$type<Settings>().notNull(),
@@ -66,6 +72,7 @@ export const vans = pgTable(
   },
   (t) => [
     index("vans_owner_idx").on(t.ownerId),
+    index("vans_search_idx").on(t.status, t.seats),
     check("vans_status_check", sql`${t.status} in ('draft', 'published')`),
   ],
 ).enableRLS();

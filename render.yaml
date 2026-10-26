@@ -72,3 +72,6 @@ services:
         sync: false
       - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
         sync: false
+      # Google Tag Manager container, e.g. GTM-ABC1234. Empty: no tracking scripts load.
+      - key: NEXT_PUBLIC_GTM_ID
+        sync: false
