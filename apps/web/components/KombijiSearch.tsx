@@ -14,6 +14,7 @@ import {
   type VanSearch,
 } from "@kombi/shared";
 import { api } from "@/lib/api";
+import { track, trackEcommerce } from "@/lib/analytics";
 import { shortDate } from "@/lib/format";
 import { BookingWidget } from "./BookingWidget";
 import { VanCardView } from "./VanCardView";
@@ -58,6 +59,33 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryString]);
+
+  // One "search" event per result set (not per "load more").
+  useEffect(() => {
+    if (loading) return;
+    track("search", {
+      search_term: [q.city, q.seats && `${q.seats}+ putnika`, q.gearbox].filter(Boolean).join(", ") || "svi kombiji",
+      start_date: q.start,
+      end_date: q.end,
+      filter_seats: q.seats,
+      filter_luggage: q.luggage,
+      filter_gearbox: q.gearbox,
+      filter_fuel: q.fuel,
+      filter_city: q.city,
+      filter_price_min: q.priceMin,
+      filter_price_max: q.priceMax,
+      filter_year_min: q.yearMin,
+      filter_features: q.features?.join(","),
+      sort: q.sort ?? "total",
+      results_total: result.total,
+      results_free: result.free,
+    });
+    trackEcommerce("view_item_list", result.items, {
+      item_list_name: "Pretraga",
+      prices: result.items.map((v) => v.quote?.total ?? v.dailyRate),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result.total, result.free, queryString, loading]);
 
   function update(patch: Partial<VanSearch>) {
     const next = searchToQuery({ ...q, ...patch, page: undefined });
@@ -194,7 +222,7 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
           </div>
         ) : (
           <ul className={`van-grid${loading ? " loading" : ""}`}>
-            {result.items.map((v) => <VanCardView key={v.id} van={v} dates={dates} />)}
+            {result.items.map((v, i) => <VanCardView key={v.id} van={v} dates={dates} list="Pretraga" index={i} />)}
           </ul>
         )}
 

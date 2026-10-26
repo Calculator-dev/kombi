@@ -387,3 +387,31 @@ a.btn-accent:hover { color: var(--ink); background: #ff6a3d; }
   .filters-apply { display: inline-flex; justify-content: center; margin-top: auto; position: sticky; bottom: 0; }
   .filters-toggle { display: inline-flex; align-items: center; }
 }
+
+/* Cookie banner and policy page */
+.cookie-banner { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--ink); color: var(--dark-text); border-top: 4px solid var(--accent); }
+.cookie-inner { max-width: 1360px; margin: 0 auto; padding: 20px 24px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 32px; }
+.cookie-text { flex: 1 1 420px; }
+.cookie-text h2 { margin: 0 0 6px; font-weight: 900; font-stretch: 62%; font-size: 28px; text-transform: uppercase; }
+.cookie-text p { margin: 0; font-size: 15px; line-height: 1.45; color: var(--dark-muted); max-width: 46em; }
+.cookie-text a { color: var(--dark-text); }
+.cookie-options { flex: 1 1 100%; display: flex; flex-direction: column; gap: 10px; padding: 12px 0; border-top: 1px solid var(--dark-line); border-bottom: 1px solid var(--dark-line); }
+.cookie-options .check { font-size: 15px; align-items: flex-start; }
+.cookie-options strong { color: var(--dark-text); }
+.cookie-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.cookie-btn { min-height: 48px; padding: 0 20px; border: 0; box-shadow: inset 0 0 0 1.5px var(--dark-text); background: transparent; color: var(--dark-text); font-family: var(--mono); font-size: 13px; text-transform: uppercase; }
+.cookie-btn.primary { background: var(--accent); color: var(--ink); box-shadow: none; font-weight: 600; }
+.cookie-btn:hover { color: var(--accent); }
+.cookie-btn.primary:hover { color: var(--ink); background: #ff6a40; }
+.link-plain { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.legal { padding-top: 48px; padding-bottom: 72px; display: flex; flex-direction: column; gap: 20px; max-width: 900px; }
+.legal h2 { margin: 16px 0 0; font-weight: 900; font-stretch: 62%; font-size: 32px; text-transform: uppercase; }
+.legal p { margin: 0; max-width: 46em; }
+.table-scroll { overflow-x: auto; }
+.legal table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.legal th, .legal td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--ink); text-align: left; vertical-align: top; }
+.legal th { font-family: var(--mono); font-size: 12px; text-transform: uppercase; }
+@media (max-width: 640px) {
+  .cookie-actions { width: 100%; }
+  .cookie-btn { flex: 1 1 auto; }
+}

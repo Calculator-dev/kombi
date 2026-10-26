@@ -15,11 +15,12 @@ import {
   type Settings,
 } from "@kombi/shared";
 import { api } from "@/lib/api";
+import { trackEcommerce, type TrackedVan } from "@/lib/analytics";
 import { MONTHS, km, shortDate } from "@/lib/format";
 
 interface Props {
   /** With a van: its free days and exact price. Without: pick dates to search all vans. */
-  van?: { id: string; slug: string; pricing: Settings };
+  van?: Partial<TrackedVan> & { id: string; slug: string; pricing: Settings };
   initialStart?: IsoDate;
   initialEnd?: IsoDate;
   /** Search mode on /kombiji: called after new dates are applied (e.g. to close the panel). */
@@ -254,6 +255,10 @@ export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Pro
               href={ready ? `/rezervacija?van=${van.slug}&start=${start}&end=${end}` : "#rezervacija"}
               aria-disabled={!ready}
               tabIndex={ready ? undefined : -1}
+              onClick={() =>
+                ready && q && van.name &&
+                trackEcommerce("begin_checkout", [van as TrackedVan], { value: q.total, prices: [q.total], start_date: start, end_date: end, days: q.days })
+              }
             >
               Pošalji upit <span aria-hidden="true">→</span>
             </Link>

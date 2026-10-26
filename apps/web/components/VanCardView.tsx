@@ -1,10 +1,24 @@
+"use client";
+
 import Link from "next/link";
 import { dayWord, featureLabel, type VanCard } from "@kombi/shared";
+import { trackEcommerce } from "@/lib/analytics";
 import { km } from "@/lib/format";
 import { VanDrawing } from "./VanDrawing";
 
 /** One van in a list: photo, key specs and the price (exact total when dates are picked). */
-export function VanCardView({ van: c, dates }: { van: VanCard; dates?: { start: string; end: string } | null }) {
+export function VanCardView({
+  van: c,
+  dates,
+  list = "Kombiji",
+  index,
+}: {
+  van: VanCard;
+  dates?: { start: string; end: string } | null;
+  /** Where the card is shown, for analytics (e.g. "Početna", "Pretraga"). */
+  list?: string;
+  index?: number;
+}) {
   const unavailable = dates && c.quote && (c.available === false || c.quote.errors.length > 0);
   const query = dates ? `?start=${dates.start}&end=${dates.end}` : "";
   const specs = [
@@ -16,7 +30,10 @@ export function VanCardView({ van: c, dates }: { van: VanCard; dates?: { start: 
   ].filter(Boolean);
   return (
     <li className="van-card" data-unavailable={unavailable || undefined}>
-      <Link href={`/kombi/${c.slug}${query}`}>
+      <Link
+        href={`/kombi/${c.slug}${query}`}
+        onClick={() => trackEcommerce("select_item", [c], { item_list_name: list, index, prices: [c.quote?.total ?? c.dailyRate] })}
+      >
         <div className="van-photo">
           {c.photo ? (
             // eslint-disable-next-line @next/next/no-img-element

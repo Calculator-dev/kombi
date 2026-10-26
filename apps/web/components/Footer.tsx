@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LANDINGS, SITE } from "@/lib/site";
+import { CookieSettingsLink } from "./CookieConsent";
 
 export function Footer() {
   return (
@@ -18,6 +19,8 @@ export function Footer() {
           <Link href="/kombiji">Svi kombiji</Link>
           <Link href="/#pitanja">Pitanja</Link>
           <Link href="/#kontakt">Kontakt</Link>
+          <Link href="/kolacici">Kolačići</Link>
+          <CookieSettingsLink />
         </nav>
         <div>
           <b>Kontakt</b>

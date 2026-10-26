@@ -17,8 +17,8 @@ export function VanGrid({ vans }: { vans: VanCard[] }) {
         </div>
         {vans.length === 0 && <p className="placeholder-box">Kombiji se učitavaju. Osvježite stranicu za minutu.</p>}
         <ul className="van-grid">
-          {vans.slice(0, SHOWN).map((v) => (
-            <VanCardView key={v.id} van={v} />
+          {vans.slice(0, SHOWN).map((v, i) => (
+            <VanCardView key={v.id} van={v} list="Početna" index={i} />
           ))}
         </ul>
         {vans.length > 0 && (
