@@ -339,3 +339,69 @@ describe("managing bookings", () => {
     expect(res.body.total).toBe(2 * 140 + 25 + 20);
   });
 });
+
+describe("search (/kombiji)", () => {
+  const slugs = (res: { body: { items: { slug: string }[] } }) => res.body.items.map((v) => v.slug);
+
+  beforeAll(async () => {
+    const admin = await as(ADMIN);
+    await admin.put("/api/admin/me").send({ name: "kombi.ba", phone: "+387 33 000 000" }).expect(200);
+    const add = async (details: Record<string, unknown>, dailyRate: number) => {
+      const v = (await admin.post("/api/admin/vans").send(van(details)).expect(201)).body;
+      await admin.put(`/api/admin/vans/${v.id}/pricing`).send({ ...v.pricing, dailyRate }).expect(200);
+      await admin.post(`/api/admin/vans/${v.id}/photos`).attach("photo", await photo(), "v.jpg").expect(201);
+      await admin.patch(`/api/admin/vans/${v.id}/status`).send({ status: "published" }).expect(200);
+      return v.id as string;
+    };
+    await add({ name: "Ford Transit 15", seats: 15, luggage: 10, gearbox: "Manuelni", location: "Tuzla", year: 2019, features: ["ac", "towbar"] }, 200);
+    await add({ name: "VW Caravelle", seats: 9, luggage: 6, gearbox: "Automatski", location: "Sarajevo", year: 2025, features: ["ac", "isofix", "carplay"] }, 160);
+    await add({ name: "Renault Trafic", seats: 9, luggage: 3, gearbox: "Manuelni", location: "Mostar", year: 2021, features: [] }, 95);
+  });
+
+  it("lists every public van, cheapest first, with the cities", async () => {
+    const res = await request(app).get("/api/search").expect(200);
+    expect(res.body.total).toBeGreaterThanOrEqual(5);
+    const rates = res.body.items.map((v: { dailyRate: number }) => v.dailyRate);
+    expect(rates).toEqual([...rates].sort((a, b) => a - b));
+    expect(res.body.cities).toEqual(expect.arrayContaining(["Mostar", "Sarajevo", "Tuzla"]));
+  });
+
+  it("filters by seats, suitcases, gearbox, city, year and price", async () => {
+    expect(slugs(await request(app).get("/api/search?seats=12"))).toEqual(["ford-transit-15"]);
+    expect(slugs(await request(app).get("/api/search?luggage=6&gearbox=Automatski"))).toEqual(["vw-caravelle"]);
+    const mostar = await request(app).get("/api/search?city=mostar");
+    expect(slugs(mostar)).toContain("renault-trafic");
+    expect(mostar.body.items.every((v: { location: string }) => v.location === "Mostar")).toBe(true);
+    expect(slugs(await request(app).get("/api/search?yearMin=2025&priceMax=170"))).toEqual(["vw-caravelle"]);
+    expect(slugs(await request(app).get("/api/search?priceMin=150&priceMax=210&sort=daily"))).toEqual(["vw-caravelle", "ford-transit-15"]);
+  });
+
+  it("requires every chosen piece of equipment", async () => {
+    expect(slugs(await request(app).get("/api/search?features=ac"))).toEqual(["vw-caravelle", "ford-transit-15"]);
+    expect(slugs(await request(app).get("/api/search?features=ac,isofix"))).toEqual(["vw-caravelle"]);
+  });
+
+  it("sorts by seats and by year", async () => {
+    expect(slugs(await request(app).get("/api/search?seats=9&sort=seats"))[0]).toBe("ford-transit-15");
+    expect(slugs(await request(app).get("/api/search?sort=newest"))[0]).toBe("vw-caravelle");
+  });
+
+  it("with dates: prices each van, hides taken ones unless asked", async () => {
+    const caravelle = (await request(app).get("/api/vans/vw-caravelle")).body.id;
+    await request(app).post("/api/bookings").send(booking({ vanId: caravelle, start: "2027-03-02", end: "2027-03-05" })).expect(201);
+    const res = await request(app).get("/api/search?start=2027-03-03&end=2027-03-06&seats=9").expect(200);
+    expect(slugs(res)).not.toContain("vw-caravelle");
+    expect(res.body.free).toBe(res.body.total);
+    expect(res.body.items.find((v: { slug: string }) => v.slug === "renault-trafic").quote).toMatchObject({ days: 3, total: 285 });
+
+    const all = await request(app).get("/api/search?start=2027-03-03&end=2027-03-06&seats=9&taken=1").expect(200);
+    expect(slugs(all).at(-1)).toBe("vw-caravelle"); // taken vans come last
+    expect(all.body.free).toBe(all.body.total - 1);
+  });
+
+  it("ignores nonsense in the address instead of failing", async () => {
+    const res = await request(app).get("/api/search?seats=abc&gearbox=Rucni&features=wings&start=2027-01-05&end=2027-01-01").expect(200);
+    expect(res.body.total).toBeGreaterThanOrEqual(5);
+    expect(res.body.items[0].quote).toBeUndefined();
+  });
+});

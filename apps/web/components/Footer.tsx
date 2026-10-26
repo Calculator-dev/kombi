@@ -15,6 +15,7 @@ export function Footer() {
         </nav>
         <nav aria-label="Informacije">
           <b>Info</b>
+          <Link href="/kombiji">Svi kombiji</Link>
           <Link href="/#pitanja">Pitanja</Link>
           <Link href="/#kontakt">Kontakt</Link>
         </nav>

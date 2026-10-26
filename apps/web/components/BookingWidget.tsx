@@ -22,6 +22,8 @@ interface Props {
   van?: { id: string; slug: string; pricing: Settings };
   initialStart?: IsoDate;
   initialEnd?: IsoDate;
+  /** Search mode on /kombiji: called after new dates are applied (e.g. to close the panel). */
+  onSearched?: () => void;
 }
 
 function monthStart(base: IsoDate, offset: number): { y: number; m: number; first: IsoDate } {
@@ -37,7 +39,7 @@ function daysInMonth(y: number, m: number) {
 }
 
 /** The ticket: a calendar to pick dates, with a van's availability and live price. */
-export function BookingWidget({ van, initialStart, initialEnd }: Props) {
+export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const [today, setToday] = useState<IsoDate>(() => todayIn());
@@ -95,10 +97,20 @@ export function BookingWidget({ van, initialStart, initialEnd }: Props) {
   const ready = van ? q !== null && q.errors.length === 0 : Boolean(start && end);
   const days = start && end ? Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000) : 0;
 
+  /** Opens the search with these dates; on /kombiji itself, keeps the filters already set. */
   function search() {
     if (!start || !end) return;
-    router.replace(`${pathname}?start=${start}&end=${end}`, { scroll: false });
-    document.getElementById("kombiji")?.scrollIntoView({ behavior: "smooth" });
+    const onSearch = pathname === "/kombiji";
+    const params = new URLSearchParams(onSearch ? window.location.search : "");
+    params.set("start", start);
+    params.set("end", end);
+    params.delete("page");
+    if (onSearch) {
+      router.replace(`/kombiji?${params}`, { scroll: false });
+      onSearched?.();
+    } else {
+      router.push(`/kombiji?${params}`);
+    }
   }
 
   let hint = "Odaberite dan preuzimanja";

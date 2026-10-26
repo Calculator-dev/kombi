@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { PublicVan, Settings, Terms } from "@kombi/shared";
+import { featureLabel, type PublicVan, type Settings, type Terms } from "@kombi/shared";
 import { km } from "@/lib/format";
 import { FAQ, SITE } from "@/lib/site";
 import { Gallery } from "./Gallery";
@@ -59,8 +59,14 @@ export function VanDetails({ van }: { van: PublicVan }) {
           <div><dt>Mjenjač</dt><dd>{van.gearbox}</dd></div>
           <div><dt>Godište</dt><dd>{van.year}</dd></div>
           <div><dt>Dozvola</dt><dd>{van.license}</dd></div>
-          <div><dt>Motor</dt><dd>{van.engine || "—"}</dd></div>
+          <div><dt>Kofera</dt><dd>{van.luggage || "—"}</dd></div>
+          <div><dt>Motor</dt><dd>{[van.engine, van.powerHp ? `${van.powerHp} KS` : ""].filter(Boolean).join(", ") || "—"}</dd></div>
         </dl>
+        {van.features.length > 0 && (
+          <ul className="feature-list" aria-label="Oprema">
+            {van.features.map((f) => <li key={f}>{featureLabel(f)}</li>)}
+          </ul>
+        )}
         {van.description && <p className="lead van-desc">{van.description}</p>}
       </div>
     </section>

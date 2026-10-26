@@ -36,6 +36,13 @@
       "when": 1792970606546,
       "tag": "0004_van_terms",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793013512029,
+      "tag": "0005_van_search_fields",
+      "breakpoints": true
     }
   ]
 }

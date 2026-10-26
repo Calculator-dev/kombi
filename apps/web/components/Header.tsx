@@ -26,7 +26,7 @@ export function Header() {
         <div className="wrap">
           <Logo />
           <nav className="nav" aria-label="Glavna navigacija">
-            <Link href="/#kombiji">Kombiji</Link>
+            <Link href="/kombiji">Kombiji</Link>
             <Link href="/#pitanja">Pitanja</Link>
             <Link href="/admin" className="nav-owner">Iznajmljujete kombi?</Link>
             <Link href="/#rezervacija" className="cta">

@@ -1,23 +1,28 @@
-import { and, asc, count, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   DEFAULT_SETTINGS,
   DEFAULT_TERMS,
   MAX_PHOTOS,
+  SEARCH_PAGE_SIZE,
+  quote,
   settingsSchema,
   slugify,
   termsSchema,
   upgradeSettings,
   type PhotoUrls,
   type PublicVan,
+  type SearchResult,
   type Settings,
   type Terms,
   type VanCard,
   type VanDetails,
+  type VanSearch,
   type VanStatus,
 } from "@kombi/shared";
 import { schema, type Executor } from "../db";
 import type { StoredPhoto, UserRow, VanRow } from "../db/schema";
 import { HttpError } from "../errors";
+import { busyVans } from "./availability";
 import { storePhoto, type PhotoStorage } from "./storage";
 
 const { vans, users, bookings } = schema;
@@ -194,6 +199,9 @@ const details = (v: VanRow) => ({
   license: v.license,
   location: v.location,
   description: v.description,
+  luggage: v.luggage,
+  powerHp: v.powerHp,
+  features: v.features as VanDetails["features"],
 });
 
 export function photoUrls(storage: PhotoStorage, p: StoredPhoto): PhotoUrls {
@@ -214,6 +222,9 @@ export function toCard(storage: PhotoStorage, v: VanRow): VanCard {
     fuel: v.fuel as VanDetails["fuel"],
     gearbox: v.gearbox as VanDetails["gearbox"],
     location: v.location,
+    luggage: v.luggage,
+    powerHp: v.powerHp,
+    features: v.features as VanDetails["features"],
     photo: v.photos[0] ? photoUrls(storage, v.photos[0]) : null,
     dailyRate: pricingOf(v).dailyRate,
   };
@@ -222,4 +233,70 @@ export function toCard(storage: PhotoStorage, v: VanRow): VanCard {
 /** A van as its owner sees it in the admin panel. */
 export function toOwnerVan(storage: PhotoStorage, v: VanRow) {
   return { ...toPublicVan(storage, v), status: v.status, ownerId: v.ownerId, updatedAt: v.updatedAt };
+}
+
+/**
+ * The /kombiji search. Plain filters run in the database; availability and
+ * the exact price for the chosen dates are worked out per van, then sorted
+ * and paged.
+ */
+export async function searchVans(db: Executor, storage: PhotoStorage, q: VanSearch): Promise<SearchResult> {
+  const dailyRate = sql<number>`(${vans.pricing}->>'dailyRate')::int`;
+  const where = and(
+    isPublic,
+    q.seats ? gte(vans.seats, q.seats) : undefined,
+    q.luggage ? gte(vans.luggage, q.luggage) : undefined,
+    q.gearbox ? eq(vans.gearbox, q.gearbox) : undefined,
+    q.fuel ? eq(vans.fuel, q.fuel) : undefined,
+    q.city ? sql`lower(${vans.location}) = lower(${q.city})` : undefined,
+    q.yearMin ? gte(vans.year, q.yearMin) : undefined,
+    q.features?.length ? sql`${vans.features} @> ${JSON.stringify(q.features)}::jsonb` : undefined,
+    q.priceMin !== undefined ? sql`${dailyRate} >= ${q.priceMin}` : undefined,
+    q.priceMax !== undefined ? sql`${dailyRate} <= ${q.priceMax}` : undefined,
+  );
+  const [rows, cityRows] = await Promise.all([
+    db.select({ van: vans }).from(vans).leftJoin(users, eq(users.id, vans.ownerId)).where(where),
+    db
+      .selectDistinct({ city: vans.location })
+      .from(vans)
+      .leftJoin(users, eq(users.id, vans.ownerId))
+      .where(isPublic)
+      .orderBy(asc(vans.location)),
+  ]);
+
+  type Card = ReturnType<typeof toCard>;
+  const bookable = (c: Card) => c.available !== false && !c.quote?.errors.length;
+  let cards: Card[] = rows.map(({ van }) => toCard(storage, van));
+  let free = cards.length;
+  if (q.start && q.end) {
+    const dates = { start: q.start, end: q.end };
+    const busy = await busyVans(db, cards.map((c) => c.id), q.start, q.end);
+    cards = rows.map(({ van }, i) => {
+      const qt = quote(dates, pricingOf(van));
+      return { ...cards[i]!, available: !busy.has(van.id), quote: { days: qt.days, total: qt.total, errors: qt.errors } };
+    });
+    free = cards.filter(bookable).length;
+    if (!q.taken) cards = cards.filter(bookable);
+  }
+
+  const price = (c: Card) => c.quote?.total ?? c.dailyRate;
+  const by: Record<NonNullable<VanSearch["sort"]>, (a: Card, b: Card) => number> = {
+    total: (a, b) => price(a) - price(b),
+    daily: (a, b) => a.dailyRate - b.dailyRate,
+    seats: (a, b) => b.seats - a.seats || a.dailyRate - b.dailyRate,
+    newest: (a, b) => b.year - a.year || a.dailyRate - b.dailyRate,
+  };
+  const sort = by[q.sort ?? "total"];
+  // When taken vans are shown too, free ones come first.
+  cards.sort((a, b) => Number(bookable(b)) - Number(bookable(a)) || sort(a, b) || a.name.localeCompare(b.name));
+
+  const page = q.page ?? 1;
+  return {
+    items: cards.slice((page - 1) * SEARCH_PAGE_SIZE, page * SEARCH_PAGE_SIZE),
+    total: cards.length,
+    free,
+    page,
+    pageSize: SEARCH_PAGE_SIZE,
+    cities: cityRows.map((r) => r.city),
+  };
 }

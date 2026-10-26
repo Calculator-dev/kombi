@@ -30,9 +30,7 @@ export function FinderPage({ title, intro, vans, path = "/" }: { title: ReactNod
             <SearchTicket />
           </Suspense>
         </Hero>
-        <Suspense>
-          <VanGrid initial={vans} />
-        </Suspense>
+        <VanGrid vans={vans} />
         <PageBody />
       </main>
       <Footer />
