@@ -29,9 +29,6 @@ export function Footer() {
           <span>{SITE.email}</span>
         </div>
       </div>
-      <div className="wrap wordmark" aria-hidden="true">
-        Kombi<span>.</span>ba
-      </div>
       <div className="wrap copy">© {new Date().getFullYear()} kombi.ba</div>
     </footer>
   );

@@ -346,13 +346,13 @@ export function BookingFlow({ van, start, end }: Props) {
 
         <aside aria-label="Pregled rezervacije">
           <div className="t-head"><span>Vaš upit</span><span>Bez vozača</span></div>
-          <div style={{ padding: 20, borderBottom: "1px dashed var(--dark-line)" }}>
+          <div style={{ padding: "4px 20px 16px" }}>
             {van.photos[0] && (
               // eslint-disable-next-line @next/next/no-img-element
               <img className="aside-photo" src={van.photos[0].thumbUrl} alt="" width={640} height={480} />
             )}
-            <div className="display" style={{ fontSize: 40, lineHeight: 0.95 }}>{van.name}</div>
-            <div className="mono" style={{ marginTop: 8, fontSize: 13, color: "var(--dark-muted)" }}>
+            <div className="display">{van.name}</div>
+            <div className="mono" style={{ marginTop: 4, fontSize: 14, color: "var(--muted)" }}>
               {[van.year, van.engine, van.fuel.toLowerCase(), van.gearbox.toLowerCase(), van.location].filter(Boolean).join(", ")}
             </div>
           </div>
@@ -376,9 +376,9 @@ export function BookingFlow({ van, start, end }: Props) {
             )}
             <div className="line dim"><span>Depozit (vraća se)</span><span className="fill" /><span>{km(q.deposit)}</span></div>
           </div>
-          <div className="t-foot">
+          <div className="t-foot price-bar">
             <div className="t-total">
-              <span className="t-label">{q.days} {dayWord(q.days)}</span>
+              <span className="t-label">Ukupno, {q.days} {dayWord(q.days)}</span>
               <strong>{km(q.total)}</strong>
             </div>
           </div>

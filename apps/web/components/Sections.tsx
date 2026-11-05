@@ -19,13 +19,11 @@ export function Hero({
 }) {
   return (
     <section aria-labelledby="hero-title">
-      <div className="wrap hero-title">
-        <h1 id="hero-title" className="display h-xl">
-          {title}
-        </h1>
-      </div>
       <div className="wrap hero-grid">
         <div className="hero-copy">
+          <h1 id="hero-title" className="display h-xl">
+            {title}
+          </h1>
           <p className="lead">{intro}</p>
           <dl className="specs">
             {specs.map(([t, d]) => (

@@ -72,7 +72,7 @@ export function Overview({ vans, bookings: allBookings, blocks: allBlocks, onSta
         </section>
         <section className="panel-dark mini" aria-labelledby="cal-h">
           <div className="t-bar" style={{ marginBottom: 14 }}>
-            <h2 id="cal-h" className="display" style={{ fontSize: 40 }}>
+            <h2 id="cal-h" className="display" style={{ fontSize: 22 }}>
               {MONTHS[m]} {y}
               {vans.length > 1 && <span className="cal-van">{calendarName}</span>}
             </h2>
@@ -93,7 +93,7 @@ export function Overview({ vans, bookings: allBookings, blocks: allBlocks, onSta
             ))}
           </div>
           <div className="legend" style={{ marginTop: 14 }}>
-            <span><i style={{ background: "var(--dark-text)" }} />Potvrđeno</span>
+            <span><i style={{ background: "var(--ink)" }} />Potvrđeno</span>
             <span><i className="mine" />Na čekanju</span>
             <span><i className="taken" />Blokirano</span>
           </div>
