@@ -7,9 +7,6 @@ import { CONSENT_DEFAULT_SCRIPT } from "@/lib/consent";
 import { SITE } from "@/lib/site";
 // Fonts are self-hosted (no request to Google): faster, and nothing to declare under GDPR.
 import "@fontsource-variable/archivo/wdth.css";
-import "@fontsource/ibm-plex-mono/400.css";
-import "@fontsource/ibm-plex-mono/500.css";
-import "@fontsource/ibm-plex-mono/600.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,7 +24,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#e9e9e4",
+  themeColor: "#f6f6f3",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -242,25 +242,34 @@ export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Pro
             </div>
           </div>
 
-          <div className="t-foot">
-            <div className="t-total">
-              <span className="t-label">Ukupno</span>
-              <span>
-                <strong>{km(ready && q ? q.total : 0)}</strong>
-                <small>≈ {kmToEur(ready && q ? q.total : 0)} €</small>
-              </span>
-            </div>
+          {/* On phones this bar stays pinned to the bottom of the screen. */}
+          <div className="t-foot price-bar">
+            {ready && q ? (
+              <div className="t-total">
+                <span className="t-label">Ukupno, {q.days} {dayWord(q.days)}</span>
+                <span>
+                  <strong>{km(q.total)}</strong>
+                  <small>≈ {kmToEur(q.total)} €</small>
+                </span>
+              </div>
+            ) : (
+              <div className="t-total">
+                <span className="t-label">Cijena</span>
+                <span>
+                  <strong>od {km(settings.dailyRate)}</strong>
+                  <small>/ dan</small>
+                </span>
+              </div>
+            )}
             <Link
               className="btn-accent"
               href={ready ? `/rezervacija?van=${van.slug}&start=${start}&end=${end}` : "#rezervacija"}
-              aria-disabled={!ready}
-              tabIndex={ready ? undefined : -1}
               onClick={() =>
                 ready && q && van.name &&
                 trackEcommerce("begin_checkout", [van as TrackedVan], { value: q.total, prices: [q.total], start_date: start, end_date: end, days: q.days })
               }
             >
-              Pošalji upit <span aria-hidden="true">→</span>
+              {ready ? "Pošalji upit" : "Odaberite datume"} <span aria-hidden="true">{ready ? "→" : "↑"}</span>
             </Link>
           </div>
         </>

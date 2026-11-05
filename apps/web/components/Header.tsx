@@ -19,7 +19,9 @@ export function Header() {
         <div className="wrap">
           <span>Najam kombija, Bosna i Hercegovina</span>
           <span>Bez plaćanja unaprijed</span>
-          <span>Viber / WhatsApp {SITE.phone}</span>
+          <span>
+            Viber / WhatsApp <a href={SITE.phoneHref}>{SITE.phone}</a>
+          </span>
         </div>
       </div>
       <header className="header">
