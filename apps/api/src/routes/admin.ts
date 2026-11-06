@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   BOOKING_STATUSES,
   USER_STATUSES,
+  SPIN_SLOTS,
   VAN_STATUSES,
   isIsoDate,
   profileSchema,
@@ -22,8 +23,11 @@ import {
   deleteVan,
   orderPhotos,
   removePhoto,
+  removeSpinPhoto,
   saveVanPricing,
   saveVanTerms,
+  setSpinEnabled,
+  setSpinPhoto,
   setVanOwner,
   setVanStatus,
   toOwnerVan,
@@ -34,6 +38,7 @@ import {
 
 const isoDate = z.string().refine(isIsoDate, "Neispravan datum");
 const uuid = z.uuid();
+const spinSlot = z.coerce.number().int().min(0).max(SPIN_SLOTS - 1);
 
 const toMe = (u: UserRow) => ({ id: u.id, email: u.email, name: u.name, phone: u.phone, role: u.role, status: u.status });
 
@@ -117,6 +122,25 @@ export function adminRoutes({ db, auth, notifier, storage }: Deps): Router {
     const van = await vanForUser(db.orm, currentUser(res), uuid.parse(req.params.id));
     const { ids } = z.object({ ids: z.array(uuid).max(50) }).parse(req.body);
     res.json(toOwnerVan(storage, await orderPhotos(db.orm, van, ids)));
+  });
+
+  // 360° view: a switch, and one photo per clock position
+
+  r.patch("/vans/:id/spin", async (req, res) => {
+    const van = await vanForUser(db.orm, currentUser(res), uuid.parse(req.params.id));
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
+    res.json(toOwnerVan(storage, await setSpinEnabled(db.orm, van, enabled)));
+  });
+
+  r.put("/vans/:id/spin/:slot", upload.single("photo"), async (req, res) => {
+    const van = await vanForUser(db.orm, currentUser(res), uuid.parse(req.params.id));
+    if (!req.file) throw new HttpError(400, "no_file", "Odaberite fotografiju.");
+    res.json(toOwnerVan(storage, await setSpinPhoto(db.orm, storage, van, spinSlot.parse(req.params.slot), req.file.buffer)));
+  });
+
+  r.delete("/vans/:id/spin/:slot", async (req, res) => {
+    const van = await vanForUser(db.orm, currentUser(res), uuid.parse(req.params.id));
+    res.json(toOwnerVan(storage, await removeSpinPhoto(db.orm, storage, van, spinSlot.parse(req.params.slot))));
   });
 
   // Bookings

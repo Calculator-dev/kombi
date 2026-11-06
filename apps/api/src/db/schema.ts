@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, date, index, integer, jsonb, pgSequence, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, date, index, integer, jsonb, pgSequence, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import type { BookingStatus, ContactChannel, Quote, Settings, Terms, UserRole, UserStatus, VanStatus } from "@kombi/shared";
 
 // Row-Level Security is on for every table with no policies: on Supabase this keeps the
@@ -40,6 +40,11 @@ export interface StoredPhoto {
   height: number;
 }
 
+/** A photo of the 360° view; slot 0 is 12 o'clock (the front), going clockwise. */
+export interface SpinPhoto extends StoredPhoto {
+  slot: number;
+}
+
 export const vans = pgTable(
   "vans",
   {
@@ -64,6 +69,9 @@ export const vans = pgTable(
     /** Equipment ids (see FEATURES in @kombi/shared). */
     features: jsonb("features").$type<string[]>().notNull().default([]),
     photos: jsonb("photos").$type<StoredPhoto[]>().notNull().default([]),
+    /** Whether the 360° view is shown; switching it off keeps its photos. */
+    spinEnabled: boolean("spin_enabled").notNull().default(false),
+    spinPhotos: jsonb("spin_photos").$type<SpinPhoto[]>().notNull().default([]),
     /** Prices, seasons, extras and pickup places of this van. */
     pricing: jsonb("pricing").$type<Settings>().notNull(),
     /** Rental terms (driver age, cancellation, what's included…). */

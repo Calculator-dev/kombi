@@ -18,6 +18,12 @@ export const GEARBOXES = ["Manuelni", "Automatski"] as const;
 
 export const MAX_PHOTOS = 12;
 
+/**
+ * The 360° view: one photo from each clock position around the van, seen from
+ * above with the front at 12 o'clock, taken walking clockwise.
+ */
+export const SPIN_SLOTS = 12;
+
 /** Equipment a van can have; customers can filter by it. */
 export const FEATURES = [
   ["ac", "Klima"],
@@ -103,6 +109,8 @@ export interface PublicVan extends VanDetails {
   id: string;
   slug: string;
   photos: PhotoUrls[];
+  /** The 360° view, in clock order; only when it's switched on and every slot has a photo. */
+  spin?: PhotoUrls[] | null;
   pricing: Settings;
   terms: Terms;
 }
