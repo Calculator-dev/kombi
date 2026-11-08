@@ -2,8 +2,6 @@ import type { ReactNode } from "react";
 import { featureLabel, type PublicVan, type Settings, type Terms } from "@kombi/shared";
 import { km } from "@/lib/format";
 import { FAQ, SITE } from "@/lib/site";
-import { Gallery } from "./Gallery";
-import { SpinViewer } from "./SpinViewer";
 import { VanDrawing } from "./VanDrawing";
 
 /** Title and intro on the left, the calendar ticket (passed in) on the right. */
@@ -11,15 +9,19 @@ export function Hero({
   title,
   intro,
   specs,
+  media,
   children,
 }: {
   title: ReactNode;
   intro: string;
   specs: [string, string][];
+  /** Shown above everything else, e.g. a van's photos. */
+  media?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section aria-labelledby="hero-title">
+      {media && <div className="wrap hero-media">{media}</div>}
       <div className="wrap hero-grid">
         <div className="hero-copy">
           <h1 id="hero-title" className="display h-xl">
@@ -47,12 +49,8 @@ export function VanDetails({ van }: { van: PublicVan }) {
           <h2 id="kombi-h" className="display h-lg">O kombiju</h2>
           <p className="caption">{van.location}, godište {van.year}</p>
         </div>
-        {van.spin && van.spin.length > 0 && <SpinViewer photos={van.spin} name={van.name} />}
-        {van.photos.length ? (
-          <Gallery photos={van.photos} name={van.name} />
-        ) : (
-          <VanDrawing label={van.name} />
-        )}
+        {/* The photos are at the top of the page; without any, a drawing stands in here. */}
+        {van.photos.length === 0 && <VanDrawing label={van.name} />}
         <dl className="grid-specs">
           <div><dt>Sjedišta</dt><dd>{van.seats}</dd></div>
           <div><dt>Gorivo</dt><dd>{van.fuel}</dd></div>

@@ -21,9 +21,18 @@ export async function getVans(): Promise<VanCard[]> {
   return ((await get<VanCard[]>("/vans")) ?? []).map((v) => ({ ...v, luggage: v.luggage ?? 0, powerHp: v.powerHp ?? 0, features: v.features ?? [] }));
 }
 
+/**
+ * One van, or null if there is no such van. If the API can't be reached (e.g.
+ * while it wakes up) this throws instead: the error page offers to try again,
+ * and a page that was already cached keeps being served. Answering "not found"
+ * here would show, and cache, a 404 for a van that exists.
+ */
 export async function getVan(slug: string): Promise<PublicVan | null> {
   if (!/^[a-z0-9-]{1,80}$/.test(slug)) return null;
-  const van = await get<PublicVan>(`/vans/${slug}`);
+  const res = await fetch(`${API_URL}/api/vans/${slug}`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(15000) });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`API answered ${res.status} for van ${slug}`);
+  const van = (await res.json()) as PublicVan;
   // An older API (e.g. mid-deploy) may not send terms yet.
   return (
     van && {

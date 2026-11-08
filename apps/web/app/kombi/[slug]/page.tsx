@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Footer } from "@/components/Footer";
+import { Gallery } from "@/components/Gallery";
 import { Header } from "@/components/Header";
 import { JsonLd } from "@/components/JsonLd";
 import { Contact, Faq, Prices, Rules, VanDetails } from "@/components/Sections";
@@ -44,6 +45,7 @@ export default async function VanPage({ params }: Props) {
             </>
           }
           intro={van.description.split("\n")[0] || `${van.seats} sjedišta, ${van.gearbox.toLowerCase()}, bez vozača. Odaberite datume i cijenu vidite odmah.`}
+          media={van.photos.length > 0 && <Gallery photos={van.photos} name={van.name} spin={van.spin} />}
           specs={[
             ["Grad", van.location],
             ["Od", `${van.pricing.dailyRate} KM / dan`],
