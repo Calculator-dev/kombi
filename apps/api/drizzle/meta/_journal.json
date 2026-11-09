@@ -43,6 +43,13 @@
       "when": 1793013512029,
       "tag": "0005_van_search_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793918521228,
+      "tag": "0006_van_spin",
+      "breakpoints": true
     }
   ]
 }

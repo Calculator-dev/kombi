@@ -250,6 +250,43 @@ describe("owners and vans", () => {
     expect(new Set(refs)).toEqual(new Set([amirVan]));
   });
 
+  it("shows the 360° view only when it's switched on and all 12 photos are in", async () => {
+    const amir = await as(AMIR);
+    const spin = () => request(app).get("/api/vans/mercedes-vito").then((r) => r.body.spin);
+    const on = await amir.patch(`/api/admin/vans/${amirVan}/spin`).send({ enabled: true }).expect(200);
+    expect(on.body).toMatchObject({ spinEnabled: true });
+    expect(on.body.spinSlots).toEqual(Array(12).fill(null));
+
+    for (let slot = 0; slot < 11; slot++) {
+      await amir.put(`/api/admin/vans/${amirVan}/spin/${slot}`).attach("photo", await photo(), "spin.jpg").expect(200);
+    }
+    expect(await spin()).toBeNull(); // one slot still empty
+    const full = await amir.put(`/api/admin/vans/${amirVan}/spin/11`).attach("photo", await photo(), "spin.jpg").expect(200);
+    expect(full.body.spinSlots.every(Boolean)).toBe(true);
+    // The phone-size copy keeps the whole picture instead of cropping it.
+    const thumb = await sharp(storage.files.get(full.body.spinSlots[11].thumbUrl.replace("/api/dev-photos/", ""))!).metadata();
+    expect([thumb.width, thumb.height]).toEqual([800, 533]);
+    expect(await spin()).toHaveLength(12);
+
+    // Replacing a slot deletes the old file.
+    const oldKey = full.body.spinSlots[0].url.replace("/api/dev-photos/", "");
+    const replaced = await amir.put(`/api/admin/vans/${amirVan}/spin/0`).attach("photo", await photo(), "spin.jpg").expect(200);
+    expect(replaced.body.spinSlots[0].id).not.toBe(full.body.spinSlots[0].id);
+    expect(storage.files.has(oldKey)).toBe(false);
+
+    await amir.put(`/api/admin/vans/${amirVan}/spin/12`).attach("photo", await photo(), "spin.jpg").expect(400);
+    await (await as(BELMA)).patch(`/api/admin/vans/${amirVan}/spin`).send({ enabled: false }).expect(404);
+
+    // Switching off hides it but keeps the photos; removing one hides it too.
+    await amir.patch(`/api/admin/vans/${amirVan}/spin`).send({ enabled: false }).expect(200);
+    expect(await spin()).toBeNull();
+    await amir.patch(`/api/admin/vans/${amirVan}/spin`).send({ enabled: true }).expect(200);
+    expect(await spin()).toHaveLength(12);
+    const removed = await amir.delete(`/api/admin/vans/${amirVan}/spin/5`).expect(200);
+    expect(removed.body.spinSlots[5]).toBeNull();
+    expect(await spin()).toBeNull();
+  });
+
   it("gives each van its own rental terms", async () => {
     const amir = await as(AMIR);
     const before = (await request(app).get("/api/vans/mercedes-vito").expect(200)).body.terms;

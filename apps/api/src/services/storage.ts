@@ -70,8 +70,15 @@ export function createStorage(config: Config): PhotoStorage {
  * Turns an upload into a large photo and a thumbnail (WebP), stores both and
  * returns their keys. Photos are rotated upright, and sharp drops all metadata
  * by default, so GPS location and camera details from phones are not published.
+ * A "whole" thumbnail keeps the full picture (for the 360° view on phones)
+ * instead of cropping it to 4:3.
  */
-export async function storePhoto(storage: PhotoStorage, vanId: string, input: Buffer): Promise<StoredPhoto> {
+export async function storePhoto(
+  storage: PhotoStorage,
+  vanId: string,
+  input: Buffer,
+  thumbFit: "crop" | "whole" = "crop",
+): Promise<StoredPhoto> {
   const image = sharp(input, { limitInputPixels: 50_000_000, failOn: "error" }).rotate();
   let meta;
   try {
@@ -86,7 +93,12 @@ export async function storePhoto(storage: PhotoStorage, vanId: string, input: Bu
   try {
     [large, thumb] = await Promise.all([
       image.clone().resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true }).webp({ quality: 80 }).toBuffer({ resolveWithObject: true }),
-      image.clone().resize({ width: 640, height: 480, fit: "cover" }).webp({ quality: 75 }).toBuffer(),
+      (thumbFit === "crop"
+        ? image.clone().resize({ width: 640, height: 480, fit: "cover" })
+        : image.clone().resize({ width: 800, height: 800, fit: "inside", withoutEnlargement: true })
+      )
+        .webp({ quality: 75 })
+        .toBuffer(),
     ]);
   } catch {
     throw new HttpError(400, "invalid_image", "Slika se ne može obraditi. Pokušajte s JPG datotekom.");

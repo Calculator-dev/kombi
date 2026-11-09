@@ -1,4 +1,4 @@
-import type { BookingStatus, PublicVan, Quote, UserRole, UserStatus, VanStatus } from "@kombi/shared";
+import type { BookingStatus, PhotoUrls, PublicVan, Quote, UserRole, UserStatus, VanStatus } from "@kombi/shared";
 
 export interface Me {
   id: string;
@@ -13,6 +13,9 @@ export interface OwnerVan extends PublicVan {
   status: VanStatus;
   ownerId: string | null;
   updatedAt: string;
+  spinEnabled: boolean;
+  /** One per clock position; null where no photo has been added yet. */
+  spinSlots: (PhotoUrls | null)[];
 }
 
 export interface AdminBooking {

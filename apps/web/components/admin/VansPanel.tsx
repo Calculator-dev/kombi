@@ -5,6 +5,7 @@ import { FEATURES, FUELS, GEARBOXES, vanDetailsSchema, type FeatureId, type VanD
 import { ApiError, adminApi } from "@/lib/api";
 import { km } from "@/lib/format";
 import { PhotoManager } from "./PhotoManager";
+import { SpinManager } from "./SpinManager";
 import { SettingsPanel } from "./SettingsPanel";
 import { TermsForm } from "./TermsForm";
 import type { Me, OwnerVan } from "./types";
@@ -169,6 +170,11 @@ function VanEditor({
       <section>
         <h2 className="display h-md" style={{ marginBottom: 8 }}>Fotografije</h2>
         <PhotoManager van={van} onSaved={onSaved} />
+      </section>
+
+      <section>
+        <h2 className="display h-md" style={{ marginBottom: 8 }}>360° pogled</h2>
+        <SpinManager van={van} onSaved={onSaved} />
       </section>
 
       <section>

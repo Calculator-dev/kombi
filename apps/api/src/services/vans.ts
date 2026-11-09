@@ -4,6 +4,7 @@ import {
   DEFAULT_TERMS,
   MAX_PHOTOS,
   SEARCH_PAGE_SIZE,
+  SPIN_SLOTS,
   quote,
   settingsSchema,
   slugify,
@@ -20,7 +21,7 @@ import {
   type VanStatus,
 } from "@kombi/shared";
 import { schema, type Executor } from "../db";
-import type { StoredPhoto, UserRow, VanRow } from "../db/schema";
+import type { SpinPhoto, StoredPhoto, UserRow, VanRow } from "../db/schema";
 import { HttpError } from "../errors";
 import { busyVans } from "./availability";
 import { storePhoto, type PhotoStorage } from "./storage";
@@ -148,7 +149,9 @@ export async function deleteVan(db: Executor, storage: PhotoStorage, van: VanRow
     throw new HttpError(409, "has_bookings", "Kombi ima rezervacije pa se ne može obrisati. Sakrijte ga umjesto toga.");
   }
   await db.delete(vans).where(eq(vans.id, van.id));
-  await storage.remove(van.photos.flatMap((p) => [p.key, p.thumbKey])).catch((err) => console.error("[storage]", err));
+  await storage
+    .remove([...van.photos, ...van.spinPhotos].flatMap((p) => [p.key, p.thumbKey]))
+    .catch((err) => console.error("[storage]", err));
 }
 
 export async function addPhoto(db: Executor, storage: PhotoStorage, van: VanRow, file: Buffer): Promise<VanRow> {
@@ -183,6 +186,37 @@ export async function orderPhotos(db: Executor, van: VanRow, ids: string[]): Pro
   return row!;
 }
 
+/** Switches the 360° view on or off. Its photos stay either way. */
+export async function setSpinEnabled(db: Executor, van: VanRow, enabled: boolean): Promise<VanRow> {
+  const [row] = await db.update(vans).set({ spinEnabled: enabled, updatedAt: sql`now()` }).where(eq(vans.id, van.id)).returning();
+  return row!;
+}
+
+/** Puts a photo in one slot of the 360° view, replacing the one there. */
+export async function setSpinPhoto(db: Executor, storage: PhotoStorage, van: VanRow, slot: number, file: Buffer): Promise<VanRow> {
+  const photo: SpinPhoto = { ...(await storePhoto(storage, van.id, file, "whole")), slot };
+  const old = van.spinPhotos.find((p) => p.slot === slot);
+  const spinPhotos = [...van.spinPhotos.filter((p) => p.slot !== slot), photo].sort((a, b) => a.slot - b.slot);
+  const [row] = await db.update(vans).set({ spinPhotos, updatedAt: sql`now()` }).where(eq(vans.id, van.id)).returning();
+  if (old) await storage.remove([old.key, old.thumbKey]).catch((err) => console.error("[storage]", err));
+  return row!;
+}
+
+export async function removeSpinPhoto(db: Executor, storage: PhotoStorage, van: VanRow, slot: number): Promise<VanRow> {
+  const old = van.spinPhotos.find((p) => p.slot === slot);
+  if (!old) throw new HttpError(404, "not_found", "Fotografija ne postoji.");
+  const spinPhotos = van.spinPhotos.filter((p) => p.slot !== slot);
+  const [row] = await db.update(vans).set({ spinPhotos, updatedAt: sql`now()` }).where(eq(vans.id, van.id)).returning();
+  await storage.remove([old.key, old.thumbKey]).catch((err) => console.error("[storage]", err));
+  return row!;
+}
+
+/** The 360° view for the site: only when switched on and complete, so it never jumps over a gap. */
+function publicSpin(storage: PhotoStorage, v: VanRow): PhotoUrls[] | null {
+  if (!v.spinEnabled || v.spinPhotos.length < SPIN_SLOTS) return null;
+  return [...v.spinPhotos].sort((a, b) => a.slot - b.slot).map((p) => photoUrls(storage, p));
+}
+
 export async function vanNames(db: Executor, ids: string[]): Promise<Map<string, string>> {
   if (!ids.length) return new Map();
   const rows = await db.select({ id: vans.id, name: vans.name }).from(vans).where(inArray(vans.id, ids));
@@ -209,7 +243,15 @@ export function photoUrls(storage: PhotoStorage, p: StoredPhoto): PhotoUrls {
 }
 
 export function toPublicVan(storage: PhotoStorage, v: VanRow): PublicVan {
-  return { id: v.id, slug: v.slug, ...details(v), photos: v.photos.map((p) => photoUrls(storage, p)), pricing: pricingOf(v), terms: termsOf(v) };
+  return {
+    id: v.id,
+    slug: v.slug,
+    ...details(v),
+    photos: v.photos.map((p) => photoUrls(storage, p)),
+    spin: publicSpin(storage, v),
+    pricing: pricingOf(v),
+    terms: termsOf(v),
+  };
 }
 
 export function toCard(storage: PhotoStorage, v: VanRow): VanCard {
@@ -232,7 +274,11 @@ export function toCard(storage: PhotoStorage, v: VanRow): VanCard {
 
 /** A van as its owner sees it in the admin panel. */
 export function toOwnerVan(storage: PhotoStorage, v: VanRow) {
-  return { ...toPublicVan(storage, v), status: v.status, ownerId: v.ownerId, updatedAt: v.updatedAt };
+  const slots = Array.from({ length: SPIN_SLOTS }, (_, slot) => {
+    const p = v.spinPhotos.find((s) => s.slot === slot);
+    return p ? photoUrls(storage, p) : null;
+  });
+  return { ...toPublicVan(storage, v), status: v.status, ownerId: v.ownerId, updatedAt: v.updatedAt, spinEnabled: v.spinEnabled, spinSlots: slots };
 }
 
 /**

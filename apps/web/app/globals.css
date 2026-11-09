@@ -297,14 +297,47 @@ button:disabled { cursor: not-allowed; }
 .taken-note { color: var(--error); font-weight: 600; }
 
 /* One van's page */
-.gallery { display: grid; gap: 10px; margin-bottom: 24px; }
-.gallery-main, .gallery-rest button { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; border-radius: var(--radius); overflow: hidden; }
-.gallery-main { position: relative; }
-.gallery-main img { display: block; width: 100%; max-height: 560px; object-fit: cover; }
-.gallery-count { position: absolute; right: 12px; bottom: 12px; background: rgba(0, 0, 0, 0.65); color: #fff; padding: 4px 12px; border-radius: 999px; font-size: 14px; }
-.gallery-rest { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr)); gap: 10px; }
-.gallery-rest button { border-radius: var(--radius-sm); }
-.gallery-rest img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+/* Photos at the top of a van's page: one large and up to four small (wide screens), a swipe strip (phones) */
+.hero-media { padding-top: 24px; }
+.hero-media + .hero-grid { padding-top: 28px; }
+.gallery { position: relative; }
+.gallery-grid { display: grid; gap: 8px; height: clamp(300px, 36vw, 460px); grid-template-columns: 2fr 1fr 1fr; grid-template-rows: 1fr 1fr; border-radius: var(--radius); overflow: hidden; }
+.gallery-grid > :first-child { grid-row: span 2; }
+.gallery[data-count="1"] .gallery-grid { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.gallery[data-count="2"] .gallery-grid { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+.gallery[data-count="1"] .gallery-grid > :first-child, .gallery[data-count="2"] .gallery-grid > :first-child { grid-row: auto; }
+.gallery[data-count="3"] .gallery-grid { grid-template-columns: 2fr 1fr; }
+.gallery[data-count="4"] .gallery-grid > :last-child { grid-column: span 2; }
+.gallery-grid button, .gallery-swipe button { display: block; min-width: 0; padding: 0; border: 0; background: var(--tile); cursor: zoom-in; }
+.gallery-grid img { display: block; width: 100%; height: 100%; object-fit: cover; transition: filter 0.15s; }
+.gallery-grid button:hover img { filter: brightness(0.9); }
+.gallery-swipe, .gallery-count { display: none; }
+.gallery-actions { position: absolute; right: 14px; bottom: 14px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.gallery-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px solid rgba(0, 0, 0, 0.12); border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.95); color: var(--ink); font-size: 14px; font-weight: 600; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); }
+.gallery-btn:hover { background: #fff; border-color: var(--ink); }
+@media (max-width: 700px) {
+  .hero-media { padding: 0; }
+  .hero-media + .hero-grid { padding-top: 20px; }
+  .gallery-grid { display: none; }
+  .gallery-swipe { display: flex; margin: 0 -16px; aspect-ratio: 4 / 3; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .gallery-swipe::-webkit-scrollbar { display: none; }
+  .gallery-swipe button { flex: 0 0 100%; scroll-snap-align: center; }
+  .gallery-swipe img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .gallery-count { display: block; position: absolute; left: 12px; bottom: 12px; padding: 4px 12px; border-radius: 999px; background: rgba(0, 0, 0, 0.65); color: #fff; font-size: 14px; pointer-events: none; }
+  .gallery-actions { right: 12px; bottom: 10px; }
+  .gallery-btn { min-height: 36px; padding: 0 12px; font-size: 13px; }
+  /* On phones a tap on the photo opens them all, and the counter shows how many there are. */
+  .gallery-all { display: none; }
+}
+
+/* The 360° view opens in a window over the page */
+.spin-dialog { width: min(960px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); margin: auto; padding: 12px 16px 16px; border: 0; border-radius: var(--radius); background: var(--card); color: var(--ink); overflow: auto; }
+.spin-dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+.spin-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; font-size: 18px; }
+.spin-dialog-head .lightbox-close { position: static; background: var(--tile); color: var(--ink); }
+.spin-dialog-head .lightbox-close:hover { background: #dcdcd5; color: var(--ink); }
+/* Keep the whole viewer on screen in a short window (photos are about 3:2) */
+.spin-dialog .spin { max-width: min(900px, calc((100dvh - 170px) * 1.5)); margin-bottom: 0; }
 .van-desc { white-space: pre-line; max-width: 40em; }
 .aside-photo { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; margin-bottom: 14px; border-radius: var(--radius-sm); }
 
@@ -329,7 +362,9 @@ button:disabled { cursor: not-allowed; }
 .photo-grid .cover { position: absolute; top: 8px; left: 8px; background: var(--accent); color: #fff; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
 .photo-actions { display: flex; border-top: var(--rule); }
 .photo-actions button { flex: 1; min-height: 40px; border: 0; background: var(--card); font-size: 13px; font-weight: 500; }
-.photo-actions button + button { border-left: var(--rule); }
+.photo-actions label { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 40px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.photo-actions label:hover { background: var(--paper); }
+.photo-actions > * + * { border-left: var(--rule); }
 .photo-actions button:hover:not(:disabled) { background: var(--paper); }
 .photo-actions button:disabled { color: #c5c5be; }
 .upload-btn { position: relative; align-self: flex-start; cursor: pointer; }
@@ -337,6 +372,38 @@ button:disabled { cursor: not-allowed; }
 .upload-btn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .upload-btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
 .danger-zone { padding: 20px; border: 1px solid #f0c4bf; border-radius: var(--radius); background: var(--error-soft); display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+
+/* 360° view */
+.spin { max-width: 900px; margin: 0 auto 24px; }
+.spin-stage { position: relative; width: 100%; overflow: hidden; border-radius: var(--radius); background: var(--tile); cursor: grab; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.spin-stage:active { cursor: grabbing; }
+.spin-stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity 0.12s; pointer-events: none; }
+.spin-stage img[data-on] { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .spin-stage img { transition: none; } }
+.spin-hint, .spin-loading { position: absolute; left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: 999px; background: rgba(0, 0, 0, 0.65); color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap; pointer-events: none; }
+.spin-hint { bottom: 14px; }
+.spin-loading { top: 14px; font-weight: 500; }
+.spin-bar { display: flex; align-items: center; justify-content: center; gap: 16px; padding-top: 10px; color: var(--ink); }
+.spin-bar button { width: 44px; height: 44px; border: var(--rule); border-radius: 50%; background: var(--card); font-size: 18px; }
+.spin-bar button:hover { border-color: var(--ink); }
+
+/* Admin: on/off switch and the 12 clock positions */
+.switch { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; border: var(--rule); border-radius: var(--radius-sm); background: var(--card); text-align: left; }
+.switch strong { display: block; font-size: 17px; }
+.switch small { display: block; color: var(--muted); font-size: 14px; }
+.switch-track { flex: none; position: relative; width: 48px; height: 28px; border-radius: 999px; background: #c9c9c2; transition: background 0.15s; }
+.switch-thumb { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); transition: transform 0.15s; }
+.switch[aria-checked="true"] .switch-track { background: var(--accent); }
+.switch[aria-checked="true"] .switch-thumb { transform: translateX(20px); }
+.spin-slots { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); gap: 12px; }
+.spin-slots li { display: flex; flex-direction: column; background: var(--card); border: var(--rule); border-radius: var(--radius-sm); overflow: hidden; }
+.spin-slot-name { padding: 6px 10px; font-size: 13px; font-weight: 600; border-bottom: var(--rule); }
+.spin-slot-photo { position: relative; display: flex; align-items: center; justify-content: center; aspect-ratio: 4 / 3; background: var(--paper); cursor: pointer; font-size: 14px; font-weight: 600; color: var(--muted); }
+.spin-slot-photo[data-empty] { margin: 8px; border: 1.5px dashed #c9c9c2; border-radius: 6px; }
+.spin-slot-photo[data-empty]:hover { border-color: var(--accent); color: var(--accent-hover); }
+.spin-slot-photo img { width: 100%; height: 100%; object-fit: contain; }
+.spin-slot-photo input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.spin-slot-photo:focus-within { outline: 3px solid var(--accent); outline-offset: -3px; }
 
 /* Full-screen photo viewer */
 .lightbox { position: fixed; inset: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: #0b0b0b; color: var(--dark-text); overflow: hidden; }
