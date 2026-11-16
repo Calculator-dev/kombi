@@ -39,7 +39,7 @@ export function BookingRow({
           <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{b.ref} · {b.vanName}</span>
         </div>
         <div className="meta">
-          {shortDate(b.start)} → {shortDate(b.end)}, {b.quote.days} dana, <strong>{km(b.total)}</strong>
+          {shortDate(b.start)} → {shortDate(b.end)}, {b.quote.days} dana, <strong>{b.quote.onRequest ? "cijena po dogovoru" : km(b.total)}</strong>
         </div>
         <div className="meta dim">
           {[
@@ -57,6 +57,9 @@ export function BookingRow({
         {b.notes && <div className="meta dim">„{b.notes}"</div>}
       </div>
       <div className="btns">
+        {(b.status === "pending" || b.status === "confirmed") && (
+          <a className="small-btn" href={`/admin/ugovor?id=${b.id}`} target="_blank" rel="noopener">Ugovor</a>
+        )}
         {b.status === "pending" && (
           <>
             <button type="button" className="small-btn" onClick={() => onStatus(b.id, "declined")}>Odbij</button>

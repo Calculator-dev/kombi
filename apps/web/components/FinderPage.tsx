@@ -9,7 +9,8 @@ import { VanGrid } from "./VanGrid";
 
 /** Homepage and landing pages: pick dates, see which vans are free and what they cost. */
 export function FinderPage({ title, intro, vans, path = "/" }: { title: ReactNode; intro: string; vans: VanCard[]; path?: string }) {
-  const from = vans.length ? Math.min(...vans.map((v) => v.dailyRate)) : null;
+  const priced = vans.filter((v) => !v.priceOnRequest);
+  const from = priced.length ? Math.min(...priced.map((v) => v.dailyRate)) : null;
   const cities = [...new Set(vans.map((v) => v.location))];
   return (
     <>

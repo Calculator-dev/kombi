@@ -5,10 +5,13 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError, adminApi } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { Logo } from "../Header";
+import { ThemeToggle } from "../ThemeToggle";
+import { AnalyticsPanel } from "./AnalyticsPanel";
 import { AuthScreens, NewPassword } from "./AuthScreens";
 import { BlocksPanel } from "./BlocksPanel";
 import { BookingList } from "./BookingList";
 import { Overview } from "./Overview";
+import { PlanCards } from "./PlanCards";
 import { ProfileForm } from "./ProfileForm";
 import { UsersPanel } from "./UsersPanel";
 import { VansPanel } from "./VansPanel";
@@ -19,6 +22,7 @@ const TABS = [
   ["rezervacije", "Rezervacije"],
   ["kombiji", "Kombiji"],
   ["blokade", "Blokirani dani"],
+  ["analitika", "Analitika"],
   ["vlasnici", "Vlasnici"],
   ["profil", "Profil"],
 ] as const;
@@ -124,6 +128,7 @@ export function AdminApp() {
             ))}
             <Link href="/" target="_blank">Web stranica</Link>
             <button type="button" onClick={logout}>Odjava</button>
+            <ThemeToggle />
           </nav>
         </div>
       </header>
@@ -138,12 +143,14 @@ export function AdminApp() {
         {tab === "rezervacije" && <BookingList vans={vans} bookings={bookings} onStatus={setStatus} />}
         {tab === "kombiji" && <VansPanel me={me} vans={vans} onChange={setVans} />}
         {tab === "blokade" && <BlocksPanel vans={vans} blocks={blocks} onChange={setBlocks} />}
+        {tab === "analitika" && <AnalyticsPanel me={me} vans={vans} />}
         {tab === "vlasnici" && me.role === "admin" && <UsersPanel vans={vans} onVansChange={setVans} />}
         {tab === "profil" && (
           <>
             <h1 className="display h-lg">Profil</h1>
             <p className="lead">{me.email}</p>
             <ProfileForm me={me} onSaved={setMe} />
+            {me.role !== "admin" && <PlanCards me={me} />}
           </>
         )}
       </main>

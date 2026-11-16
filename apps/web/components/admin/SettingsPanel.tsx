@@ -47,6 +47,13 @@ export function SettingsPanel({ settings, onSave }: { settings: Settings; onSave
       </div>
       {msg && <p className={msg.ok ? "ok-box" : "alert"} role="status">{msg.text}</p>}
 
+      <label className="check">
+        <input type="checkbox" checked={s.priceOnRequest} onChange={(e) => top("priceOnRequest", e.target.checked)} />
+        <span>
+          <strong>Cijena po dogovoru.</strong> Na stranici se ne prikazuje cijena najma; dogovarate je s kupcem nakon upita.
+        </span>
+      </label>
+
       <section className="fields">
         {numberField("Cijena po danu (KM)", s.dailyRate, (n) => top("dailyRate", n))}
         {numberField("Popust 7+ dana (%)", s.weeklyDiscountPct, (n) => top("weeklyDiscountPct", n))}

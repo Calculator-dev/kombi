@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { UserStatus } from "@kombi/shared";
+import { PLANS, PLAN_INFO, planVans, type Plan, type UserStatus } from "@kombi/shared";
 import { adminApi } from "@/lib/api";
 import type { Me, OwnerVan } from "./types";
 
@@ -22,6 +22,16 @@ export function UsersPanel({ vans, onVansChange }: { vans: OwnerVan[]; onVansCha
     try {
       const updated = await adminApi<Me>(`/users/${u.id}`, { method: "PATCH", json: { status } });
       setUsers((list) => list.map((x) => (x.id === u.id ? updated : x)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Nije sačuvano.");
+    }
+  }
+
+  async function setPlan(u: Me, plan: Plan) {
+    try {
+      const updated = await adminApi<Me>(`/users/${u.id}`, { method: "PATCH", json: { plan } });
+      setUsers((list) => list.map((x) => (x.id === u.id ? updated : x)));
+      setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Nije sačuvano.");
     }
@@ -55,7 +65,13 @@ export function UsersPanel({ vans, onVansChange }: { vans: OwnerVan[]; onVansCha
                 {u.phone ? `, ${u.phone}` : ""} · kombija: {vans.filter((v) => v.ownerId === u.id).length}
               </div>
             </div>
-            <div className="btns">
+            <div className="btns" style={{ alignItems: "flex-end", flexWrap: "wrap" }}>
+              <label className="field" style={{ minWidth: 220 }}>
+                Paket
+                <select value={u.plan} onChange={(e) => setPlan(u, e.target.value as Plan)}>
+                  {PLANS.map((p) => <option key={p} value={p}>{PLAN_INFO[p].label} ({planVans(p)})</option>)}
+                </select>
+              </label>
               {u.status !== "approved" && <button type="button" className="small-btn dark" onClick={() => setStatus(u, "approved")}>Odobri</button>}
               {u.status !== "suspended" && <button type="button" className="small-btn" onClick={() => setStatus(u, "suspended")}>Suspenduj</button>}
             </div>

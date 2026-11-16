@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { dayWord, featureLabel, type VanCard } from "@kombi/shared";
+import { ON_REQUEST, dayWord, featureLabel, type VanCard } from "@kombi/shared";
 import { trackEcommerce } from "@/lib/analytics";
 import { km } from "@/lib/format";
 import { VanDrawing } from "./VanDrawing";
@@ -32,7 +32,7 @@ export function VanCardView({
     <li className="van-card" data-unavailable={unavailable || undefined}>
       <Link
         href={`/kombi/${c.slug}${query}`}
-        onClick={() => trackEcommerce("select_item", [c], { item_list_name: list, index, prices: [c.quote?.total ?? c.dailyRate] })}
+        onClick={() => trackEcommerce("select_item", [c], { item_list_name: list, index, prices: [c.priceOnRequest ? 0 : (c.quote?.total ?? c.dailyRate)] })}
       >
         <div className="van-photo">
           {c.photo ? (
@@ -53,6 +53,11 @@ export function VanCardView({
             {dates && c.quote ? (
               unavailable ? (
                 <span className="taken-note">{c.available === false ? "Zauzet u tim danima" : c.quote.errors[0]}</span>
+              ) : c.priceOnRequest ? (
+                <>
+                  <span>{c.quote.days} {dayWord(c.quote.days)}</span>
+                  <strong>{ON_REQUEST}</strong>
+                </>
               ) : (
                 <>
                   <span>
@@ -61,6 +66,11 @@ export function VanCardView({
                   <strong>{km(c.quote.total)}</strong>
                 </>
               )
+            ) : c.priceOnRequest ? (
+              <>
+                <span>Cijena</span>
+                <strong>{ON_REQUEST}</strong>
+              </>
             ) : (
               <>
                 <span>od</span>

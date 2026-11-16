@@ -6,10 +6,6 @@ export const SITE = {
   name: "kombi.ba",
   url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://kombi.ba",
   city: "Sarajevo",
-  phone: "[+387 6x xxx xxx]",
-  phoneHref: "tel:+387",
-  viberHref: "viber://chat?number=%2B387",
-  whatsappHref: "https://wa.me/387",
   email: "[email]@kombi.ba",
   replyWithin: "[2 sata]",
 };

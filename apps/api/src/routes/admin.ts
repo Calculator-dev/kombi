@@ -3,11 +3,13 @@ import multer from "multer";
 import { z } from "zod";
 import {
   BOOKING_STATUSES,
+  PLANS,
   USER_STATUSES,
   SPIN_SLOTS,
   VAN_STATUSES,
   isIsoDate,
   profileSchema,
+  todayIn,
   vanDetailsSchema,
 } from "@kombi/shared";
 import type { Deps } from "../app";
@@ -16,7 +18,9 @@ import type { UserRow } from "../db/schema";
 import { HttpError } from "../errors";
 import { createBlock, deleteBlock, listBlocks } from "../services/blocks";
 import { listBookings, setBookingStatus } from "../services/bookings";
-import { getUser, listUsers, setUserStatus, updateProfile } from "../services/users";
+import { contractFor } from "../services/contract";
+import { analyticsFor } from "../services/stats";
+import { getUser, hasAnalytics, listUsers, setUserPlan, setUserStatus, updateProfile } from "../services/users";
 import {
   addPhoto,
   createVan,
@@ -24,6 +28,7 @@ import {
   orderPhotos,
   removePhoto,
   removeSpinPhoto,
+  saveVanContract,
   saveVanPricing,
   saveVanTerms,
   setSpinEnabled,
@@ -40,13 +45,13 @@ const isoDate = z.string().refine(isIsoDate, "Neispravan datum");
 const uuid = z.uuid();
 const spinSlot = z.coerce.number().int().min(0).max(SPIN_SLOTS - 1);
 
-const toMe = (u: UserRow) => ({ id: u.id, email: u.email, name: u.name, phone: u.phone, role: u.role, status: u.status });
+const toMe = (u: UserRow) => ({ id: u.id, email: u.email, name: u.name, phone: u.phone, address: u.address ?? "", companyId: u.companyId ?? "", representative: u.representative ?? "", role: u.role, status: u.status, plan: u.plan });
 
 /**
  * The admin panel API, for van owners and platform admins. Owners only ever
  * see and change their own vans and the bookings and blocks of those vans.
  */
-export function adminRoutes({ db, auth, notifier, storage }: Deps): Router {
+export function adminRoutes({ db, auth, notifier, storage, config, now }: Deps): Router {
   const r = Router();
   const upload = multer({
     storage: multer.memoryStorage(),
@@ -93,6 +98,11 @@ export function adminRoutes({ db, auth, notifier, storage }: Deps): Router {
   r.put("/vans/:id/terms", async (req, res) => {
     const van = await vanForUser(db.orm, currentUser(res), uuid.parse(req.params.id));
     res.json(toOwnerVan(storage, await saveVanTerms(db.orm, van, req.body)));
+  });
+
+  r.put("/vans/:id/contract", async (req, res) => {
+    const van = await vanForUser(db.orm, currentUser(res), uuid.parse(req.params.id));
+    res.json(toOwnerVan(storage, await saveVanContract(db.orm, van, req.body)));
   });
 
   r.patch("/vans/:id/status", async (req, res) => {
@@ -159,6 +169,11 @@ export function adminRoutes({ db, auth, notifier, storage }: Deps): Router {
     res.json(booking);
   });
 
+  /** The rental contract for a booking, filled in from the request, the van and its owner. */
+  r.get("/bookings/:id/contract", async (req, res) => {
+    res.json(await contractFor(db.orm, currentUser(res), uuid.parse(req.params.id), todayIn(config.BUSINESS_TZ, now())));
+  });
+
   // Blocked days
 
   r.get("/blocks", async (_req, res) => {
@@ -181,6 +196,15 @@ export function adminRoutes({ db, auth, notifier, storage }: Deps): Router {
     res.status(204).end();
   });
 
+  // Analytics: part of the paid packages
+
+  r.get("/analytics", async (req, res) => {
+    const user = currentUser(res);
+    if (!hasAnalytics(user)) throw new HttpError(403, "plan_required", "Analitika je dio paketa Bronze, Silver i Gold.");
+    const q = z.object({ days: z.coerce.number().int().min(7).max(365).default(30), vanId: uuid.optional() }).parse(req.query);
+    res.json(await analyticsFor(db.orm, user, { ...q, today: todayIn(config.BUSINESS_TZ, now()), tz: config.BUSINESS_TZ }));
+  });
+
   // Platform admins only
 
   r.get("/users", auth.requireAdmin, async (_req, res) => {
@@ -189,11 +213,17 @@ export function adminRoutes({ db, auth, notifier, storage }: Deps): Router {
 
   r.patch("/users/:id", auth.requireAdmin, async (req, res) => {
     const id = uuid.parse(req.params.id);
-    const { status } = z.object({ status: z.enum(USER_STATUSES) }).parse(req.body);
+    const { status, plan } = z
+      .object({ status: z.enum(USER_STATUSES).optional(), plan: z.enum(PLANS).optional() })
+      .refine((b) => b.status || b.plan, { message: "Nema promjene" })
+      .parse(req.body);
     const target = await getUser(db.orm, id);
     if (!target) throw new HttpError(404, "not_found", "Korisnik ne postoji.");
     if (target.role === "admin") throw new HttpError(400, "is_admin", "Administratori se mijenjaju preko PLATFORM_ADMIN_EMAILS.");
-    res.json(toMe(await setUserStatus(db.orm, id, status)));
+    let updated = target;
+    if (plan) updated = await setUserPlan(db.orm, id, plan);
+    if (status) updated = await setUserStatus(db.orm, id, status);
+    res.json(toMe(updated));
   });
 
   r.patch("/vans/:id/owner", auth.requireAdmin, async (req, res) => {

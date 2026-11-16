@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { featureLabel, type PublicVan, type Settings, type Terms } from "@kombi/shared";
+import { ON_REQUEST, featureLabel, type PublicVan, type Settings, type Terms } from "@kombi/shared";
 import { km } from "@/lib/format";
 import { FAQ, SITE } from "@/lib/site";
 import { VanDrawing } from "./VanDrawing";
@@ -82,11 +82,19 @@ export function Prices({ settings, included }: { settings: Settings; included: s
           <h2 id="cijene-h" className="display h-lg">
             Cjenovnik
           </h2>
-          <p className="note">Cijena koju vidite je cijena koju plaćate. Bez naknada koje se pojave na šalteru.</p>
+          <p className="note">
+            {settings.priceOnRequest
+              ? "Cijenu najma dogovarate s vlasnikom nakon što pošaljete upit. Bez naknada koje se pojave na šalteru."
+              : "Cijena koju vidite je cijena koju plaćate. Bez naknada koje se pojave na šalteru."}
+          </p>
         </div>
         <div className="tariffs">
           <div>
             <h3>Najam</h3>
+            {settings.priceOnRequest ? (
+              <div className="line"><span>Cijena najma</span><span className="fill" /><b>{ON_REQUEST}</b></div>
+            ) : (
+              <>
             <div className="line"><span>1–6 dana</span><span className="fill" /><b>{settings.dailyRate} KM/dan</b></div>
             <div className="line"><span>7+ dana (−{settings.weeklyDiscountPct}%)</span><span className="fill" /><b>{weekly} KM/dan</b></div>
             {settings.seasons.map((s) => (
@@ -98,6 +106,8 @@ export function Prices({ settings, included }: { settings: Settings; included: s
                 <b>{s.dailyRate} KM/dan</b>
               </div>
             ))}
+              </>
+            )}
             <div className="line"><span>Depozit</span><span className="fill" /><b>{km(settings.deposit)}</b></div>
           </div>
           <div>
@@ -201,12 +211,10 @@ export function Contact() {
         <h2 id="kontakt-h" className="display">
           Pitanje?
           <br />
-          Piši na Viber.
+          Pišite nam.
         </h2>
         <div className="chips">
-          <a className="chip" href={SITE.viberHref}>Viber</a>
-          <a className="chip" href={SITE.whatsappHref}>WhatsApp</a>
-          <a className="chip ghost" href={SITE.phoneHref}>Pozovi</a>
+          <a className="chip" href={`mailto:${SITE.email}`}>Pošalji email</a>
         </div>
       </div>
     </section>

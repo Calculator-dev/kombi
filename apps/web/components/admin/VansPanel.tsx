@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { FEATURES, FUELS, GEARBOXES, vanDetailsSchema, type FeatureId, type VanDetails } from "@kombi/shared";
+import { FEATURES, FUELS, GEARBOXES, PLAN_INFO, planVans, vanDetailsSchema, type FeatureId, type VanDetails } from "@kombi/shared";
 import { ApiError, adminApi } from "@/lib/api";
 import { km } from "@/lib/format";
 import { PhotoManager } from "./PhotoManager";
 import { SpinManager } from "./SpinManager";
 import { SettingsPanel } from "./SettingsPanel";
+import { ContractForm } from "./ContractForm";
 import { TermsForm } from "./TermsForm";
 import type { Me, OwnerVan } from "./types";
 
@@ -59,6 +60,13 @@ export function VansPanel({ me, vans, onChange }: Props) {
         <h1 className="display h-lg">Kombiji</h1>
         <button type="button" className="btn-dark" onClick={() => setEditing("new")}>+ Dodaj kombi</button>
       </div>
+      {me.role !== "admin" && (
+        <p className="caption">
+          Paket {PLAN_INFO[me.plan].label}: na stranici može biti {planVans(me.plan)}
+          {PLAN_INFO[me.plan].maxVans !== null && ` (objavljeno ${vans.filter((v) => v.status === "published" && v.ownerId === me.id).length} od ${PLAN_INFO[me.plan].maxVans})`}.
+          {me.plan !== "gold" && " Za više kombija pogledajte pakete u Profilu."}
+        </p>
+      )}
       {vans.length === 0 && (
         <p className="empty">Još nemate kombi. Dodajte ga: osnovni podaci, fotografije, cijene, i objavite.</p>
       )}
@@ -74,7 +82,7 @@ export function VansPanel({ me, vans, onChange }: Props) {
             <span className="who">
               <strong>{v.name}</strong>
               <span className="meta dim">
-                {v.year}, {v.seats} sjedišta, {v.location} · od {km(v.pricing.dailyRate)}/dan
+                {v.year}, {v.seats} sjedišta, {v.location} · {v.pricing.priceOnRequest ? "cijena po dogovoru" : `od ${km(v.pricing.dailyRate)}/dan`}
               </span>
             </span>
             <span className="badge" data-s={v.status === "published" ? "confirmed" : "pending"}>{STATUS[v.status]}</span>
@@ -193,6 +201,8 @@ function VanEditor({
       />
 
       <TermsForm key={`terms-${van.id}`} van={van} onSaved={onSaved} />
+
+      <ContractForm key={`contract-${van.id}`} van={van} onSaved={onSaved} />
 
       <section className="danger-zone">
         <h2 className="display h-md" style={{ marginBottom: 8 }}>Brisanje</h2>

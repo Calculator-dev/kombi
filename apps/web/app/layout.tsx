@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Suspense } from "react";
 import { Analytics } from "@/components/Analytics";
 import { CookieConsent } from "@/components/CookieConsent";
+import { THEME_SCRIPT } from "@/components/ThemeToggle";
 import { CONSENT_DEFAULT_SCRIPT } from "@/lib/consent";
 import { SITE } from "@/lib/site";
 // Fonts are self-hosted (no request to Google): faster, and nothing to declare under GDPR.
@@ -24,13 +25,20 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#f6f6f3",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f6f6f3" },
+    { media: "(prefers-color-scheme: dark)", color: "#141413" },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="bs">
+    <html lang="bs" suppressHydrationWarning>
       <body>
+        {/* The chosen theme (or the device's) is set before anything is drawn, so the page never flashes. */}
+        <Script id="theme" strategy="beforeInteractive">
+          {THEME_SCRIPT}
+        </Script>
         {/* Consent defaults must exist before Google Tag Manager loads. */}
         <Script id="consent-default" strategy="beforeInteractive">
           {CONSENT_DEFAULT_SCRIPT}

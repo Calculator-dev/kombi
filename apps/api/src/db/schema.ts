@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, date, index, integer, jsonb, pgSequence, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import type { BookingStatus, ContactChannel, Quote, Settings, Terms, UserRole, UserStatus, VanStatus } from "@kombi/shared";
+import { boolean, check, date, index, integer, jsonb, pgSequence, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import type { BookingStatus, ContactChannel, ContractTerms, Plan, Quote, Settings, Terms, UserRole, UserStatus, VanStatus } from "@kombi/shared";
 
 // Row-Level Security is on for every table with no policies: on Supabase this keeps the
 // tables closed to its public REST API. The API connects as the table owner, which bypasses RLS.
@@ -21,11 +21,18 @@ export const users = pgTable(
     email: text("email").notNull().unique(),
     name: text("name"),
     phone: text("phone"),
+    /** Printed on rental contracts as the lessor. */
+    address: text("address"),
+    companyId: text("company_id"),
+    representative: text("representative"),
     role: text("role").$type<UserRole>().notNull().default("owner"),
     status: text("status").$type<UserStatus>().notNull().default("pending"),
+    /** The owner's package: how many vans they may publish, and whether they see analytics. */
+    plan: text("plan").$type<Plan>().notNull().default("free"),
     ...timestamps,
   },
   (t) => [
+    check("users_plan_check", sql`${t.plan} in ('free', 'bronze', 'silver', 'gold')`),
     check("users_role_check", sql`${t.role} in ('owner', 'admin')`),
     check("users_status_check", sql`${t.status} in ('pending', 'approved', 'suspended')`),
   ],
@@ -76,6 +83,8 @@ export const vans = pgTable(
     pricing: jsonb("pricing").$type<Settings>().notNull(),
     /** Rental terms (driver age, cancellation, what's included…). */
     terms: jsonb("terms").$type<Partial<Terms>>().notNull().default({}),
+    /** Papers and amounts for the rental contract; never public. */
+    contract: jsonb("contract").$type<Partial<ContractTerms>>().notNull().default({}),
     ...timestamps,
   },
   (t) => [
@@ -104,6 +113,11 @@ export const bookings = pgTable(
     contactChannel: text("contact_channel").$type<ContactChannel>().notNull(),
     birthDate: date("birth_date", { mode: "string" }),
     licenseSince: integer("license_since"),
+    // For the rental contract; the customer may leave them out.
+    address: text("address"),
+    jmb: text("jmb"),
+    idNumber: text("id_number"),
+    licenseNumber: text("license_number"),
     notes: text("notes"),
     extras: jsonb("extras").$type<string[]>().notNull().default([]),
     pickup: text("pickup").notNull(),
@@ -138,6 +152,22 @@ export const blockedRanges = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("blocked_dates_idx").on(t.vanId, t.start, t.end), check("blocked_dates_check", sql`${t.end} >= ${t.start}`)],
+).enableRLS();
+
+/** Daily counters per van, for the owner's analytics. No visitor data is kept. */
+export const vanStats = pgTable(
+  "van_stats",
+  {
+    vanId: uuid("van_id")
+      .notNull()
+      .references(() => vans.id, { onDelete: "cascade" }),
+    day: date("day", { mode: "string" }).notNull(),
+    /** Times the van's page was opened. */
+    views: integer("views").notNull().default(0),
+    /** Times someone picked dates and opened the booking form. */
+    checkouts: integer("checkouts").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.vanId, t.day] })],
 ).enableRLS();
 
 export type BookingRow = typeof bookings.$inferSelect;

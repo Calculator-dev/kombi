@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { ON_REQUEST } from "@kombi/shared";
 import { Suspense } from "react";
 import { Footer } from "@/components/Footer";
 import { Gallery } from "@/components/Gallery";
@@ -19,7 +20,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const van = await getVan(slug);
   if (!van) return {};
   const title = `${van.name} — najam kombija, ${van.location}`;
-  const description = `${van.name} (${van.year}), ${van.seats} sjedišta, ${van.gearbox.toLowerCase()}. Od ${van.pricing.dailyRate} KM/dan. Slobodni termini i tačna cijena odmah.`;
+  const description = van.pricing.priceOnRequest
+    ? `${van.name} (${van.year}), ${van.seats} sjedišta, ${van.gearbox.toLowerCase()}. Cijena po dogovoru. Slobodni termini odmah.`
+    : `${van.name} (${van.year}), ${van.seats} sjedišta, ${van.gearbox.toLowerCase()}. Od ${van.pricing.dailyRate} KM/dan. Slobodni termini i tačna cijena odmah.`;
   const image = van.photos[0];
   return {
     title,
@@ -33,6 +36,7 @@ export default async function VanPage({ params }: Props) {
   const { slug } = await params;
   const van = await getVan(slug);
   if (!van) notFound();
+  const onRequest = van.pricing.priceOnRequest;
   return (
     <>
       <Header />
@@ -44,11 +48,11 @@ export default async function VanPage({ params }: Props) {
               <span className="dot">.</span>
             </>
           }
-          intro={van.description.split("\n")[0] || `${van.seats} sjedišta, ${van.gearbox.toLowerCase()}, bez vozača. Odaberite datume i cijenu vidite odmah.`}
+          intro={van.description.split("\n")[0] || `${van.seats} sjedišta, ${van.gearbox.toLowerCase()}, bez vozača. ${onRequest ? "Odaberite datume i pošaljite upit, cijenu dogovarate s vlasnikom." : "Odaberite datume i cijenu vidite odmah."}`}
           media={van.photos.length > 0 && <Gallery photos={van.photos} name={van.name} spin={van.spin} />}
           specs={[
             ["Grad", van.location],
-            ["Od", `${van.pricing.dailyRate} KM / dan`],
+            onRequest ? ["Cijena", ON_REQUEST] : ["Od", `${van.pricing.dailyRate} KM / dan`],
             ["Sjedišta", String(van.seats)],
             ["Mjenjač", van.gearbox],
             ["Plaćanje", "Pri preuzimanju"],

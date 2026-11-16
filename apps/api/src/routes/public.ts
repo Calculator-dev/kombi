@@ -17,6 +17,7 @@ import type { Deps } from "../app";
 import { HttpError } from "../errors";
 import { busyVans, unavailableDates } from "../services/availability";
 import { createBooking } from "../services/bookings";
+import { recordVanEvent } from "../services/stats";
 import { getUser } from "../services/users";
 import { getPublicVan, listPublicVans, pricingOf, searchVans, toCard, toPublicVan } from "../services/vans";
 
@@ -72,13 +73,28 @@ export function publicRoutes({ db, config, notifier, storage, now }: Deps): Rout
   });
 
   r.get("/vans/:slug/availability", async (req, res) => {
-    const van = await publicVan(req.params.slug);
+    const van = await publicVan(String(req.params.slug));
     const from = isoDate.optional().parse(req.query.from) ?? today();
     const to = isoDate.optional().parse(req.query.to) ?? addDays(from, 92);
     const span = diffDays(from, to);
     if (span < 0 || span > 400) throw new HttpError(400, "invalid_range", "Raspon može biti najviše 400 dana.");
     res.set("Cache-Control", "no-store");
     res.json({ from, to, today: today(), unavailable: await unavailableDates(db.orm, van.id, from, to) });
+  });
+
+  const hitLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: config.NODE_ENV === "test" ? 10_000 : 300,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+  });
+
+  /** Counts a visit to a van's page, or an opened booking form, for its owner's analytics. Nothing about the visitor is kept. */
+  r.post("/vans/:slug/hit", hitLimiter, async (req, res) => {
+    const { type } = z.object({ type: z.enum(["view", "checkout"]) }).parse(req.body);
+    const van = await publicVan(String(req.params.slug));
+    await recordVanEvent(db.orm, van.id, today(), type);
+    res.status(204).end();
   });
 
   r.post("/quote", async (req, res) => {

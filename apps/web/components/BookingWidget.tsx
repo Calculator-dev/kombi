@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
+  ON_REQUEST,
   addDays,
   dayWord,
   eachDate,
@@ -213,7 +214,13 @@ export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Pro
       {van && settings ? (
         <>
           <div className="receipt" aria-live="polite">
-            {q && q.rentalLines.length ? (
+            {settings.priceOnRequest ? (
+              <div className="line">
+                <span>Najam{q && !q.errors.length ? `, ${q.days} ${dayWord(q.days)}` : ""}</span>
+                <span className="fill" />
+                <span>{ON_REQUEST}</span>
+              </div>
+            ) : q && q.rentalLines.length ? (
               q.rentalLines.map((l) => (
                 <div className="line" key={l.rate}>
                   <span>{l.label}</span>
@@ -244,7 +251,14 @@ export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Pro
 
           {/* On phones this bar stays pinned to the bottom of the screen. */}
           <div className="t-foot price-bar">
-            {ready && q ? (
+            {settings.priceOnRequest ? (
+              <div className="t-total">
+                <span className="t-label">{ready && q ? `Cijena, ${q.days} ${dayWord(q.days)}` : "Cijena"}</span>
+                <span>
+                  <strong>{ON_REQUEST}</strong>
+                </span>
+              </div>
+            ) : ready && q ? (
               <div className="t-total">
                 <span className="t-label">Ukupno, {q.days} {dayWord(q.days)}</span>
                 <span>

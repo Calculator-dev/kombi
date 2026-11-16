@@ -9,6 +9,7 @@ export interface Notifier {
 }
 
 const CHANNEL: Record<string, string> = { viber: "Viber", whatsapp: "WhatsApp", email: "Email", phone: "Poziv" };
+const price = (b: Booking) => (b.quote.onRequest ? "cijena po dogovoru" : `${b.total} KM`);
 const fmt = (d: string) => d.split("-").reverse().join(".") + ".";
 
 /**
@@ -46,10 +47,10 @@ export function createNotifier(config: Config): Notifier {
       const to = [...new Set([ownerEmail, config.OWNER_EMAIL].filter((e): e is string => Boolean(e)))].join(", ");
       await send(
         to || undefined,
-        `Novi upit ${b.ref} za ${b.vanName}: ${fmt(b.start)} – ${fmt(b.end)}, ${b.total} KM`,
+        `Novi upit ${b.ref} za ${b.vanName}: ${fmt(b.start)} – ${fmt(b.end)}, ${price(b)}`,
         [
           `${b.name} šalje upit za ${b.vanName}, ${fmt(b.start)} – ${fmt(b.end)} (${b.quote.days} dana).`,
-          `Ukupno: ${b.total} KM`,
+          b.quote.onRequest ? "Cijena: po dogovoru s kupcem" : `Ukupno: ${b.total} KM`,
           b.quote.extraLines.length ? `Dodaci: ${b.quote.extraLines.map((l) => l.label).join(", ")}` : "",
           `Kontakt: ${b.phone} (${CHANNEL[b.contactChannel] ?? b.contactChannel}), ${b.email}`,
           `Preuzimanje: ${b.quote.pickupLabel ?? b.pickup}${b.pickupAddress ? `, ${b.pickupAddress}` : ""}${b.pickupTime ? ` u ${b.pickupTime}` : ""}`,
@@ -63,7 +64,7 @@ export function createNotifier(config: Config): Notifier {
       await send(
         b.email,
         `kombi.ba — primili smo vaš upit ${b.ref}`,
-        `Zdravo ${b.name},\n\nprimili smo upit za ${b.vanName}, ${fmt(b.start)} – ${fmt(b.end)}, ukupno ${b.total} KM.\n` +
+        `Zdravo ${b.name},\n\nprimili smo upit za ${b.vanName}, ${fmt(b.start)} – ${fmt(b.end)}, ${b.quote.onRequest ? price(b) : `ukupno ${price(b)}`}.\n` +
           `Termin čuvamo za vas dok ga ne potvrdimo. Javit ćemo vam se uskoro.\n\nkombi.ba`,
       );
     },
@@ -72,7 +73,7 @@ export function createNotifier(config: Config): Notifier {
         b.email,
         `kombi.ba — rezervacija ${b.ref} je potvrđena`,
         `Zdravo ${b.name},\n\nvaša rezervacija za ${b.vanName}, ${fmt(b.start)} – ${fmt(b.end)} je potvrđena.\n` +
-          `Ukupno: ${b.total} KM, depozit ${b.quote.deposit} KM pri preuzimanju.\n` +
+          `${b.quote.onRequest ? "Cijena: po dogovoru" : `Ukupno: ${b.total} KM`}, depozit ${b.quote.deposit} KM pri preuzimanju.\n` +
           `Javit ćemo vam se da dogovorimo tačno mjesto i vrijeme preuzimanja.\n\nkombi.ba`,
       );
     },

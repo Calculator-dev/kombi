@@ -1,8 +1,9 @@
 import { asc, eq, sql } from "drizzle-orm";
-import type { Profile, UserStatus } from "@kombi/shared";
+import { PLAN_INFO, planVans, type Plan, type Profile, type UserStatus } from "@kombi/shared";
 import { schema, type Executor } from "../db";
 import type { UserRow } from "../db/schema";
 import { HttpError } from "../errors";
+import { publishedCount } from "./vans";
 
 const { users } = schema;
 
@@ -45,7 +46,7 @@ export async function ensureUser(
 export async function updateProfile(db: Executor, id: string, p: Profile): Promise<UserRow> {
   const [row] = await db
     .update(users)
-    .set({ name: p.name, phone: p.phone, updatedAt: sql`now()` })
+    .set({ name: p.name, phone: p.phone, address: p.address, companyId: p.companyId, representative: p.representative, updatedAt: sql`now()` })
     .where(eq(users.id, id))
     .returning();
   return row!;
@@ -69,3 +70,24 @@ export async function setUserStatus(db: Executor, id: string, status: UserStatus
   if (!row) throw new HttpError(404, "not_found", "Korisnik ne postoji.");
   return row;
 }
+
+/** Changes an owner's package. A smaller one is refused while more vans are published than it allows. */
+export async function setUserPlan(db: Executor, id: string, plan: Plan): Promise<UserRow> {
+  const max = PLAN_INFO[plan].maxVans;
+  if (max !== null) {
+    const live = await publishedCount(db, id);
+    if (live > max) {
+      throw new HttpError(
+        409,
+        "plan_too_small",
+        `Vlasnik ima ${live} objavljenih kombija, a paket ${PLAN_INFO[plan].label} dozvoljava ${planVans(plan)}. Prvo sakrijte višak.`,
+      );
+    }
+  }
+  const [row] = await db.update(users).set({ plan, updatedAt: sql`now()` }).where(eq(users.id, id)).returning();
+  if (!row) throw new HttpError(404, "not_found", "Korisnik ne postoji.");
+  return row;
+}
+
+/** Analytics come with every paid package; admins always have them. */
+export const hasAnalytics = (u: UserRow) => u.role === "admin" || PLAN_INFO[u.plan].analytics;

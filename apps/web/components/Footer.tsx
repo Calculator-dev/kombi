@@ -25,7 +25,6 @@ export function Footer() {
         <div>
           <b>Kontakt</b>
           <span>{SITE.city}, Bosna i Hercegovina</span>
-          <a href={SITE.phoneHref}>{SITE.phone}</a>
           <span>{SITE.email}</span>
         </div>
       </div>

@@ -15,7 +15,7 @@ export default function ErrorPage({ error, retry }: { error: Error & { digest?: 
       <Header />
       <main id="sadrzaj" className="wrap login">
         <h1 className="display h-lg">Stranica se trenutno ne učitava.</h1>
-        <p>Obično prođe za pola minute. Pokušajte ponovo, a ako i dalje ne radi, javite nam se na {SITE.phone}.</p>
+        <p>Obično prođe za pola minute. Pokušajte ponovo, a ako i dalje ne radi, javite nam se na {SITE.email}.</p>
         <button type="button" className="btn-dark" style={{ alignSelf: "flex-start" }} onClick={() => retry()}>
           Pokušaj ponovo
         </button>

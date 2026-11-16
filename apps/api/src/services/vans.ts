@@ -1,6 +1,10 @@
 import { and, asc, count, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import {
+  DEFAULT_CONTRACT_TERMS,
   DEFAULT_SETTINGS,
+  contractTermsSchema,
+  PLAN_INFO,
+  planVans,
   DEFAULT_TERMS,
   MAX_PHOTOS,
   SEARCH_PAGE_SIZE,
@@ -10,6 +14,7 @@ import {
   slugify,
   termsSchema,
   upgradeSettings,
+  type ContractTerms,
   type PhotoUrls,
   type PublicVan,
   type SearchResult,
@@ -38,6 +43,12 @@ export function pricingOf(van: Pick<VanRow, "pricing">): Settings {
 export function termsOf(van: Pick<VanRow, "terms">): Terms {
   const parsed = termsSchema.safeParse({ ...DEFAULT_TERMS, ...van.terms });
   return parsed.success ? parsed.data : structuredClone(DEFAULT_TERMS);
+}
+
+/** What the rental contract says about this van, with the sample contract's values where nothing is set. */
+export function contractTermsOf(van: Pick<VanRow, "contract">): ContractTerms {
+  const parsed = contractTermsSchema.safeParse({ ...DEFAULT_CONTRACT_TERMS, ...van.contract });
+  return parsed.success ? parsed.data : structuredClone(DEFAULT_CONTRACT_TERMS);
 }
 
 /** Vans the public site shows: published, and run by the platform or an approved owner. */
@@ -126,10 +137,46 @@ export async function saveVanTerms(db: Executor, van: VanRow, input: unknown): P
   return row!;
 }
 
+export async function saveVanContract(db: Executor, van: VanRow, input: unknown): Promise<VanRow> {
+  const contract = contractTermsSchema.parse(input);
+  const [row] = await db.update(vans).set({ contract, updatedAt: sql`now()` }).where(eq(vans.id, van.id)).returning();
+  return row!;
+}
+
+/**
+ * An owner's package limits how many of their vans can be published at once.
+ * Vans the platform runs itself, and admins, have no limit.
+ */
+async function checkPlanLimit(db: Executor, ownerId: string | null, exceptVanId: string): Promise<void> {
+  if (!ownerId) return;
+  const [owner] = await db.select().from(users).where(eq(users.id, ownerId));
+  if (!owner || owner.role === "admin") return;
+  const max = PLAN_INFO[owner.plan].maxVans;
+  if (max === null) return;
+  const [row] = await db
+    .select({ n: count() })
+    .from(vans)
+    .where(and(eq(vans.ownerId, ownerId), eq(vans.status, "published"), sql`${vans.id} <> ${exceptVanId}`));
+  if ((row?.n ?? 0) >= max) {
+    throw new HttpError(
+      403,
+      "plan_limit",
+      `Paket ${PLAN_INFO[owner.plan].label} dozvoljava ${planVans(owner.plan)} na stranici. Sakrijte drugi kombi ili pređite na veći paket.`,
+    );
+  }
+}
+
+/** Published vans per owner, for checking a package change. */
+export async function publishedCount(db: Executor, ownerId: string): Promise<number> {
+  const [row] = await db.select({ n: count() }).from(vans).where(and(eq(vans.ownerId, ownerId), eq(vans.status, "published")));
+  return row?.n ?? 0;
+}
+
 export async function setVanStatus(db: Executor, van: VanRow, status: VanStatus): Promise<VanRow> {
   if (status === "published" && van.photos.length === 0) {
     throw new HttpError(400, "no_photos", "Dodajte barem jednu fotografiju prije objave.");
   }
+  if (status === "published" && van.status !== "published") await checkPlanLimit(db, van.ownerId, van.id);
   const [row] = await db.update(vans).set({ status, updatedAt: sql`now()` }).where(eq(vans.id, van.id)).returning();
   return row!;
 }
@@ -138,6 +185,7 @@ export async function setVanOwner(db: Executor, van: VanRow, ownerId: string | n
   if (ownerId) {
     const [owner] = await db.select({ id: users.id }).from(users).where(eq(users.id, ownerId));
     if (!owner) throw new HttpError(404, "not_found", "Korisnik ne postoji.");
+    if (van.status === "published" && ownerId !== van.ownerId) await checkPlanLimit(db, ownerId, van.id);
   }
   const [row] = await db.update(vans).set({ ownerId, updatedAt: sql`now()` }).where(eq(vans.id, van.id)).returning();
   return row!;
@@ -269,6 +317,7 @@ export function toCard(storage: PhotoStorage, v: VanRow): VanCard {
     features: v.features as VanDetails["features"],
     photo: v.photos[0] ? photoUrls(storage, v.photos[0]) : null,
     dailyRate: pricingOf(v).dailyRate,
+    priceOnRequest: pricingOf(v).priceOnRequest,
   };
 }
 
@@ -278,7 +327,7 @@ export function toOwnerVan(storage: PhotoStorage, v: VanRow) {
     const p = v.spinPhotos.find((s) => s.slot === slot);
     return p ? photoUrls(storage, p) : null;
   });
-  return { ...toPublicVan(storage, v), status: v.status, ownerId: v.ownerId, updatedAt: v.updatedAt, spinEnabled: v.spinEnabled, spinSlots: slots };
+  return { ...toPublicVan(storage, v), status: v.status, ownerId: v.ownerId, updatedAt: v.updatedAt, spinEnabled: v.spinEnabled, spinSlots: slots, contract: contractTermsOf(v) };
 }
 
 /**
@@ -288,6 +337,8 @@ export function toOwnerVan(storage: PhotoStorage, v: VanRow) {
  */
 export async function searchVans(db: Executor, storage: PhotoStorage, q: VanSearch): Promise<SearchResult> {
   const dailyRate = sql<number>`(${vans.pricing}->>'dailyRate')::int`;
+  // A price filter leaves out vans whose price is by agreement.
+  const priced = sql`coalesce((${vans.pricing}->>'priceOnRequest')::boolean, false) = false`;
   const where = and(
     isPublic,
     q.seats ? gte(vans.seats, q.seats) : undefined,
@@ -297,8 +348,8 @@ export async function searchVans(db: Executor, storage: PhotoStorage, q: VanSear
     q.city ? sql`lower(${vans.location}) = lower(${q.city})` : undefined,
     q.yearMin ? gte(vans.year, q.yearMin) : undefined,
     q.features?.length ? sql`${vans.features} @> ${JSON.stringify(q.features)}::jsonb` : undefined,
-    q.priceMin !== undefined ? sql`${dailyRate} >= ${q.priceMin}` : undefined,
-    q.priceMax !== undefined ? sql`${dailyRate} <= ${q.priceMax}` : undefined,
+    q.priceMin !== undefined ? and(priced, sql`${dailyRate} >= ${q.priceMin}`) : undefined,
+    q.priceMax !== undefined ? and(priced, sql`${dailyRate} <= ${q.priceMax}`) : undefined,
   );
   const [rows, cityRows] = await Promise.all([
     db.select({ van: vans }).from(vans).leftJoin(users, eq(users.id, vans.ownerId)).where(where),
@@ -325,12 +376,15 @@ export async function searchVans(db: Executor, storage: PhotoStorage, q: VanSear
     if (!q.taken) cards = cards.filter(bookable);
   }
 
-  const price = (c: Card) => c.quote?.total ?? c.dailyRate;
+  // Vans priced by agreement have no price to compare: they come after the priced ones.
+  const daily = (c: Card) => (c.priceOnRequest ? Infinity : c.dailyRate);
+  const price = (c: Card) => (c.priceOnRequest ? Infinity : (c.quote?.total ?? c.dailyRate));
+  const cmp = (a: number, b: number) => (a === b ? 0 : a - b);
   const by: Record<NonNullable<VanSearch["sort"]>, (a: Card, b: Card) => number> = {
-    total: (a, b) => price(a) - price(b),
-    daily: (a, b) => a.dailyRate - b.dailyRate,
-    seats: (a, b) => b.seats - a.seats || a.dailyRate - b.dailyRate,
-    newest: (a, b) => b.year - a.year || a.dailyRate - b.dailyRate,
+    total: (a, b) => cmp(price(a), price(b)),
+    daily: (a, b) => cmp(daily(a), daily(b)),
+    seats: (a, b) => b.seats - a.seats || cmp(daily(a), daily(b)),
+    newest: (a, b) => b.year - a.year || cmp(daily(a), daily(b)),
   };
   const sort = by[q.sort ?? "total"];
   // When taken vans are shown too, free ones come first.

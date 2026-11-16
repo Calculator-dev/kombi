@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
+  ON_REQUEST,
   bookingRequestSchema,
   dayWord,
   findPickup,
@@ -15,6 +16,7 @@ import { track, trackEcommerce } from "@/lib/analytics";
 import { km, shortDate } from "@/lib/format";
 import { SITE } from "@/lib/site";
 import { Logo } from "./Header";
+import { ThemeToggle } from "./ThemeToggle";
 
 const TIMES = Array.from({ length: 13 }, (_, i) => `${String(8 + i).padStart(2, "0")}:00`);
 const PLACEHOLDERS: Record<string, string> = { address: "Ulica i broj, Sarajevo", airport: "npr. TK 1021" };
@@ -37,6 +39,10 @@ interface Form {
   contactChannel: ContactChannel;
   birthDate: string;
   licenseSince: string;
+  address: string;
+  jmb: string;
+  idNumber: string;
+  licenseNumber: string;
   notes: string;
   acceptTerms: boolean;
   website: string;
@@ -57,6 +63,10 @@ export function BookingFlow({ van, start, end }: Props) {
     contactChannel: "viber",
     birthDate: "",
     licenseSince: "",
+    address: "",
+    jmb: "",
+    idNumber: "",
+    licenseNumber: "",
     notes: "",
     acceptTerms: false,
     website: "",
@@ -72,6 +82,10 @@ export function BookingFlow({ van, start, end }: Props) {
     return () => clearTimeout(t);
   }, [sending]);
   const [done, setDone] = useState<{ ref: string; total: number } | null>(null);
+  // Counted for the owner's analytics: someone picked dates and opened the form.
+  useEffect(() => {
+    void api(`/vans/${van.slug}/hit`, { method: "POST", json: { type: "checkout" } }).catch(() => {});
+  }, [van.slug]);
 
   const q = quote({ start, end, extras, pickup }, settings);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
@@ -94,6 +108,10 @@ export function BookingFlow({ van, start, end }: Props) {
       contactChannel: form.contactChannel,
       birthDate: form.birthDate || undefined,
       licenseSince: form.licenseSince ? Number(form.licenseSince) : undefined,
+      address: form.address || undefined,
+      jmb: form.jmb || undefined,
+      idNumber: form.idNumber || undefined,
+      licenseNumber: form.licenseNumber || undefined,
       notes: form.notes || undefined,
       acceptTerms: form.acceptTerms,
       website: form.website || undefined,
@@ -120,7 +138,7 @@ export function BookingFlow({ van, start, end }: Props) {
       }
       return;
     }
-    if (!validate(["name", "email", "phone", "birthDate", "licenseSince", "notes", "acceptTerms"])) return;
+    if (!validate(["name", "email", "phone", "birthDate", "licenseSince", "address", "jmb", "idNumber", "licenseNumber", "notes", "acceptTerms"])) return;
     setSending(true);
     try {
       const res = await api<{ ref: string; total: number }>("/bookings", { method: "POST", json: payload() });
@@ -163,6 +181,7 @@ export function BookingFlow({ van, start, end }: Props) {
       <header className="header">
         <div className="wrap">
           <Logo />
+          <ThemeToggle />
           <ol className="steps" aria-label="Koraci rezervacije">
             {STEPS.map((label, i) => (
               <li
@@ -275,6 +294,18 @@ export function BookingFlow({ van, start, end }: Props) {
                 {field("birthDate", "Datum rođenja vozača", <input type="date" value={form.birthDate} onChange={(e) => set("birthDate", e.target.value)} />)}
                 {field("licenseSince", "Vozačka dozvola od (godina)", <input inputMode="numeric" placeholder="2015" value={form.licenseSince} onChange={(e) => set("licenseSince", e.target.value.replace(/\D/g, "").slice(0, 4))} />)}
               </div>
+              <div>
+                <h2 className="display h-md" style={{ marginBottom: 6 }}>Podaci za ugovor</h2>
+                <p style={{ margin: "0 0 16px", fontSize: 15, color: "var(--muted)" }}>
+                  Neobavezno. Ako ih upišete sada, ugovor o najmu vas čeka spreman pri preuzimanju. Vidi ih samo vlasnik kombija.
+                </p>
+                <div className="fields">
+                  {field("address", "Adresa prebivališta", <input autoComplete="street-address" value={form.address} onChange={(e) => set("address", e.target.value)} />)}
+                  {field("jmb", "JMB", <input inputMode="numeric" autoComplete="off" value={form.jmb} onChange={(e) => set("jmb", e.target.value.replace(/\D/g, "").slice(0, 13))} />)}
+                  {field("idNumber", "Broj lične karte ili pasoša", <input autoComplete="off" value={form.idNumber} onChange={(e) => set("idNumber", e.target.value)} />)}
+                  {field("licenseNumber", "Broj vozačke dozvole", <input autoComplete="off" value={form.licenseNumber} onChange={(e) => set("licenseNumber", e.target.value)} />)}
+                </div>
+              </div>
               {field("notes", "Napomena: odredište, broj putnika", <textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} />)}
               <div className="hp" aria-hidden="true">
                 <label>
@@ -297,7 +328,7 @@ export function BookingFlow({ van, start, end }: Props) {
           {step === 3 && done && (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               <p className="mono" style={{ margin: 0 }}>
-                Upit {done.ref}, {km(done.total)}
+                Upit {done.ref}, {q.onRequest ? "cijena po dogovoru" : km(done.total)}
               </p>
               <h1 className="display h-xl">
                 Termin je
@@ -362,6 +393,9 @@ export function BookingFlow({ van, start, end }: Props) {
           </div>
           <div className="receipt" style={{ borderTop: 0 }}>
             {q.errors.map((e) => <div key={e} className="line minus">{e}</div>)}
+            {q.onRequest && (
+              <div className="line"><span>Najam, {q.days} {dayWord(q.days)}</span><span className="fill" /><span>{ON_REQUEST}</span></div>
+            )}
             {q.rentalLines.map((l) => (
               <div className="line" key={l.rate}><span>{l.label}</span><span className="fill" /><span>{km(l.amount)}</span></div>
             ))}
@@ -378,11 +412,11 @@ export function BookingFlow({ van, start, end }: Props) {
           </div>
           <div className="t-foot price-bar">
             <div className="t-total">
-              <span className="t-label">Ukupno, {q.days} {dayWord(q.days)}</span>
-              <strong>{km(q.total)}</strong>
+              <span className="t-label">{q.onRequest ? "Cijena" : "Ukupno"}, {q.days} {dayWord(q.days)}</span>
+              <strong>{q.onRequest ? ON_REQUEST : km(q.total)}</strong>
             </div>
           </div>
-          <div className="aside-note">Plaćanje pri preuzimanju. Danas ništa.</div>
+          <div className="aside-note">{q.onRequest ? "Cijenu dogovarate s vlasnikom. Danas ne plaćate ništa." : "Plaćanje pri preuzimanju. Danas ništa."}</div>
         </aside>
       </div>
     </>
