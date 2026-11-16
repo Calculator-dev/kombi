@@ -27,6 +27,8 @@ export interface Quote {
   total: number;
   deposit: number;
   minDays: number;
+  /** The price is agreed with the owner: there are no rental lines and the total is 0. */
+  onRequest?: boolean;
   errors: string[];
 }
 
@@ -90,8 +92,9 @@ export function quote(input: QuoteInput, settings: Settings): Quote {
   if (days < minDays) errors.push(`U ovom periodu najam traje najmanje ${minDays} ${dayWord(minDays)}.`);
   if (days > settings.maxDays) errors.push(`Najduži najam preko stranice je ${settings.maxDays} dana. Za duže, pišite nam.`);
 
+  const onRequest = settings.priceOnRequest;
   const byRate = new Map<number, number>();
-  for (const date of eachDate(input.start, addDays(input.end, -1))) {
+  for (const date of onRequest ? [] : eachDate(input.start, addDays(input.end, -1))) {
     const rate = rateFor(date, settings);
     byRate.set(rate, (byRate.get(rate) ?? 0) + 1);
   }
@@ -124,8 +127,9 @@ export function quote(input: QuoteInput, settings: Settings): Quote {
     }
   }
 
-  const total =
-    rentalSubtotal - discount + extraLines.reduce((s, l) => s + l.amount, 0) + (pickupLine?.amount ?? 0);
+  const total = onRequest
+    ? 0
+    : rentalSubtotal - discount + extraLines.reduce((s, l) => s + l.amount, 0) + (pickupLine?.amount ?? 0);
 
   return {
     days,
@@ -139,9 +143,13 @@ export function quote(input: QuoteInput, settings: Settings): Quote {
     total,
     deposit: settings.deposit,
     minDays,
+    ...(onRequest ? { onRequest } : {}),
     errors,
   };
 }
+
+/** What to show instead of a price when it is agreed with the owner. */
+export const ON_REQUEST = "Po dogovoru";
 
 /** Converts KM to euro at the fixed currency-board rate. */
 export const KM_PER_EUR = 1.95583;

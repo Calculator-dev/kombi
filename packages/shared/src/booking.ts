@@ -30,6 +30,11 @@ export function bookingRequestSchema(settings: Settings) {
       contactChannel: z.enum(CONTACT_CHANNELS),
       birthDate: isoDate.optional(),
       licenseSince: z.number().int().min(1950).max(2100).optional(),
+      // For the rental contract; all optional, the owner can add them at pickup.
+      address: z.string().trim().max(200).optional(),
+      jmb: z.string().trim().regex(/^\d{13}$/, "JMB ima 13 cifara").optional(),
+      idNumber: z.string().trim().max(20).optional(),
+      licenseNumber: z.string().trim().max(20).optional(),
       notes: z.string().trim().max(1000).optional(),
       acceptTerms: z.literal(true, { error: "Potrebno je prihvatiti uslove najma" }),
       /** Honeypot: real people never fill this hidden field. */

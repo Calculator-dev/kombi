@@ -8,6 +8,9 @@ import type { Me } from "./types";
 export function ProfileForm({ me, onSaved }: { me: Me; onSaved: (m: Me) => void }) {
   const [name, setName] = useState(me.name ?? "");
   const [phone, setPhone] = useState(me.phone ?? "");
+  const [address, setAddress] = useState(me.address ?? "");
+  const [companyId, setCompanyId] = useState(me.companyId ?? "");
+  const [representative, setRepresentative] = useState(me.representative ?? "");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -15,7 +18,7 @@ export function ProfileForm({ me, onSaved }: { me: Me; onSaved: (m: Me) => void 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
-    const r = profileSchema.safeParse({ name, phone });
+    const r = profileSchema.safeParse({ name, phone, address, companyId, representative });
     if (!r.success) {
       setErrors(Object.fromEntries(r.error.issues.map((i) => [String(i.path[0]), i.message])));
       return;
@@ -44,6 +47,20 @@ export function ProfileForm({ me, onSaved }: { me: Me; onSaved: (m: Me) => void 
           Telefon (Viber / WhatsApp)
           <input type="tel" autoComplete="tel" placeholder="+387" value={phone} onChange={(e) => setPhone(e.target.value)} />
           {errors.phone && <span className="field-error">{errors.phone}</span>}
+        </label>
+      </div>
+      <div className="fields">
+        <label className="field">
+          Adresa (za ugovor, neobavezno)
+          <input autoComplete="street-address" placeholder="Ulica i broj, poštanski broj i mjesto" value={address} onChange={(e) => setAddress(e.target.value)} />
+        </label>
+        <label className="field">
+          ID broj firme ili obrta (neobavezno)
+          <input inputMode="numeric" value={companyId} onChange={(e) => setCompanyId(e.target.value)} />
+        </label>
+        <label className="field">
+          Zastupanje (neobavezno)
+          <input placeholder="npr. zastupana po vlasniku obrta Imenu Prezimenu" value={representative} onChange={(e) => setRepresentative(e.target.value)} />
         </label>
       </div>
       {msg && <p className="ok-box" role="status">{msg}</p>}

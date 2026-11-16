@@ -50,6 +50,20 @@
       "when": 1793918521228,
       "tag": "0006_van_spin",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794825708514,
+      "tag": "0007_plans_and_stats",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794842497257,
+      "tag": "0008_contract",
+      "breakpoints": true
     }
   ]
 }

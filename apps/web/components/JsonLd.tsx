@@ -5,7 +5,7 @@ const FUEL: Record<string, string> = { Dizel: "Diesel", Benzin: "Gasoline", Hibr
 
 /** Structured data so Google can show the business, prices and FAQ in results. */
 export function JsonLd({ path = "/", fromPrice, van }: { path?: string; fromPrice?: number | null; van?: PublicVan }) {
-  const price = van?.pricing.dailyRate ?? fromPrice ?? undefined;
+  const price = (van ? (van.pricing.priceOnRequest ? undefined : van.pricing.dailyRate) : fromPrice) ?? undefined;
   const data = [
     {
       "@context": "https://schema.org",
@@ -13,7 +13,6 @@ export function JsonLd({ path = "/", fromPrice, van }: { path?: string; fromPric
       "@id": `${SITE.url}/#business`,
       name: SITE.name,
       url: SITE.url,
-      telephone: SITE.phone.startsWith("[") ? undefined : SITE.phone,
       priceRange: price ? `od ${price} KM/dan` : undefined,
       currenciesAccepted: "BAM, EUR",
       areaServed: ["Bosna i Hercegovina"],
@@ -22,7 +21,7 @@ export function JsonLd({ path = "/", fromPrice, van }: { path?: string; fromPric
         ? {
             "@type": "Offer",
             priceCurrency: "BAM",
-            price: van.pricing.dailyRate,
+            price,
             url: `${SITE.url}${path}`,
             itemOffered: {
               "@type": "Car",

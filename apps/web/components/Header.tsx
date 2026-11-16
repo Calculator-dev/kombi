@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SITE } from "@/lib/site";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function Logo({ href = "/" }: { href?: string }) {
   return (
@@ -19,9 +19,6 @@ export function Header() {
         <div className="wrap">
           <span>Najam kombija, Bosna i Hercegovina</span>
           <span>Bez plaćanja unaprijed</span>
-          <span>
-            Viber / WhatsApp <a href={SITE.phoneHref}>{SITE.phone}</a>
-          </span>
         </div>
       </div>
       <header className="header">
@@ -34,6 +31,7 @@ export function Header() {
             <Link href="/#rezervacija" className="cta">
               Rezerviši
             </Link>
+            <ThemeToggle />
           </nav>
         </div>
       </header>

@@ -1,12 +1,16 @@
-import type { BookingStatus, PhotoUrls, PublicVan, Quote, UserRole, UserStatus, VanStatus } from "@kombi/shared";
+import type { BookingStatus, ContractTerms, PhotoUrls, Plan, PublicVan, Quote, UserRole, UserStatus, VanStatus } from "@kombi/shared";
 
 export interface Me {
   id: string;
   email: string;
   name: string | null;
   phone: string | null;
+  address: string;
+  companyId: string;
+  representative: string;
   role: UserRole;
   status: UserStatus;
+  plan: Plan;
 }
 
 export interface OwnerVan extends PublicVan {
@@ -16,6 +20,8 @@ export interface OwnerVan extends PublicVan {
   spinEnabled: boolean;
   /** One per clock position; null where no photo has been added yet. */
   spinSlots: (PhotoUrls | null)[];
+  /** Papers and amounts for the rental contract. */
+  contract: ContractTerms;
 }
 
 export interface AdminBooking {
@@ -32,6 +38,10 @@ export interface AdminBooking {
   contactChannel: string;
   birthDate: string | null;
   licenseSince: number | null;
+  address: string | null;
+  jmb: string | null;
+  idNumber: string | null;
+  licenseNumber: string | null;
   notes: string | null;
   extras: string[];
   pickup: string;

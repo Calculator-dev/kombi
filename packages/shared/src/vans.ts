@@ -93,6 +93,12 @@ export const DEFAULT_TERMS: Terms = {
 export const profileSchema = z.object({
   name: z.string().trim().min(2, "Upišite ime ili naziv firme").max(100),
   phone: z.string().trim().regex(/^\+?[\d\s/-]{6,20}$/, "Neispravan broj telefona"),
+  // Printed on rental contracts as the lessor; optional.
+  address: z.string().trim().max(200).default(""),
+  /** Company or trade ID number (ID broj). */
+  companyId: z.string().trim().max(30).default(""),
+  /** Who signs for a company, e.g. "zastupana po vlasniku obrta …". */
+  representative: z.string().trim().max(200).default(""),
 });
 export type Profile = z.infer<typeof profileSchema>;
 
@@ -122,6 +128,8 @@ export interface VanCard
   slug: string;
   photo: PhotoUrls | null;
   dailyRate: number;
+  /** "Cijena po dogovoru": show no price for this van. */
+  priceOnRequest?: boolean;
   /** Only when dates were given. */
   available?: boolean;
   quote?: Pick<Quote, "days" | "total" | "errors">;

@@ -52,6 +52,8 @@ const uniqueIds = (what: string) => (list: { id: string }[], ctx: z.RefinementCt
 export const settingsSchema = z.object({
   currency: z.literal("KM").default("KM"),
   dailyRate: money.min(1),
+  /** "Cijena po dogovoru": the site shows no price and requests carry no total; owner and customer agree on it. */
+  priceOnRequest: z.boolean().default(false),
   weeklyDiscountPct: z.number().int().min(0).max(80),
   deposit: money,
   minDays: z.number().int().min(1).max(60),
@@ -75,6 +77,7 @@ export type Settings = z.infer<typeof settingsSchema>;
 export const DEFAULT_SETTINGS: Settings = {
   currency: "KM",
   dailyRate: 120,
+  priceOnRequest: false,
   weeklyDiscountPct: 10,
   deposit: 500,
   minDays: 1,

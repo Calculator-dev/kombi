@@ -442,3 +442,117 @@ describe("search (/kombiji)", () => {
     expect(res.body.items[0].quote).toBeUndefined();
   });
 });
+
+describe("packages, analytics and price by agreement", () => {
+  let second: string;
+  const amirVans = async () => (await (await as(AMIR)).get("/api/admin/vans").expect(200)).body as { id: string; slug: string; pricing: object }[];
+
+  it("lets an owner without a package publish one van only", async () => {
+    const amir = await as(AMIR);
+    expect((await amir.get("/api/admin/me")).body.plan).toBe("free");
+    second = (await amir.post("/api/admin/vans").send(van({ name: "Opel Vivaro" })).expect(201)).body.id;
+    await amir.post(`/api/admin/vans/${second}/photos`).attach("photo", await photo(), "v.jpg").expect(201);
+    const res = await amir.patch(`/api/admin/vans/${second}/status`).send({ status: "published" }).expect(403);
+    expect(res.body.error).toBe("plan_limit");
+  });
+
+  it("publishes more vans on a bigger package, which only an admin can set", async () => {
+    const amir = await as(AMIR);
+    await amir.patch(`/api/admin/users/${AMIR.id}`).send({ plan: "gold" }).expect(403);
+    const res = await (await as(ADMIN)).patch(`/api/admin/users/${AMIR.id}`).send({ plan: "bronze" }).expect(200);
+    expect(res.body).toMatchObject({ plan: "bronze", status: "approved" });
+    await amir.patch(`/api/admin/vans/${second}/status`).send({ status: "published" }).expect(200);
+    // Two vans are live: back to one van is refused until one is hidden.
+    await (await as(ADMIN)).patch(`/api/admin/users/${AMIR.id}`).send({ plan: "free" }).expect(409);
+  });
+
+  it("shows analytics to paying owners only, for their own vans", async () => {
+    const belma = await as(BELMA);
+    expect((await belma.get("/api/admin/analytics").expect(403)).body.error).toBe("plan_required");
+
+    await request(app).post("/api/vans/mercedes-vito/hit").send({ type: "view" }).expect(204);
+    await request(app).post("/api/vans/mercedes-vito/hit").send({ type: "view" }).expect(204);
+    await request(app).post("/api/vans/mercedes-vito/hit").send({ type: "checkout" }).expect(204);
+    await request(app).post("/api/vans/toyota-proace-verso/hit").send({ type: "view" }).expect(204);
+    await request(app).post("/api/vans/mercedes-vito/hit").send({ type: "click" }).expect(400);
+    await request(app).post("/api/vans/nema-ga/hit").send({ type: "view" }).expect(404);
+
+    const report = (await (await as(AMIR)).get("/api/admin/analytics?days=7").expect(200)).body;
+    expect(report.totals).toMatchObject({ views: 2, checkouts: 1 });
+    expect(report.totals.requests).toBeGreaterThanOrEqual(1);
+    expect(report.days).toHaveLength(7);
+    expect(report.days.at(-1)).toMatchObject({ day: "2026-10-16", views: 2, checkouts: 1 });
+    expect(report.vans.map((v: { name: string }) => v.name).sort()).toEqual(["Mercedes Vito", "Opel Vivaro"]);
+
+    const all = (await (await as(ADMIN)).get("/api/admin/analytics").expect(200)).body;
+    expect(all.totals.views).toBe(3);
+  });
+
+  it("offers a van at a price by agreement: no price shown, no total on the request", async () => {
+    const amir = await as(AMIR);
+    const v = (await amirVans()).find((x) => x.id === second)!;
+    await amir.put(`/api/admin/vans/${second}/pricing`).send({ ...v.pricing, priceOnRequest: true }).expect(200);
+
+    const card = (await request(app).get("/api/search")).body.items.find((c: { id: string }) => c.id === second);
+    expect(card.priceOnRequest).toBe(true);
+    const cheap = (await request(app).get("/api/search?priceMax=100000")).body.items;
+    expect(cheap.map((c: { id: string }) => c.id)).not.toContain(second);
+    const sorted = (await request(app).get("/api/search?sort=daily")).body.items;
+    expect(sorted.at(-1).id).toBe(second);
+
+    await request(app).post("/api/bookings").send(booking({ vanId: second, start: "2027-03-01", end: "2027-03-04" })).expect(201);
+    const [b] = (await amir.get(`/api/admin/bookings?vanId=${second}`).expect(200)).body;
+    expect(b).toMatchObject({ total: 0, quote: { onRequest: true, days: 3, rentalLines: [] } });
+  });
+});
+
+describe("rental contract", () => {
+  it("fills the contract from the request, the van's papers and the owner's profile", async () => {
+    const amir = await as(AMIR);
+    const [mine] = (await amir.get("/api/admin/vans").expect(200)).body as { id: string; contract: { kmPerDay: number } }[];
+    expect(mine!.contract.kmPerDay).toBe(500);
+    await amir
+      .put(`/api/admin/vans/${mine!.id}/contract`)
+      .send({ ...mine!.contract, plates: "A12-B-345", vin: "WDF44770313000001", color: "Siva", place: "Mostaru", kmPerDay: 300 })
+      .expect(200);
+    const me = (await amir.get("/api/admin/me").expect(200)).body;
+    await amir
+      .put("/api/admin/me")
+      .send({ name: me.name, phone: me.phone, address: "Bulevar 1, 88000 Mostar", companyId: "4200000000001" })
+      .expect(200);
+
+    await request(app).post("/api/bookings").send(booking({ vanId: mine!.id, start: "2026-12-01", end: "2026-12-04", extras: [], jmb: "123" })).expect(400);
+    await request(app)
+      .post("/api/bookings")
+      .send(
+        booking({
+          vanId: mine!.id,
+          start: "2026-12-01",
+          end: "2026-12-04",
+          extras: [],
+          pickupTime: "09:00",
+          address: "Titova 5, Sarajevo",
+          jmb: "0101990170001",
+          idNumber: "1A234B567",
+          licenseNumber: "V1234567",
+        }),
+      )
+      .expect(201);
+    const list = (await amir.get(`/api/admin/bookings?vanId=${mine!.id}`).expect(200)).body as { id: string; start: string }[];
+    const b = list.find((x) => x.start === "2026-12-01")!;
+
+    const c = (await amir.get(`/api/admin/bookings/${b.id}/contract`).expect(200)).body;
+    expect(c.date).toBe("2026-10-16");
+    expect(c.lessor).toMatchObject({ address: "Bulevar 1, 88000 Mostar", companyId: "4200000000001", email: AMIR.email });
+    expect(c.renter).toMatchObject({ name: "Amra Hodžić", jmb: "0101990170001", idNumber: "1A234B567", licenseNumber: "V1234567", address: "Titova 5, Sarajevo" });
+    expect(c.terms).toMatchObject({ plates: "A12-B-345", place: "Mostaru", kmPerDay: 300, damageFee: 500 });
+    expect(c).toMatchObject({ start: "2026-12-01", end: "2026-12-04", pickupTime: "09:00", days: 3 });
+    expect(c.total).toBeGreaterThan(0);
+
+    // Papers stay out of the public site, and other owners get nothing.
+    const pub = JSON.stringify((await request(app).get("/api/vans").expect(200)).body);
+    expect(pub).not.toContain("A12-B-345");
+    await (await as(BELMA)).get(`/api/admin/bookings/${b.id}/contract`).expect(404);
+    await (await as(BELMA)).put(`/api/admin/vans/${mine!.id}/contract`).send(mine!.contract).expect(404);
+  });
+});
