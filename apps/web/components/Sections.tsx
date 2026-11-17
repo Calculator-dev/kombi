@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { ON_REQUEST, featureLabel, type PublicVan, type Settings, type Terms } from "@kombi/shared";
 import { km } from "@/lib/format";
@@ -203,9 +204,10 @@ export function Plans() {
             Iznajmljujete kombi<span className="dot">?</span>
           </h2>
           <p className="lead">
-            Prvi kombi objavljujete besplatno. Kad vam zatreba više mjesta i uvid u to koliko ljudi gleda vaše kombije, pređite
-            na veći paket.
+            Jedan kombi objavljujete besplatno, bez paketa. Za više kombija i uvid u to koliko ljudi gleda vaše kombije
+            izaberite Bronze, Silver ili Gold.
           </p>
+          <Link className="btn-ghost" href="/admin?registracija" style={{ marginTop: 20 }}>Objavite kombi besplatno</Link>
         </div>
         <div className="plans-basics">
           <span>Svi paketi uključuju</span>

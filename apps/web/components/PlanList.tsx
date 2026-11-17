@@ -1,10 +1,12 @@
-import Link from "next/link";
 import { PLANS, PLAN_INFO, type Plan } from "@kombi/shared";
+
+/** The packages on offer. Without one, an owner can publish a single van; that is not shown as a package. */
+const PAID = PLANS.filter((p) => p !== "free");
 import { SITE } from "@/lib/site";
 
 /** Who each package is for, and how many vans it shows, in words. */
 const COPY: Record<Plan, { forWho: string; vans: string; vansNote: string }> = {
-  free: { forWho: "Za vlasnika jednog kombija", vans: "1", vansNote: "kombi na stranici" },
+  free: { forWho: "", vans: "1", vansNote: "kombi na stranici" },
   bronze: { forWho: "Za nekoliko kombija", vans: "3", vansNote: "kombija na stranici" },
   silver: { forWho: "Za rent-a-car firme", vans: "10", vansNote: "kombija na stranici" },
   gold: { forWho: "Za velike flote", vans: "∞", vansNote: "neograničeno kombija" },
@@ -37,7 +39,7 @@ const askHref = (p: Plan) =>
 export function PlanList({ current }: { current?: Plan }) {
   return (
     <ul className="plans">
-      {PLANS.map((p) => {
+      {PAID.map((p) => {
         const info = PLAN_INFO[p];
         const c = COPY[p];
         const mine = current === p;
@@ -52,7 +54,7 @@ export function PlanList({ current }: { current?: Plan }) {
             </div>
             <p className="plan-for">{c.forWho}</p>
             <p className="plan-price">
-              {p === "free" ? "Besplatno" : "Cijena na upit"}
+              Cijena na upit
             </p>
             <p className="plan-vans">
               <strong>{c.vans}</strong>
@@ -65,13 +67,10 @@ export function PlanList({ current }: { current?: Plan }) {
                 {info.analytics ? "Analitika: pregledi, upiti i prihod" : "Bez analitike"}
               </li>
             </ul>
-            {!current &&
-              (p === "free" ? (
-                <Link className="btn-ghost plan-cta" href="/admin?registracija">Objavite kombi besplatno</Link>
-              ) : (
-                <a className={`${featured ? "btn-dark" : "btn-ghost"} plan-cta`} href={askHref(p)}>Zatražite {info.label}</a>
-              ))}
-            {current && !mine && p !== "free" && (
+            {!current && (
+              <a className={`${featured ? "btn-dark" : "btn-ghost"} plan-cta`} href={askHref(p)}>Zatražite {info.label}</a>
+            )}
+            {current && !mine && (
               <a className="small-btn plan-cta" href={askHref(p)}>Zatražite {info.label}</a>
             )}
           </li>

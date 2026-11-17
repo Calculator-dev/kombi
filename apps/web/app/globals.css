@@ -583,7 +583,7 @@ button:disabled { cursor: not-allowed; }
 .plans-basics > span { font-weight: 700; color: var(--ink); }
 .plans-basics ul { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 0; padding: 0; list-style: none; color: var(--body); }
 .plans-basics li::before { content: "✓"; margin-right: 6px; color: var(--ok); font-weight: 700; }
-.plans { list-style: none; margin: 0; padding: 12px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 16px; align-items: stretch; }
+.plans { list-style: none; margin: 0; padding: 12px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 20px; align-items: stretch; }
 .plan { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 24px 22px 22px; background: var(--card); border: var(--rule); border-radius: var(--radius); box-shadow: var(--shadow); color: var(--body); font-size: 15px; transition: transform 0.15s ease, box-shadow 0.15s ease; }
 .plan:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06), 0 12px 28px rgba(0, 0, 0, 0.1); }
 .plan[data-featured], .plan[aria-current="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), var(--shadow); }

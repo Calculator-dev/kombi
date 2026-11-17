@@ -7,6 +7,9 @@ export function PlanCards({ me }: { me: Me }) {
   return (
     <section aria-labelledby="paketi-h">
       <h2 id="paketi-h" className="display h-md" style={{ marginBottom: 8 }}>Paket</h2>
+      {me.plan === "free" && (
+        <p className="caption" style={{ marginBottom: 12 }}>Trenutno nemate paket: na stranici može biti 1 kombi, bez analitike.</p>
+      )}
       <PlanList current={me.plan} />
       <p className="caption" style={{ marginTop: 12 }}>
         Za veći paket javite nam se na <a href={`mailto:${SITE.email}`}>{SITE.email}</a>.
