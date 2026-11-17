@@ -74,7 +74,9 @@ export function createNotifier(config: Config): Notifier {
         `kombi.ba — rezervacija ${b.ref} je potvrđena`,
         `Zdravo ${b.name},\n\nvaša rezervacija za ${b.vanName}, ${fmt(b.start)} – ${fmt(b.end)} je potvrđena.\n` +
           `${b.quote.onRequest ? "Cijena: po dogovoru" : `Ukupno: ${b.total} KM`}, depozit ${b.quote.deposit} KM pri preuzimanju.\n` +
-          `Javit ćemo vam se da dogovorimo tačno mjesto i vrijeme preuzimanja.\n\nkombi.ba`,
+          `Javit ćemo vam se da dogovorimo tačno mjesto i vrijeme preuzimanja.\n\n` +
+          `Ugovor o najmu možete pročitati prije preuzimanja (link je samo vaš, ne prosljeđujte ga):\n` +
+          `${config.WEB_ORIGIN}/ugovor/${b.contractToken}\n\nkombi.ba`,
       );
     },
   };
