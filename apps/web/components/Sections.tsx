@@ -1,7 +1,9 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { ON_REQUEST, featureLabel, type PublicVan, type Settings, type Terms } from "@kombi/shared";
 import { km } from "@/lib/format";
 import { FAQ, SITE } from "@/lib/site";
+import { PLAN_BASICS, PlanList } from "./PlanList";
 import { VanDrawing } from "./VanDrawing";
 
 /** Title and intro on the left, the calendar ticket (passed in) on the right. */
@@ -191,14 +193,33 @@ export function Faq() {
   );
 }
 
-export function Reviews() {
+/** For van owners: what each package allows, and how to start. */
+export function Plans() {
   return (
-    <section className="section" aria-labelledby="rec-h">
-      <div className="wrap split" style={{ alignItems: "center" }}>
-        <h2 id="rec-h" className="display h-md">
-          Šta kažu putnici
-        </h2>
-        <p className="placeholder-box">[Ovdje idu Google recenzije nakon prvih najmova]</p>
+    <section id="paketi" className="section" aria-labelledby="paketi-h">
+      <div className="wrap plans-section">
+        <div className="plans-intro">
+          <p className="eyebrow">Za vlasnike kombija</p>
+          <h2 id="paketi-h" className="display h-lg">
+            Iznajmljujete kombi<span className="dot">?</span>
+          </h2>
+          <p className="lead">
+            Jedan kombi objavljujete besplatno, bez paketa. Za više kombija i uvid u to koliko ljudi gleda vaše kombije
+            izaberite Bronze, Silver ili Gold.
+          </p>
+          <Link className="btn-ghost" href="/admin?registracija" style={{ marginTop: 20 }}>Objavite kombi besplatno</Link>
+        </div>
+        <div className="plans-basics">
+          <span>Svi paketi uključuju</span>
+          <ul>
+            {PLAN_BASICS.map((b) => <li key={b}>{b}</li>)}
+          </ul>
+        </div>
+        <PlanList />
+        <p className="caption plans-foot">
+          Paket mijenjate kad god želite. Pišite na <a href={`mailto:${SITE.email}`}>{SITE.email}</a> i javimo se s
+          ponudom.
+        </p>
       </div>
     </section>
   );
@@ -225,8 +246,7 @@ export function Contact() {
 export function PageBody() {
   return (
     <>
-      <Faq />
-      <Reviews />
+      <Plans />
       <Contact />
     </>
   );

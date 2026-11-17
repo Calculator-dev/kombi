@@ -35,12 +35,15 @@ export function JsonLd({ path = "/", fromPrice, van }: { path?: string; fromPric
           }
         : undefined,
     },
-    {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      mainEntity: FAQ.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
-    },
-  ];
+    // The questions are shown only on a van's page, so only that page describes them.
+    van
+      ? {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: FAQ.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+        }
+      : null,
+  ].filter(Boolean);
   return (
     <script
       type="application/ld+json"
