@@ -64,7 +64,7 @@ services:
         value: 3000
       # Free services cannot receive private-network traffic, so the site uses the API's public URL.
       - key: API_URL
-        value: https://kombi-api.onrender.com
+        value: https://kombi-api-km4z.onrender.com
       - key: NEXT_PUBLIC_SITE_URL
         value: https://kombi-web.onrender.com
       # Supabase Auth in the admin panel. Both values are public (the publishable key, not the secret one).

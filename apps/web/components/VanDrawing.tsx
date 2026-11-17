@@ -9,13 +9,13 @@ export function VanDrawing({ compact = false, label = "Crtež kombija" }: { comp
         <rect x="470" y="104" width="170" height="90" />
         <path d="M690 100 Q740 98 776 128 L880 214 H690 Z" />
         <path d="M460 82 V322 M680 78 V322" />
-        <circle cx="250" cy="322" r="58" fill="#e9e9e4" />
+        <circle cx="250" cy="322" r="58" fill="#ece3d2" />
         <circle cx="250" cy="322" r="24" />
-        <circle cx="880" cy="322" r="58" fill="#e9e9e4" />
+        <circle cx="880" cy="322" r="58" fill="#ece3d2" />
         <circle cx="880" cy="322" r="24" />
         <rect x="1010" y="246" width="24" height="16" />
       </g>
-      <rect x="82" y="236" width="954" height="14" fill="#ff4d1a" />
+      <rect x="82" y="236" width="954" height="14" fill="#ff6b5b" />
       <line x1="0" y1="380" x2="1200" y2="380" stroke="#111" strokeWidth="1" strokeDasharray="6 6" />
     </svg>
   );
