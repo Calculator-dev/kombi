@@ -574,13 +574,38 @@ button:disabled { cursor: not-allowed; }
 :root[data-theme="dark"] .theme-toggle .sun { display: block; }
 
 /* Admin: packages and analytics */
-.plans { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); gap: 12px; }
-.plans li { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 16px 18px; background: var(--card); border: var(--rule); border-radius: var(--radius); font-size: 15px; color: var(--body); }
-.plans li[aria-current="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-.plans strong { font-size: 20px; color: var(--ink); }
-.plans .plan-price { margin-bottom: 6px; font-weight: 600; color: var(--accent-text); }
-.plans-body { display: flex; flex-direction: column; gap: 20px; }
-.plans .badge { margin-top: 6px; }
+/* Owner packages: pricing cards. Medal colours are fixed (they name the package), the rest follows the theme. */
+.plans-section { display: flex; flex-direction: column; gap: 28px; }
+.plans-intro { max-width: 40em; }
+.plans-intro .lead { margin-top: 12px; }
+.eyebrow { margin: 0 0 8px; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-text); }
+.plans-basics { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; padding: 14px 18px; background: var(--card); border: var(--rule); border-radius: var(--radius); font-size: 15px; }
+.plans-basics > span { font-weight: 700; color: var(--ink); }
+.plans-basics ul { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 0; padding: 0; list-style: none; color: var(--body); }
+.plans-basics li::before { content: "✓"; margin-right: 6px; color: var(--ok); font-weight: 700; }
+.plans { list-style: none; margin: 0; padding: 12px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 16px; align-items: stretch; }
+.plan { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 24px 22px 22px; background: var(--card); border: var(--rule); border-radius: var(--radius); box-shadow: var(--shadow); color: var(--body); font-size: 15px; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.plan:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06), 0 12px 28px rgba(0, 0, 0, 0.1); }
+.plan[data-featured], .plan[aria-current="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), var(--shadow); }
+.plan-flag { position: absolute; top: -12px; left: 22px; padding: 3px 10px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
+.plan-head { display: flex; align-items: center; gap: 10px; }
+.plan-head h3 { margin: 0; font-size: 22px; font-weight: 700; color: var(--ink); }
+.plan-medal { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--tile); box-shadow: inset 0 0 0 2px var(--line-strong); }
+.plan[data-plan="bronze"] .plan-medal { background: radial-gradient(circle at 35% 30%, #f2c08f, #b8763f 55%, #7f4a22); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35); }
+.plan[data-plan="silver"] .plan-medal { background: radial-gradient(circle at 35% 30%, #ffffff, #b9bec6 55%, #7c828c); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.45); }
+.plan[data-plan="gold"] .plan-medal { background: radial-gradient(circle at 35% 30%, #fff1b0, #dcae2f 55%, #9c7414); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.4); }
+.plan-for { margin: 0; color: var(--muted); }
+.plan-price { margin: 10px 0 0; font-size: 18px; font-weight: 700; color: var(--ink); }
+.plan-vans { display: flex; align-items: baseline; gap: 8px; margin: 2px 0 8px; padding-bottom: 14px; border-bottom: var(--rule); }
+.plan-vans strong { font-size: 44px; line-height: 1; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); }
+.plan-features { flex: 1; display: flex; flex-direction: column; gap: 8px; margin: 0 0 18px; padding: 0; list-style: none; }
+.plan-features li { display: flex; gap: 8px; align-items: flex-start; }
+.plan-features svg { flex: none; margin-top: 3px; color: var(--ok); }
+.plan-features li[data-off] { color: var(--muted); }
+.plan-dash { flex: none; width: 16px; text-align: center; }
+.plan-cta { justify-content: center; text-align: center; width: 100%; }
+.plans-foot { text-align: center; }
+@media (prefers-reduced-motion: reduce) { .plan, .plan:hover { transition: none; transform: none; } }
 .data-table { width: 100%; border-collapse: collapse; font-size: 15px; }
 .data-table th, .data-table td { padding: 10px 12px; border-bottom: var(--rule); text-align: right; white-space: nowrap; }
 .data-table th:first-child { text-align: left; white-space: normal; }

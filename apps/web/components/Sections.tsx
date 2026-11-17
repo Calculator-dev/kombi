@@ -1,9 +1,8 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { ON_REQUEST, featureLabel, type PublicVan, type Settings, type Terms } from "@kombi/shared";
 import { km } from "@/lib/format";
 import { FAQ, SITE } from "@/lib/site";
-import { PlanList } from "./PlanList";
+import { PLAN_BASICS, PlanList } from "./PlanList";
 import { VanDrawing } from "./VanDrawing";
 
 /** Title and intro on the left, the calendar ticket (passed in) on the right. */
@@ -197,24 +196,28 @@ export function Faq() {
 export function Plans() {
   return (
     <section id="paketi" className="section" aria-labelledby="paketi-h">
-      <div className="wrap split">
-        <div>
+      <div className="wrap plans-section">
+        <div className="plans-intro">
+          <p className="eyebrow">Za vlasnike kombija</p>
           <h2 id="paketi-h" className="display h-lg">
-            Iznajmljujete kombi?
+            Iznajmljujete kombi<span className="dot">?</span>
           </h2>
-          <p className="note">
-            Prvi kombi objavljujete besplatno. Za više kombija i analitiku izaberite Bronze, Silver ili Gold.
+          <p className="lead">
+            Prvi kombi objavljujete besplatno. Kad vam zatreba više mjesta i uvid u to koliko ljudi gleda vaše kombije, pređite
+            na veći paket.
           </p>
         </div>
-        <div className="plans-body">
-          <PlanList />
-          <div className="chips">
-            <Link className="btn-dark" href="/admin?registracija">Objavite kombi besplatno</Link>
-            <a className="btn-ghost" href={`mailto:${SITE.email}?subject=${encodeURIComponent("Paket za vlasnike")}`}>
-              Pitajte za paket
-            </a>
-          </div>
+        <div className="plans-basics">
+          <span>Svi paketi uključuju</span>
+          <ul>
+            {PLAN_BASICS.map((b) => <li key={b}>{b}</li>)}
+          </ul>
         </div>
+        <PlanList />
+        <p className="caption plans-foot">
+          Paket mijenjate kad god želite. Pišite na <a href={`mailto:${SITE.email}`}>{SITE.email}</a> i javimo se s
+          ponudom.
+        </p>
       </div>
     </section>
   );
