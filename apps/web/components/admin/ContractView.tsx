@@ -1,13 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import type { ContractData } from "@kombi/shared";
 import { ApiError, adminApi } from "@/lib/api";
 import { PREAMBLE, contractArticles, dotDate, lessorRows, placeOf, renterRows, type Block } from "@/lib/contract";
 
+/** True on the customer's copy: values are shown, not editable. */
+const ReadOnly = createContext(false);
+
 /** A value in the contract: click to fill in or correct before printing. Empty ones print as a blank line. */
 function Fill({ value, wide }: { value: string; wide?: boolean }) {
+  const readOnly = useContext(ReadOnly);
+  if (readOnly) return <span className="fill-in" data-wide={wide || undefined}>{value}</span>;
   return (
     <span className="fill-in" data-wide={wide || undefined} contentEditable suppressContentEditableWarning spellCheck={false}>
       {value}
@@ -68,7 +73,16 @@ export function ContractView({ bookingId }: { bookingId: string }) {
   return <ContractSheet data={data} />;
 }
 
-export function ContractSheet({ data }: { data: ContractData }) {
+/** The customer's read-only copy, opened from the link in the confirmation email. */
+export function RenterContract({ data }: { data: ContractData }) {
+  return (
+    <ReadOnly.Provider value>
+      <ContractSheet data={data} renter />
+    </ReadOnly.Provider>
+  );
+}
+
+export function ContractSheet({ data, renter }: { data: ContractData; renter?: boolean }) {
   const missing = [
     ...lessorRows(data).filter(([, v]) => !v).map(([l]) => `${l.toLowerCase()} (najmodavac)`),
     ...renterRows(data).filter(([, v]) => !v).map(([l]) => l),
@@ -81,13 +95,25 @@ export function ContractSheet({ data }: { data: ContractData }) {
   return (
     <main className="contract-page">
       <div className="contract-bar">
-        <Link className="btn-ghost" href="/admin">Nazad u admin</Link>
-        <p>
-          {missing.length > 0
-            ? `Nedostaje: ${missing.join(", ")}. Kliknite na podvučeno polje i upišite, ili ostavite prazno pa dopišite rukom.`
-            : "Sva podvučena polja možete ispraviti klikom prije štampanja."}{" "}
-          Izmjene ovdje vrijede samo za ovu štampu.
-        </p>
+        {renter ? (
+          <>
+            <Link className="btn-ghost" href="/">kombi.ba</Link>
+            <p>
+              Ovo je ugovor za vašu rezervaciju {data.ref}. Prazna polja popunjavamo zajedno pri preuzimanju kombija,
+              kada ugovor i potpisujemo. Ako nešto nije tačno, javite se vlasniku prije preuzimanja.
+            </p>
+          </>
+        ) : (
+          <>
+            <Link className="btn-ghost" href="/admin">Nazad u admin</Link>
+            <p>
+              {missing.length > 0
+                ? `Nedostaje: ${missing.join(", ")}. Kliknite na podvučeno polje i upišite, ili ostavite prazno pa dopišite rukom.`
+                : "Sva podvučena polja možete ispraviti klikom prije štampanja."}{" "}
+              Izmjene ovdje vrijede samo za ovu štampu.
+            </p>
+          </>
+        )}
         <button type="button" className="btn-dark" onClick={() => window.print()}>Štampaj / sačuvaj PDF</button>
       </div>
 

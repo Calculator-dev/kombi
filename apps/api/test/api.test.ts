@@ -555,4 +555,28 @@ describe("rental contract", () => {
     await (await as(BELMA)).get(`/api/admin/bookings/${b.id}/contract`).expect(404);
     await (await as(BELMA)).put(`/api/admin/vans/${mine!.id}/contract`).send(mine!.contract).expect(404);
   });
+
+  it("lets the customer read the contract through the secret link once the booking is confirmed", async () => {
+    const amir = await as(AMIR);
+    const [mine] = (await amir.get("/api/admin/vans").expect(200)).body as { id: string }[];
+    await request(app)
+      .post("/api/bookings")
+      .send(booking({ vanId: mine!.id, start: "2026-12-10", end: "2026-12-12", extras: [], jmb: "0101990170001" }))
+      .expect(201);
+    const list = (await amir.get(`/api/admin/bookings?vanId=${mine!.id}`).expect(200)).body as { id: string; start: string; contractToken: string }[];
+    const b = list.find((x) => x.start === "2026-12-10")!;
+    expect(b.contractToken).toMatch(/^[0-9a-f]{64}$/);
+    expect(new Set(list.map((x) => x.contractToken)).size).toBe(list.length);
+
+    // A request that is not confirmed yet has no contract to show.
+    await request(app).get(`/api/contracts/${b.contractToken}`).expect(404);
+    await amir.patch(`/api/admin/bookings/${b.id}`).send({ status: "confirmed" }).expect(200);
+
+    const res = await request(app).get(`/api/contracts/${b.contractToken}`).expect(200);
+    expect(res.headers["cache-control"]).toContain("no-store");
+    expect(res.body).toMatchObject({ start: "2026-12-10", end: "2026-12-12", renter: { jmb: "0101990170001" }, lessor: { email: AMIR.email } });
+
+    await request(app).get(`/api/contracts/${"0".repeat(64)}`).expect(404);
+    await request(app).get(`/api/contracts/${b.id}`).expect(404);
+  });
 });

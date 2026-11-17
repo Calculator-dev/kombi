@@ -129,6 +129,11 @@ export const bookings = pgTable(
     total: integer("total").notNull(),
     /** A pending request keeps its dates until this moment. */
     holdUntil: timestamp("hold_until", { withTimezone: true }),
+    /** Secret in the link the customer gets to read the contract; 64 random hex characters. */
+    contractToken: text("contract_token")
+      .notNull()
+      .unique()
+      .default(sql`replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '')`),
     ...timestamps,
   },
   (t) => [

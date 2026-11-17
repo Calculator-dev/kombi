@@ -17,6 +17,7 @@ import type { Deps } from "../app";
 import { HttpError } from "../errors";
 import { busyVans, unavailableDates } from "../services/availability";
 import { createBooking } from "../services/bookings";
+import { contractByToken } from "../services/contract";
 import { recordVanEvent } from "../services/stats";
 import { getUser } from "../services/users";
 import { getPublicVan, listPublicVans, pricingOf, searchVans, toCard, toPublicVan } from "../services/vans";
@@ -118,6 +119,21 @@ export function publicRoutes({ db, config, notifier, storage, now }: Deps): Rout
     standardHeaders: "draft-8",
     legacyHeaders: false,
     message: { error: "too_many_requests", message: "Previše upita. Pokušajte kasnije ili nas kontaktirajte." },
+  });
+
+  const contractLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: config.NODE_ENV === "test" ? 10_000 : 60,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+  });
+
+  /** The customer's copy of the rental contract, behind the secret link from the confirmation email. */
+  r.get("/contracts/:token", contractLimiter, async (req, res) => {
+    const token = z.string().regex(/^[0-9a-f]{64}$/).safeParse(req.params.token);
+    if (!token.success) throw new HttpError(404, "not_found", "Ugovor ne postoji.");
+    res.set("Cache-Control", "private, no-store");
+    res.json(await contractByToken(db.orm, token.data, today()));
   });
 
   r.post("/bookings", bookingLimiter, async (req, res) => {
