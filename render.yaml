@@ -1,4 +1,4 @@
-# Render Blueprint: API + website on the free tier; the database is on Supabase.
+# Render Blueprint: API on the starter plan, website on the free tier; the database is on Supabase.
 # Render dashboard → New → Blueprint → pick this repository.
 #
 # Free tier limits: services sleep after 15 minutes without traffic (the first
@@ -11,7 +11,7 @@ services:
   - type: web
     name: kombi-api
     runtime: docker
-    plan: free
+    plan: starter
     region: frankfurt
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .
