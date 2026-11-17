@@ -28,7 +28,10 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
 
 /** Log in, sign up as a van owner, or ask for a password-reset email. */
 export function AuthScreens() {
-  const [mode, setMode] = useState<Mode>("login");
+  // "/admin?registracija" (from the packages on the homepage) opens straight on sign-up.
+  const [mode, setMode] = useState<Mode>(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("registracija") ? "signup" : "login",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

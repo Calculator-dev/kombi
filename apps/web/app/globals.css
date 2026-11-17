@@ -578,6 +578,8 @@ button:disabled { cursor: not-allowed; }
 .plans li { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 16px 18px; background: var(--card); border: var(--rule); border-radius: var(--radius); font-size: 15px; color: var(--body); }
 .plans li[aria-current="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .plans strong { font-size: 20px; color: var(--ink); }
+.plans .plan-price { margin-bottom: 6px; font-weight: 600; color: var(--accent-text); }
+.plans-body { display: flex; flex-direction: column; gap: 20px; }
 .plans .badge { margin-top: 6px; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 15px; }
 .data-table th, .data-table td { padding: 10px 12px; border-bottom: var(--rule); text-align: right; white-space: nowrap; }

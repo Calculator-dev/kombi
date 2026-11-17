@@ -1,7 +1,9 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { ON_REQUEST, featureLabel, type PublicVan, type Settings, type Terms } from "@kombi/shared";
 import { km } from "@/lib/format";
 import { FAQ, SITE } from "@/lib/site";
+import { PlanList } from "./PlanList";
 import { VanDrawing } from "./VanDrawing";
 
 /** Title and intro on the left, the calendar ticket (passed in) on the right. */
@@ -191,14 +193,28 @@ export function Faq() {
   );
 }
 
-export function Reviews() {
+/** For van owners: what each package allows, and how to start. */
+export function Plans() {
   return (
-    <section className="section" aria-labelledby="rec-h">
-      <div className="wrap split" style={{ alignItems: "center" }}>
-        <h2 id="rec-h" className="display h-md">
-          Šta kažu putnici
-        </h2>
-        <p className="placeholder-box">[Ovdje idu Google recenzije nakon prvih najmova]</p>
+    <section id="paketi" className="section" aria-labelledby="paketi-h">
+      <div className="wrap split">
+        <div>
+          <h2 id="paketi-h" className="display h-lg">
+            Iznajmljujete kombi?
+          </h2>
+          <p className="note">
+            Prvi kombi objavljujete besplatno. Za više kombija i analitiku izaberite Bronze, Silver ili Gold.
+          </p>
+        </div>
+        <div className="plans-body">
+          <PlanList />
+          <div className="chips">
+            <Link className="btn-dark" href="/admin?registracija">Objavite kombi besplatno</Link>
+            <a className="btn-ghost" href={`mailto:${SITE.email}?subject=${encodeURIComponent("Paket za vlasnike")}`}>
+              Pitajte za paket
+            </a>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -225,8 +241,7 @@ export function Contact() {
 export function PageBody() {
   return (
     <>
-      <Faq />
-      <Reviews />
+      <Plans />
       <Contact />
     </>
   );
