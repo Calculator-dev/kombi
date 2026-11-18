@@ -74,4 +74,4 @@ services:
         sync: false
       # Google Tag Manager container, e.g. GTM-ABC1234. Empty: no tracking scripts load.
       - key: NEXT_PUBLIC_GTM_ID
-        value: GTM-PZC9XRX8
+        value: GTM-M43WTD36
