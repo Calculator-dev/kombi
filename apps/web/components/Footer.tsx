@@ -19,6 +19,7 @@ export function Footer() {
           <Link href="/kombiji">Svi kombiji</Link>
           <Link href="/#paketi">Paketi</Link>
           <Link href="/#kontakt">Kontakt</Link>
+          <Link href="/privatnost">Privatnost</Link>
           <Link href="/kolacici">Kolačići</Link>
           <CookieSettingsLink />
         </nav>

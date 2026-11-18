@@ -538,6 +538,9 @@ button:disabled { cursor: not-allowed; }
 .legal { padding-top: 40px; padding-bottom: 64px; display: flex; flex-direction: column; gap: 18px; max-width: 860px; }
 .legal h2 { margin: 16px 0 0; font-weight: 700; font-size: 22px; }
 .legal p { margin: 0; max-width: 46em; }
+.field-note { margin: 0; font-size: 14px; color: var(--muted); }
+.field-note a { color: inherit; }
+.legal ul { margin: 0; padding-left: 1.2em; max-width: 46em; display: flex; flex-direction: column; gap: 6px; }
 .table-scroll { overflow-x: auto; }
 .legal table { width: 100%; border-collapse: collapse; font-size: 15px; }
 .legal th, .legal td { padding: 10px 12px 10px 0; border-bottom: var(--rule); text-align: left; vertical-align: top; }

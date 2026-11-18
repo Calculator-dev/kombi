@@ -8,6 +8,10 @@ export const SITE = {
   city: "Sarajevo",
   email: "[email]@kombi.ba",
   replyWithin: "[2 sata]",
+  /** Who runs the platform: shown in the privacy policy as the data controller. */
+  operator: "[naziv firme ili obrta, adresa, ID broj]",
+  /** How long booking data is kept after the rental ends. */
+  keepBookings: "[5 godina]",
 };
 
 export const FAQ: { q: string; a: string }[] = [

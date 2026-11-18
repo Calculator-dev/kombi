@@ -100,6 +100,12 @@ export function AuthScreens() {
             </label>
           )}
           {error && <p className="alert" role="alert">{error}</p>}
+          {mode === "signup" && (
+            <p className="field-note">
+              Pravljenjem računa prihvatate da vaše podatke koristimo kako piše u{" "}
+              <a href="/privatnost" target="_blank" rel="noopener">politici privatnosti</a>.
+            </p>
+          )}
           <button className="btn-dark" type="submit" disabled={busy} style={{ alignSelf: "flex-start" }}>
             {busy ? "Šaljem…" : mode === "login" ? "Prijavi se" : mode === "signup" ? "Napravi račun" : "Pošalji link"}
           </button>
