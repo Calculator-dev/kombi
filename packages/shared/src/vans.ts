@@ -169,6 +169,8 @@ const optInt = (min: number, max: number) =>
  */
 export const vanSearchSchema = z
   .object({
+    /** Free text: words matched against the van's name, city and description. */
+    q: z.preprocess((v) => (typeof v === "string" && v.trim() ? v.trim() : undefined), z.string().max(80).optional()).catch(undefined),
     start: z.string().refine(isIsoDate).optional().catch(undefined),
     end: z.string().refine(isIsoDate).optional().catch(undefined),
     seats: optInt(1, 60).catch(undefined),

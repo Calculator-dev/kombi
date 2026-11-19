@@ -21,11 +21,9 @@ export function VanGrid({ vans }: { vans: VanCard[] }) {
             <VanCardView key={v.id} van={v} list="Početna" index={i} />
           ))}
         </ul>
-        {vans.length > 0 && (
-          <Link className="btn-dark see-all" href="/kombiji">
-            {vans.length > SHOWN ? `Svih ${vans.length} kombija` : "Pretraži kombije"} <span aria-hidden="true">→</span>
-          </Link>
-        )}
+        <Link className="btn-dark see-all" href="/kombiji">
+          {vans.length > SHOWN ? `Svih ${vans.length} kombija` : "Svi kombiji"} <span aria-hidden="true">→</span>
+        </Link>
       </div>
     </section>
   );

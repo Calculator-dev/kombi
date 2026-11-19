@@ -359,8 +359,15 @@ export async function searchVans(db: Executor, storage: PhotoStorage, q: VanSear
   const dailyRate = sql<number>`(${vans.pricing}->>'dailyRate')::int`;
   // A price filter leaves out vans whose price is by agreement.
   const priced = sql`coalesce((${vans.pricing}->>'priceOnRequest')::boolean, false) = false`;
+  // Every word must appear in the name, city or description (any case).
+  const words = (q.q ?? "").toLowerCase().split(/\s+/).filter(Boolean).slice(0, 8);
+  const text = words.map((w) => {
+    const like = `%${w.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    return sql`(${vans.name} ilike ${like} or ${vans.location} ilike ${like} or ${vans.description} ilike ${like})`;
+  });
   const where = and(
     isPublic,
+    ...text,
     q.seats ? gte(vans.seats, q.seats) : undefined,
     q.luggage ? gte(vans.luggage, q.luggage) : undefined,
     q.gearbox ? eq(vans.gearbox, q.gearbox) : undefined,
