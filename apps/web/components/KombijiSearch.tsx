@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  CATEGORIES,
   FEATURES,
   FUELS,
   GEARBOXES,
@@ -109,8 +110,8 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
   }
 
   const dates = q.start && q.end ? { start: q.start, end: q.end } : null;
-  const active = [q.seats, q.luggage, q.gearbox, q.fuel, q.city, q.priceMin, q.priceMax, q.yearMin, q.features?.length].filter(Boolean).length;
-  const clear = () => update({ seats: undefined, luggage: undefined, gearbox: undefined, fuel: undefined, city: undefined, priceMin: undefined, priceMax: undefined, yearMin: undefined, features: undefined });
+  const active = [q.type, q.seats, q.luggage, q.gearbox, q.fuel, q.city, q.priceMin, q.priceMax, q.yearMin, q.features?.length].filter(Boolean).length;
+  const clear = () => update({ type: undefined, seats: undefined, luggage: undefined, gearbox: undefined, fuel: undefined, city: undefined, priceMin: undefined, priceMax: undefined, yearMin: undefined, features: undefined });
 
   const summary = loading
     ? t.searching
@@ -126,6 +127,17 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
           {active > 0 && <button type="button" className="link" onClick={clear}>{t.clear(active)}</button>}
           <button type="button" className="filters-close" onClick={() => setFiltersOpen(false)} aria-label={t.closeFilters}>✕</button>
         </div>
+
+        <fieldset className="filter-group">
+          <legend>{t.type}</legend>
+          <div className="seg">
+            {([undefined, ...CATEGORIES] as const).map((c) => (
+              <button key={c ?? "all"} type="button" aria-pressed={q.type === c} onClick={() => update({ type: c })}>
+                {c ? d.category[c] : t.all}
+              </button>
+            ))}
+          </div>
+        </fieldset>
 
         <Select any={t.any} label={t.seats} value={q.seats} onChange={(v) => update({ seats: v ? Number(v) : undefined })}
           options={SEAT_OPTIONS.map((n) => [String(n), `${n}+`])} />
@@ -210,7 +222,11 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
         <div className="results-bar">
           <div>
             <h1 id="results-h" className="display h-md">
-              {dates ? `${shortDate(dates.start, locale)} – ${shortDate(dates.end, locale)}` : q.q ? (locale === "en" ? `“${q.q}”` : `„${q.q}"`) : t.allVans}
+              {dates
+                ? `${shortDate(dates.start, locale)} – ${shortDate(dates.end, locale)}`
+                : q.q
+                  ? locale === "en" ? `“${q.q}”` : `„${q.q}"`
+                  : q.type === "cargo" ? d.category.cargoLong : q.type === "passenger" ? d.category.passengerLong : t.allVans}
             </h1>
             <p className="caption" aria-live="polite">{error ? t.loadFailed : summary}</p>
           </div>

@@ -1,5 +1,5 @@
 import { Suspense, type ReactNode } from "react";
-import type { VanCard } from "@kombi/shared";
+import type { Category, VanCard } from "@kombi/shared";
 import { dict, type Locale } from "@/lib/i18n";
 import { Footer } from "./Footer";
 import { Header } from "./Header";
@@ -16,12 +16,15 @@ export function FinderPage({
   vans,
   path = "/",
   locale = "bs",
+  category,
 }: {
   title: ReactNode;
   intro: string;
   vans: VanCard[];
   path?: string;
   locale?: Locale;
+  /** A landing page for one type of van. */
+  category?: Category;
 }) {
   const t = dict(locale).home;
   const priced = vans.filter((v) => !v.priceOnRequest);
@@ -44,10 +47,10 @@ export function FinderPage({
           ]}
         >
           <Suspense>
-            <SearchTicket />
+            <SearchTicket category={category} />
           </Suspense>
         </Hero>
-        <VanGrid vans={vans} locale={locale} />
+        <VanGrid vans={vans} locale={locale} category={category} />
         <PageBody locale={locale} />
       </main>
       <Footer locale={locale} />

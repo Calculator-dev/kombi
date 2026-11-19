@@ -1,12 +1,12 @@
 import Link from "next/link";
-import type { VanCard } from "@kombi/shared";
+import type { Category, VanCard } from "@kombi/shared";
 import { dict, localePath, type Locale } from "@/lib/i18n";
 import { VanCardView } from "./VanCardView";
 
 const SHOWN = 6;
 
 /** A few vans on the homepage, with a link to all of them on /kombiji. */
-export function VanGrid({ vans, locale = "bs" }: { vans: VanCard[]; locale?: Locale }) {
+export function VanGrid({ vans, locale = "bs", category }: { vans: VanCard[]; locale?: Locale; category?: Category }) {
   const t = dict(locale).grid;
   return (
     <section id="kombiji" className="section" aria-labelledby="kombiji-h">
@@ -23,7 +23,7 @@ export function VanGrid({ vans, locale = "bs" }: { vans: VanCard[]; locale?: Loc
             <VanCardView key={v.id} van={v} list={locale === "en" ? "Home (EN)" : "Početna"} index={i} />
           ))}
         </ul>
-        <Link className="btn-dark see-all" href={localePath(locale, "/kombiji")}>
+        <Link className="btn-dark see-all" href={localePath(locale, category ? `/kombiji?type=${category}` : "/kombiji")}>
           {vans.length > SHOWN ? t.all(vans.length) : t.allShort} <span aria-hidden="true">→</span>
         </Link>
       </div>

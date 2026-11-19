@@ -20,7 +20,7 @@ import { createBooking } from "../services/bookings";
 import { contractByToken } from "../services/contract";
 import { recordVanEvent } from "../services/stats";
 import { getUser } from "../services/users";
-import { getPublicVan, listPublicVans, pricingOf, searchVans, toCard, toPublicVan } from "../services/vans";
+import { getPublicVan, listPublicVans, ownerNameOf, pricingOf, searchVans, toCard, toPublicVan } from "../services/vans";
 
 const isoDate = z.string().refine(isIsoDate, "Neispravan datum");
 const slug = z.string().regex(/^[a-z0-9-]{1,80}$/);
@@ -70,7 +70,8 @@ export function publicRoutes({ db, config, notifier, storage, now }: Deps): Rout
 
   r.get("/vans/:slug", async (req, res) => {
     res.set("Cache-Control", "public, max-age=60");
-    res.json(toPublicVan(storage, await publicVan(req.params.slug)));
+    const van = await publicVan(req.params.slug);
+    res.json({ ...toPublicVan(storage, van), owner: await ownerNameOf(db.orm, van) });
   });
 
   r.get("/vans/:slug/availability", async (req, res) => {

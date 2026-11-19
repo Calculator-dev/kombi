@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, date, index, integer, jsonb, pgSequence, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import type { BookingStatus, ContactChannel, ContractTerms, Plan, Quote, Settings, Terms, UserRole, UserStatus, VanStatus } from "@kombi/shared";
+import { boolean, check, date, index, integer, jsonb, pgSequence, pgTable, primaryKey, real, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import type { BookingStatus, Category, ContactChannel, ContractTerms, Plan, Quote, Settings, Terms, UserRole, UserStatus, VanStatus } from "@kombi/shared";
 
 // Row-Level Security is on for every table with no policies: on Supabase this keeps the
 // tables closed to its public REST API. The API connects as the table owner, which bypasses RLS.
@@ -61,6 +61,12 @@ export const vans = pgTable(
     slug: text("slug").notNull().unique(),
     status: text("status").$type<VanStatus>().notNull().default("draft"),
     name: text("name").notNull(),
+    /** "passenger" or "cargo" (see CATEGORIES in @kombi/shared). */
+    category: text("category").$type<Category>().notNull().default("passenger"),
+    /** Cargo space in m³; 0 = not given. */
+    cargoM3: real("cargo_m3").notNull().default(0),
+    /** Payload in kg; 0 = not given. */
+    payloadKg: integer("payload_kg").notNull().default(0),
     year: integer("year").notNull(),
     seats: integer("seats").notNull(),
     fuel: text("fuel").notNull(),
@@ -91,6 +97,7 @@ export const vans = pgTable(
     index("vans_owner_idx").on(t.ownerId),
     index("vans_search_idx").on(t.status, t.seats),
     check("vans_status_check", sql`${t.status} in ('draft', 'published')`),
+    check("vans_category_check", sql`${t.category} in ('passenger', 'cargo')`),
   ],
 ).enableRLS();
 

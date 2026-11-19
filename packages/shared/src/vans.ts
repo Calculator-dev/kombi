@@ -15,6 +15,9 @@ export type UserStatus = (typeof USER_STATUSES)[number];
 
 export const FUELS = ["Dizel", "Benzin", "Hibrid", "Električni"] as const;
 export const GEARBOXES = ["Manuelni", "Automatski"] as const;
+/** Passenger vans carry people; cargo vans carry things (moving house, furniture, building material). */
+export const CATEGORIES = ["passenger", "cargo"] as const;
+export type Category = (typeof CATEGORIES)[number];
 
 export const MAX_PHOTOS = 12;
 
@@ -44,6 +47,11 @@ export const featureLabel = (id: string) => FEATURES.find(([f]) => f === id)?.[1
 /** What an owner fills in about a van. */
 export const vanDetailsSchema = z.object({
   name: z.string().trim().min(2, "Upišite naziv").max(80),
+  category: z.enum(CATEGORIES).default("passenger"),
+  /** Cargo space in m³ (cargo vans); 0 = not given. */
+  cargoM3: z.number().min(0).max(100, "Najviše 100 m³").default(0),
+  /** Payload in kg (cargo vans); 0 = not given. */
+  payloadKg: z.number().int().min(0).max(10000, "Najviše 10000 kg").default(0),
   year: z.number().int().min(1990, "Neispravno godište").max(2100, "Neispravno godište"),
   seats: z.number().int().min(2, "Najmanje 2 sjedišta").max(30),
   fuel: z.enum(FUELS),
@@ -119,11 +127,13 @@ export interface PublicVan extends VanDetails {
   spin?: PhotoUrls[] | null;
   pricing: Settings;
   terms: Terms;
+  /** Who rents it out: the owner's profile name; null when kombi.ba runs it itself. */
+  owner?: string | null;
 }
 
 /** A van in a list, optionally with availability and price for chosen dates. */
 export interface VanCard
-  extends Pick<VanDetails, "name" | "year" | "seats" | "fuel" | "gearbox" | "location" | "luggage" | "powerHp" | "features"> {
+  extends Pick<VanDetails, "name" | "year" | "seats" | "fuel" | "gearbox" | "location" | "luggage" | "powerHp" | "features" | "category" | "cargoM3" | "payloadKg"> {
   id: string;
   slug: string;
   photo: PhotoUrls | null;
@@ -171,6 +181,8 @@ export const vanSearchSchema = z
   .object({
     /** Free text: words matched against the van's name, city and description. */
     q: z.preprocess((v) => (typeof v === "string" && v.trim() ? v.trim() : undefined), z.string().max(80).optional()).catch(undefined),
+    /** Passenger or cargo vans only. */
+    type: z.enum(CATEGORIES).optional().catch(undefined),
     start: z.string().refine(isIsoDate).optional().catch(undefined),
     end: z.string().refine(isIsoDate).optional().catch(undefined),
     seats: optInt(1, 60).catch(undefined),

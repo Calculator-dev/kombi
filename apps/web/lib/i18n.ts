@@ -28,6 +28,37 @@ const plural = (n: number, one: string, few: string, many: string) =>
   n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many;
 
 const bs = {
+  category: {
+    passenger: "Putnički",
+    cargo: "Teretni",
+    passengerLong: "Putnički kombiji",
+    cargoLong: "Teretni kombiji",
+    cargoNote: "prevoz stvari",
+  },
+  cargo: {
+    m3: (n: number) => `${String(n).replace(".", ",")} m³`,
+    kg: (n: number) => `${n} kg`,
+    space: "Tovarni prostor",
+    payload: "Nosivost",
+    intro: (gearbox: string, onRequest: boolean) =>
+      `Teretni kombi za selidbe, namještaj i kabaste stvari, bez vozača, ${gearbox} mjenjač. ${onRequest ? "Odaberite datume i pošaljite upit, cijenu dogovarate s vlasnikom." : "Odaberite datume i cijenu vidite odmah."}`,
+  },
+  owner: {
+    label: "Iznajmljuje",
+    platform: "kombi.ba",
+  },
+  map: {
+    title: "Lokacija",
+    text: (city: string) => `Kombi se nalazi u gradu ${city}. Tačno mjesto i vrijeme preuzimanja dogovarate s vlasnikom nakon potvrde.`,
+    show: "Prikaži mapu",
+    open: "Otvori u Google Maps",
+    note: "Mapa se učitava s Google Maps tek kad kliknete.",
+    frame: (city: string) => `Mapa: ${city}`,
+  },
+  menu: {
+    all: "Svi kombiji",
+    toggle: "Kombiji",
+  },
   htmlLang: "bs",
   months: ["Januar", "Februar", "Mart", "April", "Maj", "Juni", "Juli", "August", "Septembar", "Oktobar", "Novembar", "Decembar"],
   weekdaysShort: ["Ned", "Pon", "Uto", "Sri", "Čet", "Pet", "Sub"],
@@ -124,6 +155,7 @@ const bs = {
     freeVans: "Slobodni kombiji",
   },
   results: {
+    type: "Vrsta",
     filters: "Filteri",
     clear: (n: number) => `Očisti (${n})`,
     closeFilters: "Zatvori filtere",
@@ -365,6 +397,37 @@ const bs = {
 export type Dict = typeof bs;
 
 const en: Dict = {
+  category: {
+    passenger: "Passenger",
+    cargo: "Cargo",
+    passengerLong: "Passenger vans",
+    cargoLong: "Cargo vans",
+    cargoNote: "moving things",
+  },
+  cargo: {
+    m3: (n: number) => `${n} m³`,
+    kg: (n: number) => `${n} kg`,
+    space: "Cargo space",
+    payload: "Payload",
+    intro: (gearbox: string, onRequest: boolean) =>
+      `A cargo van for moving house, furniture and bulky items, self-drive, ${gearbox} gearbox. ${onRequest ? "Pick your dates and send a request; you agree the price with the owner." : "Pick your dates and see the price instantly."}`,
+  },
+  owner: {
+    label: "Rented by",
+    platform: "kombi.ba",
+  },
+  map: {
+    title: "Location",
+    text: (city: string) => `The van is in ${city}. You agree the exact pickup place and time with the owner after confirmation.`,
+    show: "Show map",
+    open: "Open in Google Maps",
+    note: "The map loads from Google Maps only when you click.",
+    frame: (city: string) => `Map: ${city}`,
+  },
+  menu: {
+    all: "All vans",
+    toggle: "Vans",
+  },
   htmlLang: "en",
   months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
   weekdaysShort: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
@@ -461,6 +524,7 @@ const en: Dict = {
     freeVans: "Available vans",
   },
   results: {
+    type: "Type",
     filters: "Filters",
     clear: (n: number) => `Clear (${n})`,
     closeFilters: "Close filters",

@@ -30,8 +30,9 @@ export default async function LandingPage({ params }: Props) {
   if (!page) notFound();
   return (
     <FinderPage
-      vans={await getVans()}
+      vans={(await getVans()).filter((v) => !page.category || v.category === page.category)}
       path={`/${slug}`}
+      category={page.category}
       intro={page.intro}
       title={
         <>

@@ -24,9 +24,13 @@ export function VanCardView({
   const { locale, t, lp } = useLocale();
   const unavailable = dates && c.quote && (c.available === false || c.quote.errors.length > 0);
   const query = dates ? `?start=${dates.start}&end=${dates.end}` : "";
+  const cargo = c.category === "cargo";
   const specs = [
+    cargo ? t.category.cargo : null,
+    cargo && c.cargoM3 ? t.cargo.m3(c.cargoM3) : null,
+    cargo && c.payloadKg ? t.cargo.kg(c.payloadKg) : null,
     t.card.seats(c.seats),
-    c.luggage ? t.card.luggage(c.luggage) : null,
+    !cargo && c.luggage ? t.card.luggage(c.luggage) : null,
     (t.gearboxes[c.gearbox] ?? c.gearbox).toLowerCase(),
     c.powerHp ? t.card.hp(c.powerHp) : null,
     String(c.year),
