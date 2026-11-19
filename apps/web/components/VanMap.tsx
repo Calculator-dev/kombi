@@ -7,7 +7,7 @@ import { useLocale } from "@/lib/useLocale";
  * Where the van is, on Google Maps. The map is only loaded after a click,
  * because Google's embed sets its own cookies.
  */
-export function VanMap({ city }: { city: string }) {
+export function VanMap({ city, car }: { city: string; car?: boolean }) {
   const { locale, t } = useLocale();
   const [shown, setShown] = useState(false);
   const place = `${city}, ${locale === "en" ? "Bosnia and Herzegovina" : "Bosna i Hercegovina"}`;
@@ -15,7 +15,7 @@ export function VanMap({ city }: { city: string }) {
   const embed = `https://www.google.com/maps?q=${encodeURIComponent(place)}&hl=${locale}&z=12&output=embed`;
   return (
     <div className="van-map">
-      <p>{t.map.text(city)}</p>
+      <p>{car ? t.car.mapText(city) : t.map.text(city)}</p>
       {shown ? (
         <iframe className="van-map-frame" src={embed} title={t.map.frame(city)} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
       ) : (

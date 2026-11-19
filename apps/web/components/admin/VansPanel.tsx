@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FEATURES, FUELS, GEARBOXES, PLAN_INFO, planVans, vanDetailsSchema, type FeatureId, type VanDetails } from "@kombi/shared";
+import { FEATURES, FUELS, GEARBOXES, PLAN_INFO, kindOf, planVans, vanDetailsSchema, type FeatureId, type VanDetails } from "@kombi/shared";
 import { ApiError, adminApi } from "@/lib/api";
 import { km } from "@/lib/format";
 import { PhotoManager } from "./PhotoManager";
@@ -57,18 +57,23 @@ export function VansPanel({ me, vans, onChange }: Props) {
   return (
     <>
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
-        <h1 className="display h-lg">Kombiji</h1>
-        <button type="button" className="btn-dark" onClick={() => setEditing("new")}>+ Dodaj kombi</button>
+        <h1 className="display h-lg">Kombiji i auta</h1>
+        <button type="button" className="btn-dark" onClick={() => setEditing("new")}>+ Dodaj kombi ili auto</button>
       </div>
       {me.role !== "admin" && (
         <p className="caption">
           Paket {PLAN_INFO[me.plan].label}: na stranici može biti {planVans(me.plan)}
-          {PLAN_INFO[me.plan].maxVans !== null && ` (objavljeno ${vans.filter((v) => v.status === "published" && v.ownerId === me.id).length} od ${PLAN_INFO[me.plan].maxVans})`}.
-          {me.plan !== "gold" && " Za više kombija pogledajte pakete u Profilu."}
+          {PLAN_INFO[me.plan].maxVans !== null && (() => {
+            const live = vans.filter((v) => v.status === "published" && v.ownerId === me.id);
+            const cars = live.filter((v) => kindOf(v.category) === "car").length;
+            const max = PLAN_INFO[me.plan].maxVans;
+            return ` (objavljeno: kombija ${live.length - cars} od ${max}, auta ${cars} od ${max})`;
+          })()}.
+          {me.plan !== "gold" && " Za više vozila pogledajte pakete u Profilu."}
         </p>
       )}
       {vans.length === 0 && (
-        <p className="empty">Još nemate kombi. Dodajte ga: osnovni podaci, fotografije, cijene, i objavite.</p>
+        <p className="empty">Još nemate vozilo. Dodajte kombi ili auto: osnovni podaci, fotografije, cijene, i objavite.</p>
       )}
       <div className="van-admin-list">
         {vans.map((v) => (
@@ -284,10 +289,11 @@ function DetailsForm({ van, onSaved }: { van?: OwnerVan; onSaved: (v: OwnerVan) 
   return (
     <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <fieldset className="filter-group">
-        <legend>Vrsta kombija</legend>
+        <legend>Vrsta vozila</legend>
         <div className="seg">
-          <button type="button" aria-pressed={!cargo} onClick={() => set("category", "passenger")}>Putnički (prevoz ljudi)</button>
+          <button type="button" aria-pressed={d.category === "passenger"} onClick={() => set("category", "passenger")}>Putnički kombi</button>
           <button type="button" aria-pressed={cargo} onClick={() => set("category", "cargo")}>Teretni (prevoz stvari)</button>
+          <button type="button" aria-pressed={d.category === "car"} onClick={() => set("category", "car")}>Automobil</button>
         </div>
       </fieldset>
       <div className="fields">

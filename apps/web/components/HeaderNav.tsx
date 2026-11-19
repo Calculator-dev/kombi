@@ -49,6 +49,10 @@ export function HeaderNav({ locale }: { locale: Locale }) {
               {d.category.cargoLong}
               <small>{d.category.cargoNote}</small>
             </Link>
+            <Link href={lp("/kombiji?type=car")} onClick={close}>
+              {d.category.carLong}
+              <small>{d.category.carNote}</small>
+            </Link>
           </div>
         </div>
         <Link href={lp("/#paketi")} className="nav-owner" onClick={() => setOpen(false)}>{t.owners}</Link>

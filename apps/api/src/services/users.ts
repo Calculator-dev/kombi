@@ -1,5 +1,5 @@
 import { asc, eq, sql } from "drizzle-orm";
-import { PLAN_INFO, planVans, type Plan, type Profile, type UserStatus } from "@kombi/shared";
+import { PLAN_INFO, carsWord, planVans, vansWord, type Plan, type Profile, type UserStatus } from "@kombi/shared";
 import { schema, type Executor } from "../db";
 import type { UserRow } from "../db/schema";
 import { HttpError } from "../errors";
@@ -76,11 +76,11 @@ export async function setUserPlan(db: Executor, id: string, plan: Plan): Promise
   const max = PLAN_INFO[plan].maxVans;
   if (max !== null) {
     const live = await publishedCount(db, id);
-    if (live > max) {
+    if (live.van > max || live.car > max) {
       throw new HttpError(
         409,
         "plan_too_small",
-        `Vlasnik ima ${live} objavljenih kombija, a paket ${PLAN_INFO[plan].label} dozvoljava ${planVans(plan)}. Prvo sakrijte višak.`,
+        `Vlasnik ima objavljeno ${live.van} ${vansWord(live.van)} i ${live.car} ${carsWord(live.car)}, a paket ${PLAN_INFO[plan].label} dozvoljava ${planVans(plan)}. Prvo sakrijte višak.`,
       );
     }
   }

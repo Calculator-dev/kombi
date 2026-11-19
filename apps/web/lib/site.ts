@@ -57,6 +57,15 @@ export const LANDINGS: Record<
       "Selidba, novi kauč, mašina za veš ili materijal za gradilište. Odaberite datume i vidite koji su teretni kombiji slobodni, koliko stane u njih i koliko koštaju.",
     category: "cargo",
   },
+  "rent-a-car-sarajevo": {
+    title: "Rent a car Sarajevo — najam automobila, cijena odmah",
+    description:
+      "Najam automobila bez vozača u Sarajevu i BiH. Slobodni termini i tačna cijena odmah na stranici, preuzimanje po dogovoru, bez plaćanja unaprijed.",
+    h1: ["Rent a car", "bez čekanja"],
+    intro:
+      "Auto za grad, posao ili put. Odaberite datume i odmah vidite koja su auta slobodna i koliko koštaju, bez plaćanja unaprijed.",
+    category: "car",
+  },
   "cijena-najma-kombija": {
     title: "Cijena najma kombija u Sarajevu — cjenovnik bez skrivenih troškova",
     description:

@@ -502,6 +502,29 @@ describe("packages, analytics and price by agreement", () => {
     expect(res.body.error).toBe("plan_limit");
   });
 
+  it("counts cars separately: the free package also allows one car", async () => {
+    const amir = await as(AMIR);
+    const addCar = async (name: string) => {
+      const id = (await amir.post("/api/admin/vans").send(van({ name, category: "car", seats: 5 })).expect(201)).body.id as string;
+      await amir.post(`/api/admin/vans/${id}/photos`).attach("photo", await photo(), "v.jpg").expect(201);
+      return id;
+    };
+    const golf = await addCar("VW Golf");
+    await amir.patch(`/api/admin/vans/${golf}/status`).send({ status: "published" }).expect(200);
+    const octavia = await addCar("Skoda Octavia");
+    expect((await amir.patch(`/api/admin/vans/${octavia}/status`).send({ status: "published" }).expect(403)).body.error).toBe("plan_limit");
+    // A published car can't be turned into a van past the van limit either.
+    const golfVan = (await amir.get("/api/admin/vans")).body.find((v: { id: string }) => v.id === golf);
+    const { name, year, seats, fuel, gearbox, engine, license, location, description, luggage, powerHp, features } = golfVan;
+    await amir
+      .put(`/api/admin/vans/${golf}`)
+      .send({ name, year, seats, fuel, gearbox, engine, license, location, description, luggage, powerHp, features, category: "passenger" })
+      .expect(403);
+    const cars = (await request(app).get("/api/search?type=car")).body.items.map((v: { slug: string }) => v.slug);
+    expect(cars).toEqual(["vw-golf"]);
+    for (const id of [golf, octavia]) await amir.delete(`/api/admin/vans/${id}`).expect(204);
+  });
+
   it("publishes more vans on a bigger package, which only an admin can set", async () => {
     const amir = await as(AMIR);
     await amir.patch(`/api/admin/users/${AMIR.id}`).send({ plan: "gold" }).expect(403);

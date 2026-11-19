@@ -4,6 +4,7 @@ import {
   DEFAULT_SETTINGS,
   contractTermsSchema,
   PLAN_INFO,
+  kindOf,
   planVans,
   DEFAULT_TERMS,
   MAX_PHOTOS,
@@ -23,6 +24,7 @@ import {
   type VanCard,
   type VanDetails,
   type VanSearch,
+  type VehicleKind,
   type VanStatus,
 } from "@kombi/shared";
 import { schema, type Database, type Executor } from "../db";
@@ -123,6 +125,10 @@ export async function createVan(db: Executor, ownerId: string | null, details: V
 }
 
 export async function updateVan(db: Executor, van: VanRow, details: VanDetails): Promise<VanRow> {
+  // Turning a published van into a car (or back) counts against the other limit.
+  if (van.status === "published" && kindOf(details.category) !== kindOf(van.category)) {
+    await checkPlanLimit(db, van.ownerId, van.id, kindOf(details.category));
+  }
   // The address stays the same once a van is public, so shared links keep working.
   const slug = van.status === "draft" && details.name !== van.name ? await uniqueSlug(db, details.name, van.id) : van.slug;
   const [row] = await db
@@ -151,11 +157,15 @@ export async function saveVanContract(db: Executor, van: VanRow, input: unknown)
   return row!;
 }
 
+/** The categories that count as the same kind (vans or cars) for a package. */
+const sameKind = (kind: VehicleKind) => (kind === "car" ? eq(vans.category, "car") : sql`${vans.category} <> 'car'`);
+
 /**
- * An owner's package limits how many of their vans can be published at once.
- * Vans the platform runs itself, and admins, have no limit.
+ * An owner's package limits how many of their vans, and separately how many
+ * of their cars, can be published at once. Vans the platform runs itself, and
+ * admins, have no limit.
  */
-async function checkPlanLimit(db: Executor, ownerId: string | null, exceptVanId: string): Promise<void> {
+async function checkPlanLimit(db: Executor, ownerId: string | null, exceptVanId: string, kind: VehicleKind): Promise<void> {
   if (!ownerId) return;
   const [owner] = await db.select().from(users).where(eq(users.id, ownerId));
   if (!owner || owner.role === "admin") return;
@@ -164,27 +174,34 @@ async function checkPlanLimit(db: Executor, ownerId: string | null, exceptVanId:
   const [row] = await db
     .select({ n: count() })
     .from(vans)
-    .where(and(eq(vans.ownerId, ownerId), eq(vans.status, "published"), sql`${vans.id} <> ${exceptVanId}`));
+    .where(and(eq(vans.ownerId, ownerId), eq(vans.status, "published"), sameKind(kind), sql`${vans.id} <> ${exceptVanId}`));
   if ((row?.n ?? 0) >= max) {
+    const other = kind === "car" ? "drugi auto" : "drugi kombi";
     throw new HttpError(
       403,
       "plan_limit",
-      `Paket ${PLAN_INFO[owner.plan].label} dozvoljava ${planVans(owner.plan)} na stranici. Sakrijte drugi kombi ili pređite na veći paket.`,
+      `Paket ${PLAN_INFO[owner.plan].label} dozvoljava ${planVans(owner.plan)} na stranici. Sakrijte ${other} ili pređite na veći paket.`,
     );
   }
 }
 
-/** Published vans per owner, for checking a package change. */
-export async function publishedCount(db: Executor, ownerId: string): Promise<number> {
-  const [row] = await db.select({ n: count() }).from(vans).where(and(eq(vans.ownerId, ownerId), eq(vans.status, "published")));
-  return row?.n ?? 0;
+/** Published vans and published cars of an owner, for checking a package change. */
+export async function publishedCount(db: Executor, ownerId: string): Promise<Record<VehicleKind, number>> {
+  const rows = await db
+    .select({ category: vans.category, n: count() })
+    .from(vans)
+    .where(and(eq(vans.ownerId, ownerId), eq(vans.status, "published")))
+    .groupBy(vans.category);
+  const counts = { van: 0, car: 0 };
+  for (const r of rows) counts[kindOf(r.category)] += r.n;
+  return counts;
 }
 
 export async function setVanStatus(db: Executor, van: VanRow, status: VanStatus): Promise<VanRow> {
   if (status === "published" && van.photos.length === 0) {
     throw new HttpError(400, "no_photos", "Dodajte barem jednu fotografiju prije objave.");
   }
-  if (status === "published" && van.status !== "published") await checkPlanLimit(db, van.ownerId, van.id);
+  if (status === "published" && van.status !== "published") await checkPlanLimit(db, van.ownerId, van.id, kindOf(van.category));
   const [row] = await db.update(vans).set({ status, updatedAt: sql`now()` }).where(eq(vans.id, van.id)).returning();
   return row!;
 }
@@ -193,7 +210,7 @@ export async function setVanOwner(db: Executor, van: VanRow, ownerId: string | n
   if (ownerId) {
     const [owner] = await db.select({ id: users.id }).from(users).where(eq(users.id, ownerId));
     if (!owner) throw new HttpError(404, "not_found", "Korisnik ne postoji.");
-    if (van.status === "published" && ownerId !== van.ownerId) await checkPlanLimit(db, ownerId, van.id);
+    if (van.status === "published" && ownerId !== van.ownerId) await checkPlanLimit(db, ownerId, van.id, kindOf(van.category));
   }
   const [row] = await db.update(vans).set({ ownerId, updatedAt: sql`now()` }).where(eq(vans.id, van.id)).returning();
   return row!;
