@@ -18,7 +18,15 @@ async function get<T>(path: string): Promise<T | null> {
 /** Vans on offer; empty if the API can't be reached (pages refresh within a minute). */
 export async function getVans(): Promise<VanCard[]> {
   // An older API (e.g. mid-deploy) may not send the newer fields yet.
-  return ((await get<VanCard[]>("/vans")) ?? []).map((v) => ({ ...v, luggage: v.luggage ?? 0, powerHp: v.powerHp ?? 0, features: v.features ?? [] }));
+  return ((await get<VanCard[]>("/vans")) ?? []).map((v) => ({
+    ...v,
+    category: v.category ?? "passenger",
+    cargoM3: v.cargoM3 ?? 0,
+    payloadKg: v.payloadKg ?? 0,
+    luggage: v.luggage ?? 0,
+    powerHp: v.powerHp ?? 0,
+    features: v.features ?? [],
+  }));
 }
 
 /**
@@ -37,6 +45,10 @@ export async function getVan(slug: string): Promise<PublicVan | null> {
   return (
     van && {
       ...van,
+      category: van.category ?? "passenger",
+      cargoM3: van.cargoM3 ?? 0,
+      payloadKg: van.payloadKg ?? 0,
+      owner: van.owner ?? null,
       luggage: van.luggage ?? 0,
       powerHp: van.powerHp ?? 0,
       features: van.features ?? [],

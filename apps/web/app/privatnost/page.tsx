@@ -25,6 +25,7 @@ const PROCESSORS: [string, string, string][] = [
   ["Supabase", "Baza podataka i prijava vlasnika", "Server koji je odabran pri postavljanju projekta"],
   ["Backblaze", "Fotografije kombija (bez ličnih podataka)", "EU"],
   ["Resend", "Slanje emailova o upitu i rezervaciji", "SAD"],
+  ["Google Maps", "Mapa s lokacijom kombija; učitava se tek kad kliknete „Prikaži mapu“", "SAD i EU"],
   ["Google (Tag Manager, Analytics)", "Statistika posjeta, samo uz vaš pristanak na kolačiće, bez imena i kontakata", "SAD i EU"],
 ];
 

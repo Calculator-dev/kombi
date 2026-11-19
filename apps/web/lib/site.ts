@@ -1,3 +1,4 @@
+import type { Category } from "@kombi/shared";
 import { dict } from "./i18n";
 
 /**
@@ -21,7 +22,7 @@ export const FAQ = dict("bs").faq.items;
 /** Landing pages for the searches people actually type. */
 export const LANDINGS: Record<
   string,
-  { title: string; description: string; h1: string[]; intro: string }
+  { title: string; description: string; h1: string[]; intro: string; /** Only vans of this type. */ category?: Category }
 > = {
   "najam-kombija-sarajevo": {
     title: "Najam kombija Sarajevo — 9 sjedišta, cijena odmah",
@@ -46,6 +47,15 @@ export const LANDINGS: Record<
     h1: ["Kombi na", "aerodromu"],
     intro:
       "Slijećete s porodicom ili grupom? Kombi vas čeka na Aerodromu Sarajevo, a vraćate ga tamo gdje se dogovorimo.",
+  },
+  "najam-teretnog-kombija": {
+    title: "Najam teretnog kombija — selidbe i prevoz kabastih stvari",
+    description:
+      "Iznajmite teretni kombi bez vozača za selidbu, namještaj, bijelu tehniku ili građevinski materijal. Tovarni prostor i nosivost na stranici, cijena odmah.",
+    h1: ["Teretni kombi", "za kabaste stvari"],
+    intro:
+      "Selidba, novi kauč, mašina za veš ili materijal za gradilište. Odaberite datume i vidite koji su teretni kombiji slobodni, koliko stane u njih i koliko koštaju.",
+    category: "cargo",
   },
   "cijena-najma-kombija": {
     title: "Cijena najma kombija u Sarajevu — cjenovnik bez skrivenih troškova",

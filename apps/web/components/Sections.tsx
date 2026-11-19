@@ -6,6 +6,7 @@ import { dict, ownerText, type Locale } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
 import { PlanList } from "./PlanList";
 import { VanDrawing } from "./VanDrawing";
+import { VanMap } from "./VanMap";
 
 /** Title and intro on the left, the calendar ticket (passed in) on the right. */
 export function Hero({
@@ -61,12 +62,16 @@ export function VanDetails({ van, locale = "bs" }: { van: PublicVan; locale?: Lo
         {/* The photos are at the top of the page; without any, a drawing stands in here. */}
         {van.photos.length === 0 && <VanDrawing label={van.name} />}
         <dl className="grid-specs">
+          <div><dt>{d.results.type}</dt><dd>{d.category[van.category ?? "passenger"]}</dd></div>
+          {van.category === "cargo" && <div><dt>{d.cargo.space}</dt><dd>{van.cargoM3 ? d.cargo.m3(van.cargoM3) : "—"}</dd></div>}
+          {van.category === "cargo" && <div><dt>{d.cargo.payload}</dt><dd>{van.payloadKg ? d.cargo.kg(van.payloadKg) : "—"}</dd></div>}
           <div><dt>{t.seats}</dt><dd>{van.seats}</dd></div>
           <div><dt>{t.fuel}</dt><dd>{d.fuels[van.fuel] ?? van.fuel}</dd></div>
           <div><dt>{t.gearbox}</dt><dd>{d.gearboxes[van.gearbox] ?? van.gearbox}</dd></div>
           <div><dt>{t.year}</dt><dd>{van.year}</dd></div>
           <div><dt>{t.license}</dt><dd>{van.license}</dd></div>
-          <div><dt>{t.luggage}</dt><dd>{van.luggage || "—"}</dd></div>
+          {van.category !== "cargo" && <div><dt>{t.luggage}</dt><dd>{van.luggage || "—"}</dd></div>}
+          <div><dt>{d.owner.label}</dt><dd>{van.owner || d.owner.platform}</dd></div>
           <div><dt>{t.engine}</dt><dd>{[van.engine, van.powerHp ? t.hp(van.powerHp) : ""].filter(Boolean).join(", ") || "—"}</dd></div>
         </dl>
         {van.features.length > 0 && (
@@ -75,6 +80,8 @@ export function VanDetails({ van, locale = "bs" }: { van: PublicVan; locale?: Lo
           </ul>
         )}
         {van.description && <p className="lead van-desc">{van.description}</p>}
+        <h3 className="van-map-h">{d.map.title}</h3>
+        <VanMap city={van.location} />
       </div>
     </section>
   );

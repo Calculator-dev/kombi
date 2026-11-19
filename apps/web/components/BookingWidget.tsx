@@ -10,6 +10,7 @@ import {
   quote,
   todayIn,
   type Availability,
+  type Category,
   type IsoDate,
   type Settings,
 } from "@kombi/shared";
@@ -26,6 +27,8 @@ interface Props {
   initialEnd?: IsoDate;
   /** Search mode on /kombiji: called after new dates are applied (e.g. to close the panel). */
   onSearched?: () => void;
+  /** Search mode on a landing page for one type of van: search only those. */
+  category?: Category;
 }
 
 function monthStart(base: IsoDate, offset: number): { y: number; m: number; first: IsoDate } {
@@ -41,7 +44,7 @@ function daysInMonth(y: number, m: number) {
 }
 
 /** The ticket: a calendar to pick dates, with a van's availability and live price. */
-export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Props) {
+export function BookingWidget({ van, initialStart, initialEnd, onSearched, category }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const { locale, t: d, lp } = useLocale();
@@ -113,6 +116,7 @@ export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Pro
     params.set("start", start);
     params.set("end", end);
     params.delete("page");
+    if (category && !onSearch) params.set("type", category);
     if (onSearch) {
       router.replace(`${searchPath}?${params}`, { scroll: false });
       onSearched?.();

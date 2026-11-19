@@ -25,6 +25,7 @@ const PROCESSORS: [string, string, string][] = [
   ["Supabase", "Database and owner sign-in", "The region chosen when the project was set up"],
   ["Backblaze", "Van photos (no personal data)", "EU"],
   ["Resend", "Emails about requests and bookings", "USA"],
+  ["Google Maps", "The map with the van's location; loads only when you click “Show map”", "USA and EU"],
   ["Google (Tag Manager, Analytics)", "Visit statistics, only with your cookie consent, without names or contacts", "USA and EU"],
 ];
 

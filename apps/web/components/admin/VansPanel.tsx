@@ -227,6 +227,9 @@ function VanEditor({
 
 const EMPTY: VanDetails = {
   name: "",
+  category: "passenger",
+  cargoM3: 0,
+  payloadKg: 0,
   year: new Date().getFullYear(),
   seats: 9,
   fuel: "Dizel",
@@ -276,9 +279,17 @@ function DetailsForm({ van, onSaved }: { van?: OwnerVan; onSaved: (v: OwnerVan) 
     </label>
   );
   const int = (v: string) => (v === "" ? 0 : Number(v.replace(/\D/g, "")));
+  const cargo = d.category === "cargo";
 
   return (
     <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <fieldset className="filter-group">
+        <legend>Vrsta kombija</legend>
+        <div className="seg">
+          <button type="button" aria-pressed={!cargo} onClick={() => set("category", "passenger")}>Putnički (prevoz ljudi)</button>
+          <button type="button" aria-pressed={cargo} onClick={() => set("category", "cargo")}>Teretni (prevoz stvari)</button>
+        </div>
+      </fieldset>
       <div className="fields">
         {field("name", "Naziv (marka i model)", <input value={d.name} placeholder="npr. Toyota Proace Verso 8+1" onChange={(e) => set("name", e.target.value)} />)}
         {field("location", "Grad", <input value={d.location} placeholder="npr. Sarajevo" onChange={(e) => set("location", e.target.value)} />)}
@@ -300,7 +311,14 @@ function DetailsForm({ van, onSaved }: { van?: OwnerVan; onSaved: (v: OwnerVan) 
         )}
         {field("engine", "Motor (neobavezno)", <input value={d.engine} placeholder="npr. 2.0 D-4D" onChange={(e) => set("engine", e.target.value)} />)}
         {field("license", "Vozačka kategorija", <input value={d.license} onChange={(e) => set("license", e.target.value)} />)}
-        {field("luggage", "Velikih kofera (sa svim putnicima)", <input inputMode="numeric" value={d.luggage} onChange={(e) => set("luggage", int(e.target.value))} />)}
+        {cargo ? (
+          <>
+            {field("cargoM3", "Tovarni prostor (m³)", <CargoInput value={d.cargoM3} onChange={(n) => set("cargoM3", n)} />)}
+            {field("payloadKg", "Nosivost (kg)", <input inputMode="numeric" value={d.payloadKg || ""} placeholder="npr. 1200" onChange={(e) => set("payloadKg", int(e.target.value))} />)}
+          </>
+        ) : (
+          field("luggage", "Velikih kofera (sa svim putnicima)", <input inputMode="numeric" value={d.luggage} onChange={(e) => set("luggage", int(e.target.value))} />)
+        )}
         {field("powerHp", "Snaga motora (KS, neobavezno)", <input inputMode="numeric" value={d.powerHp || ""} placeholder="npr. 150" onChange={(e) => set("powerHp", int(e.target.value))} />)}
       </div>
       <fieldset className="feature-picks">
@@ -333,5 +351,24 @@ function DetailsForm({ van, onSaved }: { van?: OwnerVan; onSaved: (v: OwnerVan) 
 
 function pick(v: OwnerVan): VanDetails {
   const { name, year, seats, fuel, gearbox, engine, license, location, description, luggage, powerHp, features } = v;
-  return { name, year, seats, fuel, gearbox, engine, license, location, description, luggage, powerHp, features };
+  const category = v.category ?? "passenger";
+  return { name, category, cargoM3: v.cargoM3 ?? 0, payloadKg: v.payloadKg ?? 0, year, seats, fuel, gearbox, engine, license, location, description, luggage, powerHp, features };
+}
+
+/** Cubic metres with one decimal; accepts "12,5" as well as "12.5". */
+function CargoInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const [text, setText] = useState(value ? String(value).replace(".", ",") : "");
+  return (
+    <input
+      inputMode="decimal"
+      value={text}
+      placeholder="npr. 12,5"
+      onChange={(e) => {
+        const t = e.target.value.replace(/[^\d,.]/g, "").slice(0, 6);
+        setText(t);
+        const n = Number(t.replace(",", "."));
+        onChange(Number.isFinite(n) ? Math.round(n * 10) / 10 : 0);
+      }}
+    />
+  );
 }

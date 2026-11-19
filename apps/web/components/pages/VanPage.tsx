@@ -56,13 +56,17 @@ export async function VanPage({ slug, locale }: { slug: string; locale: Locale }
               <span className="dot">.</span>
             </>
           }
-          intro={(locale === "bs" && van.description.split("\n")[0]) || t.intro(van.seats, gearbox.toLowerCase(), onRequest)}
+          intro={
+            (locale === "bs" && van.description.split("\n")[0]) ||
+            (van.category === "cargo" ? d.cargo.intro(gearbox.toLowerCase(), onRequest) : t.intro(van.seats, gearbox.toLowerCase(), onRequest))
+          }
           media={van.photos.length > 0 && <Gallery photos={van.photos} name={van.name} spin={van.spin} />}
           specs={[
             [t.city, van.location],
             onRequest ? [t.price, d.onRequest] : [t.from, d.home.kmPerDay(van.pricing.dailyRate)],
-            [t.seats, String(van.seats)],
+            van.category === "cargo" && van.cargoM3 ? [d.cargo.space, d.cargo.m3(van.cargoM3)] : [t.seats, String(van.seats)],
             [t.gearbox, gearbox],
+            [d.owner.label, van.owner || d.owner.platform],
             [t.payment, t.paymentValue],
           ]}
         >

@@ -74,6 +74,13 @@ export async function getPublicVan(db: Executor, by: { slug: string } | { id: st
   return row?.van ?? null;
 }
 
+/** The name a van's owner shows on their profile; null for vans the platform runs itself. */
+export async function ownerNameOf(db: Executor, van: VanRow): Promise<string | null> {
+  if (!van.ownerId) return null;
+  const [row] = await db.select({ name: users.name }).from(users).where(eq(users.id, van.ownerId));
+  return row?.name?.trim() || null;
+}
+
 /** Vans a user manages: their own, or every van for an admin. */
 export async function vansFor(db: Executor, user: UserRow): Promise<VanRow[]> {
   return db
@@ -293,6 +300,9 @@ export async function vanNames(db: Executor, ids: string[]): Promise<Map<string,
 
 const details = (v: VanRow) => ({
   name: v.name,
+  category: v.category,
+  cargoM3: v.cargoM3,
+  payloadKg: v.payloadKg,
   year: v.year,
   seats: v.seats,
   fuel: v.fuel as VanDetails["fuel"],
@@ -327,6 +337,9 @@ export function toCard(storage: PhotoStorage, v: VanRow): VanCard {
     id: v.id,
     slug: v.slug,
     name: v.name,
+    category: v.category,
+    cargoM3: v.cargoM3,
+    payloadKg: v.payloadKg,
     year: v.year,
     seats: v.seats,
     fuel: v.fuel as VanDetails["fuel"],
@@ -368,6 +381,7 @@ export async function searchVans(db: Executor, storage: PhotoStorage, q: VanSear
   const where = and(
     isPublic,
     ...text,
+    q.type ? eq(vans.category, q.type) : undefined,
     q.seats ? gte(vans.seats, q.seats) : undefined,
     q.luggage ? gte(vans.luggage, q.luggage) : undefined,
     q.gearbox ? eq(vans.gearbox, q.gearbox) : undefined,

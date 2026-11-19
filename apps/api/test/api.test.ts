@@ -441,6 +441,24 @@ describe("search (/kombiji)", () => {
     expect((await request(app).get("/api/search?q=%20%20")).body.total).toBeGreaterThanOrEqual(5);
   });
 
+  it("filters passenger and cargo vans", async () => {
+    const admin = await as(ADMIN);
+    const v = (await admin.post("/api/admin/vans").send(van({ name: "Renault Master Furgon", category: "cargo", cargoM3: 12.5, payloadKg: 1300, seats: 3 })).expect(201)).body;
+    expect([v.category, v.cargoM3, v.payloadKg]).toEqual(["cargo", 12.5, 1300]);
+    await admin.post(`/api/admin/vans/${v.id}/photos`).attach("photo", await photo(), "v.jpg").expect(201);
+    await admin.patch(`/api/admin/vans/${v.id}/status`).send({ status: "published" }).expect(200);
+    const cargo = await request(app).get("/api/search?type=cargo");
+    expect(slugs(cargo)).toEqual(["renault-master-furgon"]);
+    expect(cargo.body.items[0]).toMatchObject({ category: "cargo", cargoM3: 12.5, payloadKg: 1300 });
+    expect(slugs(await request(app).get("/api/search?type=passenger"))).not.toContain("renault-master-furgon");
+    await admin.patch(`/api/admin/vans/${v.id}/status`).send({ status: "draft" }).expect(200);
+  });
+
+  it("shows who rents a van out", async () => {
+    const res = await request(app).get("/api/vans/vw-caravelle").expect(200);
+    expect(res.body.owner).toBe("kombi.ba");
+  });
+
   it("requires every chosen piece of equipment", async () => {
     expect(slugs(await request(app).get("/api/search?features=ac"))).toEqual(["vw-caravelle", "ford-transit-15"]);
     expect(slugs(await request(app).get("/api/search?features=ac,isofix"))).toEqual(["vw-caravelle"]);
