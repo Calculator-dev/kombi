@@ -1,77 +1,14 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { ON_REQUEST } from "@kombi/shared";
-import { Suspense } from "react";
-import { Footer } from "@/components/Footer";
-import { Gallery } from "@/components/Gallery";
-import { Header } from "@/components/Header";
-import { JsonLd } from "@/components/JsonLd";
-import { Contact, Faq, Prices, Rules, VanDetails } from "@/components/Sections";
-import { Hero } from "@/components/Sections";
-import { VanTicket } from "@/components/VanTicket";
-import { getVan } from "@/lib/vans";
+import { VanPage, vanMetadata } from "@/components/pages/VanPage";
 
 export const revalidate = 60;
 
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params;
-  const van = await getVan(slug);
-  if (!van) return {};
-  const title = `${van.name} — najam kombija, ${van.location}`;
-  const description = van.pricing.priceOnRequest
-    ? `${van.name} (${van.year}), ${van.seats} sjedišta, ${van.gearbox.toLowerCase()}. Cijena po dogovoru. Slobodni termini odmah.`
-    : `${van.name} (${van.year}), ${van.seats} sjedišta, ${van.gearbox.toLowerCase()}. Od ${van.pricing.dailyRate} KM/dan. Slobodni termini i tačna cijena odmah.`;
-  const image = van.photos[0];
-  return {
-    title,
-    description,
-    alternates: { canonical: `/kombi/${slug}` },
-    openGraph: { title, description, images: image ? [{ url: image.url, width: image.width, height: image.height }] : undefined },
-  };
+  return vanMetadata((await params).slug, "bs");
 }
 
-export default async function VanPage({ params }: Props) {
-  const { slug } = await params;
-  const van = await getVan(slug);
-  if (!van) notFound();
-  const onRequest = van.pricing.priceOnRequest;
-  return (
-    <>
-      <Header />
-      <main id="sadrzaj">
-        <Hero
-          title={
-            <>
-              {van.name}
-              <span className="dot">.</span>
-            </>
-          }
-          intro={van.description.split("\n")[0] || `${van.seats} sjedišta, ${van.gearbox.toLowerCase()}, bez vozača. ${onRequest ? "Odaberite datume i pošaljite upit, cijenu dogovarate s vlasnikom." : "Odaberite datume i cijenu vidite odmah."}`}
-          media={van.photos.length > 0 && <Gallery photos={van.photos} name={van.name} spin={van.spin} />}
-          specs={[
-            ["Grad", van.location],
-            onRequest ? ["Cijena", ON_REQUEST] : ["Od", `${van.pricing.dailyRate} KM / dan`],
-            ["Sjedišta", String(van.seats)],
-            ["Mjenjač", van.gearbox],
-            ["Plaćanje", "Pri preuzimanju"],
-          ]}
-        >
-          <Suspense>
-            <VanTicket
-              van={{ id: van.id, slug: van.slug, name: van.name, seats: van.seats, location: van.location, dailyRate: van.pricing.dailyRate, pricing: van.pricing }}
-            />
-          </Suspense>
-        </Hero>
-        <VanDetails van={van} />
-        <Prices settings={van.pricing} included={van.terms.included} />
-        <Rules terms={van.terms} settings={van.pricing} />
-        <Faq />
-        <Contact />
-      </main>
-      <Footer />
-      <JsonLd path={`/kombi/${van.slug}`} van={van} />
-    </>
-  );
+export default async function Page({ params }: Props) {
+  return <VanPage slug={(await params).slug} locale="bs" />;
 }

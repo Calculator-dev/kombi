@@ -7,7 +7,7 @@ import { SITE } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Kolačići",
   description: "Koje kolačiće koristi kombi.ba, zašto, i kako promijeniti izbor.",
-  alternates: { canonical: "/kolacici" },
+  alternates: { canonical: "/kolacici", languages: { bs: "/kolacici", en: "/en/kolacici" } },
 };
 
 const COOKIES: [string, string, string, string][] = [

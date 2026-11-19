@@ -3,9 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  ON_REQUEST,
   bookingRequestSchema,
-  dayWord,
   findPickup,
   quote,
   type ContactChannel,
@@ -14,14 +12,13 @@ import {
 import { ApiError, api } from "@/lib/api";
 import { track, trackEcommerce } from "@/lib/analytics";
 import { km, shortDate } from "@/lib/format";
-import { SITE } from "@/lib/site";
+import { ownerText, translateQuoteError, translateRentalLine } from "@/lib/i18n";
+import { useLocale } from "@/lib/useLocale";
 import { Logo } from "./Header";
 import { ThemeToggle } from "./ThemeToggle";
 
 const TIMES = Array.from({ length: 13 }, (_, i) => `${String(8 + i).padStart(2, "0")}:00`);
-const PLACEHOLDERS: Record<string, string> = { address: "Ulica i broj, Sarajevo", airport: "npr. TK 1021" };
 const tag = (i: number) => String.fromCharCode(65 + i); // A, B, C…
-const STEPS = ["Dodaci", "Vozač", "Potvrda"];
 
 interface Props {
   van: PublicVan;
@@ -50,6 +47,10 @@ interface Form {
 
 export function BookingFlow({ van, start, end }: Props) {
   const settings = van.pricing;
+  const { locale, t: d, lp } = useLocale();
+  const t = d.booking;
+  const dayWord = d.days;
+  const ON_REQUEST = d.onRequest;
   const [step, setStep] = useState(1);
   const [extras, setExtras] = useState<string[]>([]);
   const [pickup, setPickup] = useState<string>(() => settings.pickup.find((p) => p.enabled)?.id ?? "");
@@ -90,6 +91,7 @@ export function BookingFlow({ van, start, end }: Props) {
   const q = quote({ start, end, extras, pickup }, settings);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
   const pickupDetails = findPickup(settings, pickup)?.detailsLabel ?? "";
+  const own = (text: string) => ownerText(text, locale);
   const toggle = (id: string) => setExtras((x) => (x.includes(id) ? x.filter((e) => e !== id) : [...x, id]));
 
   function payload() {
@@ -123,7 +125,7 @@ export function BookingFlow({ van, start, end }: Props) {
     const errs: Record<string, string> = {};
     if (!r.success) for (const i of r.error.issues) {
       const k = String(i.path[0] ?? "_");
-      if (fields.includes(k) && !errs[k]) errs[k] = i.message;
+      if (fields.includes(k) && !errs[k]) errs[k] = t.fieldErrors?.[k] ?? i.message;
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -158,10 +160,14 @@ export function BookingFlow({ van, start, end }: Props) {
     } catch (e) {
       track("booking_error", { item_id: van.slug, error_code: e instanceof ApiError ? e.code : "network" });
       if (e instanceof ApiError) {
-        setErrors(e.fields);
-        setFailure({ message: e.message, taken: e.code === "dates_taken" });
+        setErrors(t.fieldErrors ? Object.fromEntries(Object.keys(e.fields).map((k) => [k, t.fieldErrors![k] ?? e.fields[k]!])) : e.fields);
+        const taken = e.code === "dates_taken";
+        // The API answers in Bosnian; English visitors get the gist.
+        const message =
+          locale === "bs" ? e.message : taken ? "Someone has just booked these dates." : "The request couldn't be sent. Check the form and try again.";
+        setFailure({ message, taken });
       } else {
-        setFailure({ message: "Nema veze sa serverom. Provjerite internet i pokušajte ponovo." });
+        setFailure({ message: t.noServer });
       }
     } finally {
       setSending(false);
@@ -180,10 +186,10 @@ export function BookingFlow({ van, start, end }: Props) {
     <>
       <header className="header">
         <div className="wrap">
-          <Logo />
-          <ThemeToggle />
-          <ol className="steps" aria-label="Koraci rezervacije">
-            {STEPS.map((label, i) => (
+          <Logo href={lp("/")} label={d.header.home} />
+          <ThemeToggle label={d.header.theme} />
+          <ol className="steps" aria-label={t.stepsLabel}>
+            {t.steps.map((label, i) => (
               <li
                 key={label}
                 data-state={step === i + 1 ? "current" : step > i + 1 ? "done" : "todo"}
@@ -202,7 +208,7 @@ export function BookingFlow({ van, start, end }: Props) {
             <>
               <div>
                 <h1 className="display h-lg" style={{ marginBottom: 20 }}>
-                  Dodaci
+                  {t.extras}
                 </h1>
                 <div className="extras">
                   {settings.extras.filter((e) => e.enabled).map((e) => {
@@ -210,8 +216,8 @@ export function BookingFlow({ van, start, end }: Props) {
                     return (
                       <button key={e.id} type="button" className="extra" aria-pressed={on} onClick={() => toggle(e.id)}>
                         <span className="box" aria-hidden="true">{on ? "✕" : ""}</span>
-                        <span className="name">{e.label}</span>
-                        <span className="price">{e.perDay !== undefined ? `+${e.perDay} KM/dan` : `+${e.flat} KM`}</span>
+                        <span className="name">{own(e.label)}</span>
+                        <span className="price">{e.perDay !== undefined ? `+${e.perDay} ${t.perDay}` : `+${e.flat} KM`}</span>
                       </button>
                     );
                   })}
@@ -220,11 +226,11 @@ export function BookingFlow({ van, start, end }: Props) {
 
               <div>
                 <h2 className="display h-md" style={{ marginBottom: 20 }}>
-                  Preuzimanje
+                  {t.pickupTitle[0]}
                   <br />
-                  po dogovoru
+                  {t.pickupTitle[1]}
                 </h2>
-                <div className="places" role="radiogroup" aria-label="Mjesto preuzimanja">
+                <div className="places" role="radiogroup" aria-label={t.pickupPlace}>
                   {settings.pickup
                     .filter((p) => p.enabled)
                     .map((p, i) => {
@@ -238,8 +244,8 @@ export function BookingFlow({ van, start, end }: Props) {
                           onClick={() => setPickup(p.id)}
                         >
                           <span className="tag">{tag(i)}</span>
-                          <span className="name">{p.label}</span>
-                          <span className="price">{p.fee ? `+${p.fee} KM` : "Besplatno"}</span>
+                          <span className="name">{own(p.label)}</span>
+                          <span className="price">{p.fee ? `+${p.fee} KM` : t.free}</span>
                         </button>
                       );
                     })}
@@ -248,23 +254,23 @@ export function BookingFlow({ van, start, end }: Props) {
                   {pickupDetails &&
                     field(
                       "pickupAddress",
-                      pickupDetails,
+                      own(pickupDetails),
                       <input
                         value={form.pickupAddress}
                         onChange={(e) => set("pickupAddress", e.target.value)}
-                        placeholder={PLACEHOLDERS[pickup]}
+                        placeholder={t.placeholders[pickup]}
                       />,
                     )}
                   {field(
                     "pickupTime",
-                    "Okvirno vrijeme preuzimanja",
+                    t.pickupTime,
                     <select value={form.pickupTime} onChange={(e) => set("pickupTime", e.target.value)}>
                       {TIMES.map((t) => <option key={t}>{t}</option>)}
                     </select>,
                   )}
                   {field(
                     "returnTime",
-                    "Okvirno vrijeme povratka",
+                    t.returnTime,
                     <select value={form.returnTime} onChange={(e) => set("returnTime", e.target.value)}>
                       {TIMES.map((t) => <option key={t}>{t}</option>)}
                     </select>,
@@ -276,37 +282,37 @@ export function BookingFlow({ van, start, end }: Props) {
 
           {step === 2 && (
             <>
-              <h1 className="display h-lg">Ko vozi?</h1>
+              <h1 className="display h-lg">{t.who}</h1>
               <div className="fields">
-                {field("name", "Ime i prezime", <input autoComplete="name" value={form.name} onChange={(e) => set("name", e.target.value)} />)}
-                {field("email", "Email", <input type="email" autoComplete="email" value={form.email} onChange={(e) => set("email", e.target.value)} />)}
-                {field("phone", "Telefon (Viber / WhatsApp)", <input type="tel" autoComplete="tel" placeholder="+387" value={form.phone} onChange={(e) => set("phone", e.target.value)} />)}
+                {field("name", t.name, <input autoComplete="name" value={form.name} onChange={(e) => set("name", e.target.value)} />)}
+                {field("email", t.email, <input type="email" autoComplete="email" value={form.email} onChange={(e) => set("email", e.target.value)} />)}
+                {field("phone", t.phone, <input type="tel" autoComplete="tel" placeholder="+387" value={form.phone} onChange={(e) => set("phone", e.target.value)} />)}
                 {field(
                   "contactChannel",
-                  "Javite mi se na",
+                  t.channel,
                   <select value={form.contactChannel} onChange={(e) => set("contactChannel", e.target.value as ContactChannel)}>
                     <option value="viber">Viber</option>
                     <option value="whatsapp">WhatsApp</option>
                     <option value="email">Email</option>
-                    <option value="phone">Poziv</option>
+                    <option value="phone">{t.call}</option>
                   </select>,
                 )}
-                {field("birthDate", "Datum rođenja vozača", <input type="date" value={form.birthDate} onChange={(e) => set("birthDate", e.target.value)} />)}
-                {field("licenseSince", "Vozačka dozvola od (godina)", <input inputMode="numeric" placeholder="2015" value={form.licenseSince} onChange={(e) => set("licenseSince", e.target.value.replace(/\D/g, "").slice(0, 4))} />)}
+                {field("birthDate", t.birthDate, <input type="date" value={form.birthDate} onChange={(e) => set("birthDate", e.target.value)} />)}
+                {field("licenseSince", t.licenseSince, <input inputMode="numeric" placeholder="2015" value={form.licenseSince} onChange={(e) => set("licenseSince", e.target.value.replace(/\D/g, "").slice(0, 4))} />)}
               </div>
               <div>
-                <h2 className="display h-md" style={{ marginBottom: 6 }}>Podaci za ugovor</h2>
+                <h2 className="display h-md" style={{ marginBottom: 6 }}>{t.contractTitle}</h2>
                 <p style={{ margin: "0 0 16px", fontSize: 15, color: "var(--muted)" }}>
-                  Neobavezno. Ako ih upišete sada, ugovor o najmu vas čeka spreman pri preuzimanju. Vidi ih samo vlasnik kombija.
+                  {t.contractNote}
                 </p>
                 <div className="fields">
-                  {field("address", "Adresa prebivališta", <input autoComplete="street-address" value={form.address} onChange={(e) => set("address", e.target.value)} />)}
-                  {field("jmb", "JMB", <input inputMode="numeric" autoComplete="off" value={form.jmb} onChange={(e) => set("jmb", e.target.value.replace(/\D/g, "").slice(0, 13))} />)}
-                  {field("idNumber", "Broj lične karte ili pasoša", <input autoComplete="off" value={form.idNumber} onChange={(e) => set("idNumber", e.target.value)} />)}
-                  {field("licenseNumber", "Broj vozačke dozvole", <input autoComplete="off" value={form.licenseNumber} onChange={(e) => set("licenseNumber", e.target.value)} />)}
+                  {field("address", t.address, <input autoComplete="street-address" value={form.address} onChange={(e) => set("address", e.target.value)} />)}
+                  {field("jmb", t.jmb, <input inputMode="numeric" autoComplete="off" value={form.jmb} onChange={(e) => set("jmb", e.target.value.replace(/\D/g, "").slice(0, 13))} />)}
+                  {field("idNumber", t.idNumber, <input autoComplete="off" value={form.idNumber} onChange={(e) => set("idNumber", e.target.value)} />)}
+                  {field("licenseNumber", t.licenseNumber, <input autoComplete="off" value={form.licenseNumber} onChange={(e) => set("licenseNumber", e.target.value)} />)}
                 </div>
               </div>
-              {field("notes", "Napomena: odredište, broj putnika", <textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} />)}
+              {field("notes", t.notes, <textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} />)}
               <div className="hp" aria-hidden="true">
                 <label>
                   Website
@@ -317,7 +323,7 @@ export function BookingFlow({ van, start, end }: Props) {
                 <label className="check">
                   <input type="checkbox" checked={form.acceptTerms} onChange={(e) => set("acceptTerms", e.target.checked)} />
                   <span>
-                    Prihvatam <Link href={`/kombi/${van.slug}#uslovi`} target="_blank">uslove najma</Link> za ovaj kombi.
+                    {t.acceptBefore} <Link href={lp(`/kombi/${van.slug}#uslovi`)} target="_blank">{t.acceptLink}</Link> {t.acceptAfter}
                   </span>
                 </label>
                 {errors.acceptTerms && <span className="field-error">{errors.acceptTerms}</span>}
@@ -328,18 +334,18 @@ export function BookingFlow({ van, start, end }: Props) {
           {step === 3 && done && (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               <p className="mono" style={{ margin: 0 }}>
-                Upit {done.ref}, {q.onRequest ? "cijena po dogovoru" : km(done.total)}
+                {t.doneRef(done.ref, q.onRequest ? t.priceOnRequest : km(done.total))}
               </p>
               <h1 className="display h-xl">
-                Termin je
+                {t.doneTitle[0]}
                 <br />
-                vaš<span className="dot">.</span>
+                {t.doneTitle[1]}<span className="dot">.</span>
               </h1>
               <p className="lead">
-                Čuvamo ga dok ga ne potvrdimo. Potvrdu i dogovor oko preuzimanja šaljemo na {form.contactChannel === "email" ? "email" : form.contactChannel === "phone" ? "telefon" : form.contactChannel === "viber" ? "Viber" : "WhatsApp"} u roku od {SITE.replyWithin}.
+                {t.doneText(t.channels[form.contactChannel] ?? form.contactChannel, t.replyWithin)}
               </p>
-              <Link className="btn-ghost" href="/" style={{ alignSelf: "flex-start" }}>
-                Nazad na početnu
+              <Link className="btn-ghost" href={lp("/")} style={{ alignSelf: "flex-start" }}>
+                {t.backHome}
               </Link>
             </div>
           )}
@@ -347,23 +353,23 @@ export function BookingFlow({ van, start, end }: Props) {
           {failure && (
             <p className="alert" role="alert">
               {failure.message}{" "}
-              {failure.taken && <Link href={`/kombi/${van.slug}#rezervacija`}>Odaberite druge datume</Link>}
+              {failure.taken && <Link href={lp(`/kombi/${van.slug}#rezervacija`)}>{t.otherDates}</Link>}
             </p>
           )}
 
           {step === 2 && (
             <p className="field-note">
-              Slanjem upita vaše podatke dobija vlasnik kombija, da potvrdi rezervaciju i pripremi ugovor. Više u{" "}
-              <Link href="/privatnost" target="_blank">politici privatnosti</Link>.
+              {t.privacyBefore}{" "}
+              <Link href={lp("/privatnost")} target="_blank">{t.privacyLink}</Link>.
             </p>
           )}
 
           {step < 3 && (
             <div className="actions">
               {step === 1 ? (
-                <Link className="btn-ghost" href={`/kombi/${van.slug}?start=${start}&end=${end}#rezervacija`}>Promijeni datume</Link>
+                <Link className="btn-ghost" href={lp(`/kombi/${van.slug}?start=${start}&end=${end}#rezervacija`)}>{t.changeDates}</Link>
               ) : (
-                <button type="button" className="btn-ghost" onClick={() => setStep(1)}>Nazad</button>
+                <button type="button" className="btn-ghost" onClick={() => setStep(1)}>{t.back}</button>
               )}
               <button
                 type="button"
@@ -373,17 +379,17 @@ export function BookingFlow({ van, start, end }: Props) {
                 aria-busy={sending}
               >
                 {sending && <span className="spinner" aria-hidden="true" />}
-                {step === 1 ? "Dalje" : sending ? "Šaljem…" : "Pošalji upit"}
+                {step === 1 ? t.next : sending ? t.sending : t.send}
               </button>
             </div>
           )}
           {sending && slow && (
-            <p className="slow-note" role="status">Šaljemo upit, ovo može potrajati do minute. Ne zatvarajte stranicu.</p>
+            <p className="slow-note" role="status">{t.slow}</p>
           )}
         </main>
 
-        <aside aria-label="Pregled rezervacije">
-          <div className="t-head"><span>Vaš upit</span><span>Bez vozača</span></div>
+        <aside aria-label={t.summary}>
+          <div className="t-head"><span>{t.yourRequest}</span><span>{d.ticket.noDriver}</span></div>
           <div style={{ padding: "4px 20px 16px" }}>
             {van.photos[0] && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -391,39 +397,39 @@ export function BookingFlow({ van, start, end }: Props) {
             )}
             <div className="display">{van.name}</div>
             <div className="mono" style={{ marginTop: 4, fontSize: 14, color: "var(--muted)" }}>
-              {[van.year, van.engine, van.fuel.toLowerCase(), van.gearbox.toLowerCase(), van.location].filter(Boolean).join(", ")}
+              {[van.year, van.engine, (d.fuels[van.fuel] ?? van.fuel).toLowerCase(), (d.gearboxes[van.gearbox] ?? van.gearbox).toLowerCase(), van.location].filter(Boolean).join(", ")}
             </div>
           </div>
           <div className="t-dates">
-            <div><div className="t-label">Preuzimanje</div><div className="t-date">{shortDate(start)}</div></div>
-            <div><div className="t-label">Povratak</div><div className="t-date">{shortDate(end)}</div></div>
+            <div><div className="t-label">{d.ticket.pickup}</div><div className="t-date">{shortDate(start, locale)}</div></div>
+            <div><div className="t-label">{d.ticket.return}</div><div className="t-date">{shortDate(end, locale)}</div></div>
           </div>
           <div className="receipt" style={{ borderTop: 0 }}>
-            {q.errors.map((e) => <div key={e} className="line minus">{e}</div>)}
+            {q.errors.map((e) => <div key={e} className="line minus">{translateQuoteError(e, locale)}</div>)}
             {q.onRequest && (
-              <div className="line"><span>Najam, {q.days} {dayWord(q.days)}</span><span className="fill" /><span>{ON_REQUEST}</span></div>
+              <div className="line"><span>{t.rental}, {q.days} {dayWord(q.days)}</span><span className="fill" /><span>{ON_REQUEST}</span></div>
             )}
             {q.rentalLines.map((l) => (
-              <div className="line" key={l.rate}><span>{l.label}</span><span className="fill" /><span>{km(l.amount)}</span></div>
+              <div className="line" key={l.rate}><span>{translateRentalLine(l.label, locale)}</span><span className="fill" /><span>{km(l.amount)}</span></div>
             ))}
             {q.discount > 0 && (
-              <div className="line minus"><span>Popust −{q.discountPct}%</span><span className="fill" /><span>−{km(q.discount)}</span></div>
+              <div className="line minus"><span>{t.discount(q.discountPct)}</span><span className="fill" /><span>−{km(q.discount)}</span></div>
             )}
             {q.extraLines.map((l) => (
-              <div className="line" key={l.label}><span>{l.label}</span><span className="fill" /><span>{km(l.amount)}</span></div>
+              <div className="line" key={l.label}><span>{own(l.label)}</span><span className="fill" /><span>{km(l.amount)}</span></div>
             ))}
             {q.pickupLine && (
-              <div className="line"><span>{q.pickupLine.label}</span><span className="fill" /><span>{km(q.pickupLine.amount)}</span></div>
+              <div className="line"><span>{own(q.pickupLine.label)}</span><span className="fill" /><span>{km(q.pickupLine.amount)}</span></div>
             )}
-            <div className="line dim"><span>Depozit (vraća se)</span><span className="fill" /><span>{km(q.deposit)}</span></div>
+            <div className="line dim"><span>{t.deposit}</span><span className="fill" /><span>{km(q.deposit)}</span></div>
           </div>
           <div className="t-foot price-bar">
             <div className="t-total">
-              <span className="t-label">{q.onRequest ? "Cijena" : "Ukupno"}, {q.days} {dayWord(q.days)}</span>
+              <span className="t-label">{q.onRequest ? t.price : t.total}, {q.days} {dayWord(q.days)}</span>
               <strong>{q.onRequest ? ON_REQUEST : km(q.total)}</strong>
             </div>
           </div>
-          <div className="aside-note">{q.onRequest ? "Cijenu dogovarate s vlasnikom. Danas ne plaćate ništa." : "Plaćanje pri preuzimanju. Danas ništa."}</div>
+          <div className="aside-note">{q.onRequest ? t.noteOnRequest : t.note}</div>
         </aside>
       </div>
     </>

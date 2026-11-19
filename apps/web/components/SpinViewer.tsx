@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import type { PhotoUrls } from "@kombi/shared";
 import { track } from "@/lib/analytics";
+import { useLocale } from "@/lib/useLocale";
 
 /**
  * The 360° view: photos taken from each clock position around the van. Dragging
@@ -11,6 +12,8 @@ import { track } from "@/lib/analytics";
  */
 export function SpinViewer({ photos, name }: { photos: PhotoUrls[]; name: string }) {
   const n = photos.length;
+  const { locale, t: d } = useLocale();
+  const t = d.gallery;
   const stage = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; from: number } | null>(null);
   const [index, setIndex] = useState(0);
@@ -59,7 +62,7 @@ export function SpinViewer({ photos, name }: { photos: PhotoUrls[]; name: string
         tabIndex={0}
         role="group"
         aria-roledescription="360° pogled"
-        aria-label={`${name}, 360° pogled. Strelicama lijevo i desno okrećete kombi.`}
+        aria-label={locale === "en" ? `${name}, 360° view. Use the left and right arrows to turn the van.` : `${name}, 360° pogled. Strelicama lijevo i desno okrećete kombi.`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={() => (drag.current = null)}
@@ -85,14 +88,14 @@ export function SpinViewer({ photos, name }: { photos: PhotoUrls[]; name: string
         )}
         {small !== null && loaded < n && (
           <span className="spin-loading" role="status">
-            Učitavam {loaded}/{n}
+            {d.results.loading.replace("…", "")} {loaded}/{n}
           </span>
         )}
       </div>
       <figcaption className="spin-bar">
-        <button type="button" aria-label="Okreni lijevo" onClick={() => (firstTouch(), turn(index - 1))}>←</button>
+        <button type="button" aria-label={t.left} onClick={() => (firstTouch(), turn(index - 1))}>←</button>
         <SpinCompass index={index} n={n} />
-        <button type="button" aria-label="Okreni desno" onClick={() => (firstTouch(), turn(index + 1))}>→</button>
+        <button type="button" aria-label={t.right} onClick={() => (firstTouch(), turn(index + 1))}>→</button>
       </figcaption>
     </figure>
   );
