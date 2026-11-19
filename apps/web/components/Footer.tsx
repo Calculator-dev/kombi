@@ -19,13 +19,14 @@ export function Footer() {
           <Link href="/kombiji">Svi kombiji</Link>
           <Link href="/#paketi">Paketi</Link>
           <Link href="/#kontakt">Kontakt</Link>
+          <Link href="/privatnost">Privatnost</Link>
           <Link href="/kolacici">Kolačići</Link>
           <CookieSettingsLink />
         </nav>
         <div>
           <b>Kontakt</b>
           <span>{SITE.city}, Bosna i Hercegovina</span>
-          <span>{SITE.email}</span>
+          <a href={`mailto:${SITE.email}`}>{SITE.email}</a>
         </div>
       </div>
       <div className="wrap copy">© {new Date().getFullYear()} kombi.ba</div>

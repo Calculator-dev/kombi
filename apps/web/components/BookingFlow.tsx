@@ -351,6 +351,13 @@ export function BookingFlow({ van, start, end }: Props) {
             </p>
           )}
 
+          {step === 2 && (
+            <p className="field-note">
+              Slanjem upita vaše podatke dobija vlasnik kombija, da potvrdi rezervaciju i pripremi ugovor. Više u{" "}
+              <Link href="/privatnost" target="_blank">politici privatnosti</Link>.
+            </p>
+          )}
+
           {step < 3 && (
             <div className="actions">
               {step === 1 ? (

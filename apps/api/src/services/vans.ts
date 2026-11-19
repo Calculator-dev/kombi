@@ -25,7 +25,8 @@ import {
   type VanSearch,
   type VanStatus,
 } from "@kombi/shared";
-import { schema, type Executor } from "../db";
+import { schema, type Database, type Executor } from "../db";
+import { lockVanCalendar } from "./availability";
 import type { SpinPhoto, StoredPhoto, UserRow, VanRow } from "../db/schema";
 import { HttpError } from "../errors";
 import { busyVans } from "./availability";
@@ -191,12 +192,31 @@ export async function setVanOwner(db: Executor, van: VanRow, ownerId: string | n
   return row!;
 }
 
-export async function deleteVan(db: Executor, storage: PhotoStorage, van: VanRow): Promise<void> {
-  const [b] = await db.select({ n: count() }).from(bookings).where(eq(bookings.vanId, van.id));
-  if ((b?.n ?? 0) > 0) {
-    throw new HttpError(409, "has_bookings", "Kombi ima rezervacije pa se ne može obrisati. Sakrijte ga umjesto toga.");
-  }
-  await db.delete(vans).where(eq(vans.id, van.id));
+/**
+ * Deletes a van with its photos. Declined and cancelled requests go with it;
+ * pending and confirmed bookings keep it (a finished rental stays on record),
+ * so such a van can only be hidden.
+ */
+export async function deleteVan(db: Database, storage: PhotoStorage, van: VanRow): Promise<void> {
+  await db.transaction(async (tx) => {
+    // Same lock as a new booking takes, so none can slip in while deleting.
+    await lockVanCalendar(tx, van.id);
+    const [active] = await tx
+      .select({ n: count() })
+      .from(bookings)
+      .where(and(eq(bookings.vanId, van.id), inArray(bookings.status, ["pending", "confirmed"])));
+    const n = active?.n ?? 0;
+    if (n > 0) {
+      throw new HttpError(
+        409,
+        "has_bookings",
+        `Kombi ima ${n} ${n === 1 ? "potvrđenu rezervaciju ili upit" : "potvrđenih rezervacija ili upita"} na čekanju, pa se ne može obrisati. ` +
+          "Upite na čekanju odbijte, a ako ima potvrđenih rezervacija, sakrijte kombi umjesto brisanja.",
+      );
+    }
+    await tx.delete(bookings).where(eq(bookings.vanId, van.id));
+    await tx.delete(vans).where(eq(vans.id, van.id));
+  });
   await storage
     .remove([...van.photos, ...van.spinPhotos].flatMap((p) => [p.key, p.thumbKey]))
     .catch((err) => console.error("[storage]", err));

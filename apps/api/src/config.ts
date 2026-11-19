@@ -32,10 +32,13 @@ const schema = z.object({
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
   /** Gets a copy of every booking request, for the platform. */
   OWNER_EMAIL: optional,
+  /** Resend (resend.com) API key. When set, emails go through Resend's HTTP API instead of SMTP. */
+  RESEND_API_KEY: optional,
   SMTP_HOST: optional,
   SMTP_PORT: z.coerce.number().int().default(587),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
+  /** Sender of every email. With Resend, its domain must be verified there. */
   SMTP_FROM: z.string().default("kombi.ba <rezervacije@kombi.ba>"),
   BUSINESS_TZ: z.string().default("Europe/Sarajevo"),
   TRUST_PROXY: z.coerce.number().int().default(1),
@@ -52,6 +55,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
   if (!parsed.SUPABASE_URL && parsed.NODE_ENV !== "test") {
     console.warn("[config] SUPABASE_URL is not set — nobody can log in to the admin panel.");
+  }
+  if (!parsed.RESEND_API_KEY && !parsed.SMTP_HOST && parsed.NODE_ENV === "production") {
+    console.warn("[config] Neither RESEND_API_KEY nor SMTP_HOST is set — emails are only printed to the log.");
   }
   if (!parsed.PLATFORM_ADMIN_EMAILS.length && parsed.NODE_ENV !== "test") {
     console.warn("[config] PLATFORM_ADMIN_EMAILS is empty — nobody can approve new owners.");

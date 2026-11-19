@@ -12,29 +12,58 @@ const CHANNEL: Record<string, string> = { viber: "Viber", whatsapp: "WhatsApp", 
 const price = (b: Booking) => (b.quote.onRequest ? "cijena po dogovoru" : `${b.total} KM`);
 const fmt = (d: string) => d.split("-").reverse().join(".") + ".";
 
-/**
- * Sends emails when SMTP is configured, otherwise prints them to the console
- * so nothing is lost during development. Viber/WhatsApp messages can be added
- * here later (e.g. via the Viber Business API).
- */
-export function createNotifier(config: Config): Notifier {
-  const transport: Transporter | null = config.SMTP_HOST
-    ? nodemailer.createTransport({
-        host: config.SMTP_HOST,
-        port: config.SMTP_PORT,
-        secure: config.SMTP_PORT === 465,
-        auth: config.SMTP_USER ? { user: config.SMTP_USER, pass: config.SMTP_PASS } : undefined,
-      })
-    : null;
+type Send = (to: string[], subject: string, text: string) => Promise<void>;
 
-  async function send(to: string | undefined, subject: string, text: string) {
-    if (!to) return;
-    if (!transport) {
-      if (config.NODE_ENV !== "test") console.info(`[email → ${to}] ${subject}\n${text}\n`);
+/** Resend's HTTP API (https://resend.com/docs/api-reference/emails/send-email). */
+function resendSender(apiKey: string, from: string, fetchImpl: typeof fetch): Send {
+  return async (to, subject, text) => {
+    const res = await fetchImpl("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from, to, subject, text }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { message?: string };
+      throw new Error(`Resend answered ${res.status}: ${body.message ?? res.statusText}`);
+    }
+  };
+}
+
+function smtpSender(config: Config): Send {
+  const transport: Transporter = nodemailer.createTransport({
+    host: config.SMTP_HOST,
+    port: config.SMTP_PORT,
+    secure: config.SMTP_PORT === 465,
+    auth: config.SMTP_USER ? { user: config.SMTP_USER, pass: config.SMTP_PASS } : undefined,
+  });
+  return async (to, subject, text) => {
+    await transport.sendMail({ from: config.SMTP_FROM, to: to.join(", "), subject, text });
+  };
+}
+
+/**
+ * Sends emails through Resend when RESEND_API_KEY is set, else through SMTP
+ * when SMTP_HOST is set, else prints them to the console so nothing is lost
+ * during development. Viber/WhatsApp messages can be added here later (e.g.
+ * via the Viber Business API).
+ */
+export function createNotifier(config: Config, fetchImpl: typeof fetch = fetch): Notifier {
+  const deliver: Send | null = config.RESEND_API_KEY
+    ? resendSender(config.RESEND_API_KEY, config.SMTP_FROM, fetchImpl)
+    : config.SMTP_HOST
+      ? smtpSender(config)
+      : null;
+
+  async function send(to: string | string[] | null | undefined, subject: string, text: string) {
+    const recipients = [...new Set([to].flat().filter((e): e is string => Boolean(e)))];
+    if (!recipients.length) return;
+    if (!deliver) {
+      if (config.NODE_ENV !== "test") console.info(`[email → ${recipients.join(", ")}] ${subject}\n${text}\n`);
       return;
     }
     try {
-      await transport.sendMail({ from: config.SMTP_FROM, to, subject, text });
+      await deliver(recipients, subject, text);
     } catch (err) {
       // A failed email must never fail the booking itself.
       console.error("[email] failed:", err);
@@ -44,9 +73,8 @@ export function createNotifier(config: Config): Notifier {
   return {
     async bookingRequested(b, ownerEmail) {
       // The owner decides; the platform gets a copy.
-      const to = [...new Set([ownerEmail, config.OWNER_EMAIL].filter((e): e is string => Boolean(e)))].join(", ");
       await send(
-        to || undefined,
+        [ownerEmail, config.OWNER_EMAIL].filter((e): e is string => Boolean(e)),
         `Novi upit ${b.ref} za ${b.vanName}: ${fmt(b.start)} – ${fmt(b.end)}, ${price(b)}`,
         [
           `${b.name} šalje upit za ${b.vanName}, ${fmt(b.start)} – ${fmt(b.end)} (${b.quote.days} dana).`,

@@ -314,6 +314,26 @@ describe("owners and vans", () => {
   });
 });
 
+describe("deleting a van", () => {
+  it("deletes a van whose requests were all declined, but not one with a pending request", async () => {
+    const admin = await as(ADMIN);
+    await admin.put("/api/admin/me").send({ name: "kombi.ba", phone: "+387 33 000 000" }).expect(200);
+    const v = (await admin.post("/api/admin/vans").send(van({ name: "Probni kombi" })).expect(201)).body;
+    await admin.post(`/api/admin/vans/${v.id}/photos`).attach("photo", await photo(), "v.jpg").expect(201);
+    await admin.patch(`/api/admin/vans/${v.id}/status`).send({ status: "published" }).expect(200);
+    await request(app).post("/api/bookings").send(booking({ vanId: v.id, start: "2027-01-10", end: "2027-01-12", extras: [] })).expect(201);
+    const [b] = (await admin.get(`/api/admin/bookings?vanId=${v.id}`).expect(200)).body as { id: string }[];
+
+    const refused = await admin.delete(`/api/admin/vans/${v.id}`).expect(409);
+    expect(refused.body.message).toContain("na čekanju");
+
+    await admin.patch(`/api/admin/bookings/${b!.id}`).send({ status: "declined" }).expect(200);
+    await admin.delete(`/api/admin/vans/${v.id}`).expect(204);
+    expect(((await admin.get("/api/admin/vans").expect(200)).body as { id: string }[]).map((x) => x.id)).not.toContain(v.id);
+    expect(((await admin.get("/api/admin/bookings").expect(200)).body as { id: string }[]).map((x) => x.id)).not.toContain(b!.id);
+  });
+});
+
 describe("managing bookings", () => {
   it("confirms a booking", async () => {
     const admin = await as(ADMIN);

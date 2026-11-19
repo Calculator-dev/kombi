@@ -115,6 +115,8 @@ function VanEditor({
   onDeleted: () => void;
 }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function setStatus(status: "draft" | "published") {
@@ -140,11 +142,15 @@ function VanEditor({
 
   async function remove() {
     if (!confirm(`Obrisati ${van.name}? Fotografije i cijene se brišu zauvijek.`)) return;
+    setDeleteError(null);
+    setDeleting(true);
     try {
       await adminApi(`/vans/${van.id}`, { method: "DELETE" });
       onDeleted();
     } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : "Nije obrisano." });
+      setDeleteError(e instanceof Error ? e.message : "Nije obrisano.");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -206,8 +212,14 @@ function VanEditor({
 
       <section className="danger-zone">
         <h2 className="display h-md" style={{ marginBottom: 8 }}>Brisanje</h2>
-        <p className="lead">Kombi s rezervacijama se ne može obrisati; sakrijte ga umjesto toga.</p>
-        <button type="button" className="small-btn" onClick={remove}>Obriši kombi</button>
+        <p className="lead">
+          Odbijeni i otkazani upiti brišu se zajedno s kombijem. Kombi s potvrđenim rezervacijama ili upitima na čekanju
+          ne može se obrisati; sakrijte ga umjesto toga.
+        </p>
+        {deleteError && <p className="alert" role="alert">{deleteError}</p>}
+        <button type="button" className="small-btn" onClick={remove} disabled={deleting} aria-busy={deleting}>
+          {deleting ? "Brišem…" : "Obriši kombi"}
+        </button>
       </section>
     </>
   );

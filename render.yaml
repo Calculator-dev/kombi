@@ -45,12 +45,11 @@ services:
         value: https://kombi-web.onrender.com
       - key: OWNER_EMAIL
         sync: false
-      - key: SMTP_HOST
+      # Emails (Resend). The sender's domain must be verified at resend.com → Domains.
+      - key: RESEND_API_KEY
         sync: false
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
-        sync: false
+      - key: SMTP_FROM
+        value: "kombi.ba <rezervacije@kombi.ba>"
 
   - type: web
     name: kombi-web
