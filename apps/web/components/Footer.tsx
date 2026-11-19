@@ -26,7 +26,7 @@ export function Footer() {
         <div>
           <b>Kontakt</b>
           <span>{SITE.city}, Bosna i Hercegovina</span>
-          <span>{SITE.email}</span>
+          <a href={`mailto:${SITE.email}`}>{SITE.email}</a>
         </div>
       </div>
       <div className="wrap copy">© {new Date().getFullYear()} kombi.ba</div>

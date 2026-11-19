@@ -6,7 +6,7 @@ export const SITE = {
   name: "kombi.ba",
   url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://kombi.ba",
   city: "Sarajevo",
-  email: "[email]@kombi.ba",
+  email: "info@kombi.ba",
   replyWithin: "[2 sata]",
   /** Who runs the platform: shown in the privacy policy as the data controller. */
   operator: "[naziv firme ili obrta, adresa, ID broj]",
