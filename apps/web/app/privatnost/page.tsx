@@ -16,16 +16,16 @@ const DATA: [string, string, string][] = [
   ["Datum rođenja i godina vozačke dozvole", "Provjera uslova vlasnika (minimalna starost i staž vozača).", "Svaki upit"],
   ["Datumi, mjesto preuzimanja, dodaci i napomena", "Rezervacija i obračun cijene.", "Svaki upit"],
   ["Adresa, JMB, broj lične karte, broj vozačke dozvole", "Popunjavanje ugovora o najmu.", "Samo ako ih upišete; možete ih dati i pri preuzimanju"],
-  ["Ime, email, telefon, adresa i ID broj firme vlasnika kombija", "Račun vlasnika, objava kombija i ugovor o najmu (vlasnik je najmodavac).", "Registracija vlasnika"],
+  ["Ime, email, telefon, adresa i ID broj firme vlasnika vozila", "Račun vlasnika, objava vozila i ugovor o najmu (vlasnik je najmodavac).", "Registracija vlasnika"],
 ];
 
 const PROCESSORS: [string, string, string][] = [
   // who, what for, where
   ["Render", "Server na kojem rade stranica i aplikacija", "Njemačka (Frankfurt)"],
   ["Supabase", "Baza podataka i prijava vlasnika", "Server koji je odabran pri postavljanju projekta"],
-  ["Backblaze", "Fotografije kombija (bez ličnih podataka)", "EU"],
+  ["Backblaze", "Fotografije vozila (bez ličnih podataka)", "EU"],
   ["Resend", "Slanje emailova o upitu i rezervaciji", "SAD"],
-  ["Google Maps", "Mapa s lokacijom kombija; učitava se tek kad kliknete „Prikaži mapu“", "SAD i EU"],
+  ["Google Maps", "Mapa s lokacijom vozila; učitava se tek kad kliknete „Prikaži mapu“", "SAD i EU"],
   ["Google (Tag Manager, Analytics)", "Statistika posjeta, samo uz vaš pristanak na kolačiće, bez imena i kontakata", "SAD i EU"],
 ];
 
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
       <main id="sadrzaj" className="wrap legal">
         <h1 className="display h-lg">Politika privatnosti</h1>
         <p className="lead">
-          Ovdje piše koje lične podatke tražimo kad pošaljete upit za kombi, zašto ih trebamo, kome ih dajemo i kako ih
+          Ovdje piše koje lične podatke tražimo kad pošaljete upit za auto ili kombi, zašto ih trebamo, kome ih dajemo i kako ih
           možete vidjeti, ispraviti ili obrisati.
         </p>
 
@@ -45,8 +45,8 @@ export default function PrivacyPage() {
           Platformu {SITE.name} vodi {SITE.operator}. Za pitanja o vašim podacima pišite na {SITE.email}.
         </p>
         <p>
-          Kombije na {SITE.name} iznajmljuju njihovi vlasnici. Kad pošaljete upit za neki kombi, njegov vlasnik dobija vaše
-          podatke iz upita, jer on potvrđuje rezervaciju, predaje vam kombi i s vama potpisuje ugovor. Za podatke koje
+          Auta i kombije na {SITE.name} iznajmljuju njihovi vlasnici. Kad pošaljete upit za neko vozilo, njegov vlasnik dobija
+          vaše podatke iz upita, jer on potvrđuje rezervaciju, predaje vam vozilo i s vama potpisuje ugovor. Za podatke koje
           dobije, vlasnik je odgovoran i sam.
         </p>
 
@@ -68,13 +68,13 @@ export default function PrivacyPage() {
           obaveza (npr. knjigovodstvo). Statistiku posjeta vodimo samo ako to dozvolite u postavkama kolačića.
         </p>
         <p>
-          Za statistiku vlasnicima brojimo samo koliko je puta otvorena stranica kombija i forma za rezervaciju. Uz to ne
+          Za statistiku vlasnicima brojimo samo koliko je puta otvorena stranica vozila i forma za rezervaciju. Uz to ne
           čuvamo ništa o posjetiocu.
         </p>
 
         <h2>Kome dajemo podatke</h2>
         <ul>
-          <li>Vlasniku kombija za koji šaljete upit.</li>
+          <li>Vlasniku vozila za koje šaljete upit.</li>
           <li>
             Firmama koje za nas vode tehniku. One podatke obrađuju samo po našem nalogu i ne koriste ih u svoje svrhe:
           </li>

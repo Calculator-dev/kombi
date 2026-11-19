@@ -46,7 +46,7 @@ export default function CookiesPage() {
         <h2>What we don't send</h2>
         <p>
           Names, emails and phone numbers from requests never go to Google Analytics or advertising systems. We only record
-          what happens on the site: searches, viewed vans, sent requests (with the amount and request number), and clicks on
+          what happens on the site: searches, viewed vehicles, sent requests (with the amount and request number), and clicks on
           Viber, WhatsApp and call.
         </p>
 
