@@ -37,10 +37,11 @@ export function PhotoManager({ van, onSaved }: { van: OwnerVan; onSaved: (v: Own
     if (input.current) input.current.value = "";
   }
 
-  async function move(index: number, by: -1 | 1) {
+  /** Moves a photo to a new place; place 0 makes it the cover. */
+  async function move(index: number, to: number) {
     const ids = photos.map((p) => p.id);
     const [moved] = ids.splice(index, 1);
-    ids.splice(index + by, 0, moved!);
+    ids.splice(to, 0, moved!);
     try {
       onSaved(await adminApi<OwnerVan>(`/vans/${van.id}/photos/order`, { method: "PUT", json: { ids } }));
     } catch (e) {
@@ -60,7 +61,8 @@ export function PhotoManager({ van, onSaved }: { van: OwnerVan; onSaved: (v: Own
   return (
     <div className="photo-manager">
       <p className="lead" style={{ margin: 0 }}>
-        Prva fotografija je naslovna. Najbolje: kombi spolja, sjedišta, prtljažnik. Lokacija i podaci kamere se brišu automatski.
+        Naslovna fotografija se prikazuje u listi i prva na stranici vozila: najbolje cijelo vozilo spolja. Ostale: unutrašnjost,
+        sjedišta, prtljažnik. Lokacija i podaci kamere se brišu automatski.
       </p>
       {photos.length > 0 && (
         <ul className="photo-grid">
@@ -68,10 +70,14 @@ export function PhotoManager({ van, onSaved }: { van: OwnerVan; onSaved: (v: Own
             <li key={p.id}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.thumbUrl} alt={`Fotografija ${i + 1}`} width={320} height={240} />
-              {i === 0 && <span className="cover">Naslovna</span>}
+              {i === 0 ? (
+                <span className="cover">Naslovna</span>
+              ) : (
+                <button type="button" className="cover make-cover" onClick={() => move(i, 0)}>Postavi kao naslovnu</button>
+              )}
               <div className="photo-actions">
-                <button type="button" aria-label="Pomjeri lijevo" disabled={i === 0} onClick={() => move(i, -1)}>←</button>
-                <button type="button" aria-label="Pomjeri desno" disabled={i === photos.length - 1} onClick={() => move(i, 1)}>→</button>
+                <button type="button" aria-label="Pomjeri lijevo" disabled={i === 0} onClick={() => move(i, i - 1)}>←</button>
+                <button type="button" aria-label="Pomjeri desno" disabled={i === photos.length - 1} onClick={() => move(i, i + 1)}>→</button>
                 <button type="button" onClick={() => remove(p.id)}>Obriši</button>
               </div>
             </li>
