@@ -4,9 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ON_REQUEST,
   addDays,
-  dayWord,
   eachDate,
   kmToEur,
   quote,
@@ -17,7 +15,9 @@ import {
 } from "@kombi/shared";
 import { api } from "@/lib/api";
 import { trackEcommerce, type TrackedVan } from "@/lib/analytics";
-import { MONTHS, km, shortDate } from "@/lib/format";
+import { km, shortDate } from "@/lib/format";
+import { translateQuoteError, translateRentalLine } from "@/lib/i18n";
+import { useLocale } from "@/lib/useLocale";
 
 interface Props {
   /** With a van: its free days and exact price. Without: pick dates to search all vans. */
@@ -44,6 +44,11 @@ function daysInMonth(y: number, m: number) {
 export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Props) {
   const router = useRouter();
   const pathname = usePathname();
+  const { locale, t: d, lp } = useLocale();
+  const t = d.ticket;
+  const dayWord = d.days;
+  const ON_REQUEST = d.onRequest;
+  const MONTHS = d.months;
   const [today, setToday] = useState<IsoDate>(() => todayIn());
   const [offset, setOffset] = useState(0);
   const [start, setStart] = useState<IsoDate | null>(initialStart ?? null);
@@ -102,40 +107,41 @@ export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Pro
   /** Opens the search with these dates; on /kombiji itself, keeps the filters already set. */
   function search() {
     if (!start || !end) return;
-    const onSearch = pathname === "/kombiji";
+    const searchPath = lp("/kombiji");
+    const onSearch = pathname === searchPath;
     const params = new URLSearchParams(onSearch ? window.location.search : "");
     params.set("start", start);
     params.set("end", end);
     params.delete("page");
     if (onSearch) {
-      router.replace(`/kombiji?${params}`, { scroll: false });
+      router.replace(`${searchPath}?${params}`, { scroll: false });
       onSearched?.();
     } else {
-      router.push(`/kombiji?${params}`);
+      router.push(`${searchPath}?${params}`);
     }
   }
 
-  let hint = "Odaberite dan preuzimanja";
-  if (loadError) hint = "Kalendar se nije učitao. Osvježite stranicu ili nas kontaktirajte.";
-  else if (start && !end) hint = "Sada odaberite dan povratka";
-  else if (q?.errors.length) hint = q.errors[0]!;
-  else if (q) hint = `${q.days} ${dayWord(q.days)} — kliknite za promjenu`;
-  else if (start && end) hint = `${days} ${dayWord(days)} — kliknite za promjenu`;
+  let hint = t.pickStart;
+  if (loadError) hint = t.loadError;
+  else if (start && !end) hint = t.pickEnd;
+  else if (q?.errors.length) hint = translateQuoteError(q.errors[0]!, locale);
+  else if (q) hint = t.change(q.days, dayWord(q.days));
+  else if (start && end) hint = t.change(days, dayWord(days));
 
   return (
     <section id="rezervacija" className="ticket" aria-labelledby="ticket-title">
       <div className="t-head">
-        <span id="ticket-title">{van ? "Rezervacija" : "Kada vam treba kombi?"}</span>
-        <span>Bez vozača</span>
+        <span id="ticket-title">{van ? t.titleVan : t.titleSearch}</span>
+        <span>{t.noDriver}</span>
       </div>
       <div className="t-dates">
         <div>
-          <div className="t-label">Preuzimanje</div>
-          <div className="t-date">{start ? shortDate(start) : "— —"}</div>
+          <div className="t-label">{t.pickup}</div>
+          <div className="t-date">{start ? shortDate(start, locale) : "— —"}</div>
         </div>
         <div>
-          <div className="t-label">Povratak</div>
-          <div className="t-date">{end ? shortDate(end) : "— —"}</div>
+          <div className="t-label">{t.return}</div>
+          <div className="t-date">{end ? shortDate(end, locale) : "— —"}</div>
         </div>
       </div>
 
@@ -145,10 +151,10 @@ export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Pro
             {hint}
           </span>
           <div className="pager">
-            <button type="button" aria-label="Prethodni mjesec" disabled={offset === 0} onClick={() => setOffset((o) => o - 1)}>
+            <button type="button" aria-label={t.prevMonth} disabled={offset === 0} onClick={() => setOffset((o) => o - 1)}>
               ←
             </button>
-            <button type="button" aria-label="Sljedeći mjesec" disabled={offset >= 11} onClick={() => setOffset((o) => o + 1)}>
+            <button type="button" aria-label={t.nextMonth} disabled={offset >= 11} onClick={() => setOffset((o) => o + 1)}>
               →
             </button>
           </div>
@@ -164,7 +170,7 @@ export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Pro
                   {MONTHS[m]} {y}
                 </h3>
                 <div className="wk" aria-hidden="true">
-                  <span>Po</span><span>Ut</span><span>Sr</span><span>Če</span><span>Pe</span><span>Su</span><span>Ne</span>
+                  {d.weekHeader.map((w) => <span key={w}>{w}</span>)}
                 </div>
                 <div className="days">
                   {Array.from({ length: lead }, (_, i) => (
@@ -182,7 +188,7 @@ export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Pro
                           : start && end && d > start && d < end
                             ? "range"
                             : "free";
-                    const label = { past: "prošlo", taken: "zauzeto", edge: "odabrano", range: "u periodu najma", free: "slobodno" }[state];
+                    const label = t.state[state];
                     return (
                       <button
                         key={d}
@@ -191,7 +197,7 @@ export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Pro
                         data-state={state}
                         disabled={past || isTaken}
                         aria-pressed={state === "edge"}
-                        aria-label={`${Number(d.slice(8))}. ${MONTHS[m]} ${y}, ${label}`}
+                        aria-label={locale === "en" ? `${MONTHS[m]} ${Number(d.slice(8))}, ${y}, ${label}` : `${Number(d.slice(8))}. ${MONTHS[m]} ${y}, ${label}`}
                         onClick={() => pick(d)}
                       >
                         {Number(d.slice(8))}
@@ -205,9 +211,9 @@ export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Pro
         </div>
 
         <div className="legend">
-          <span><i className="free" />Slobodno</span>
-          {van && <span><i className="taken" />Zauzeto</span>}
-          <span><i className="mine" />Vaši datumi</span>
+          <span><i className="free" />{t.free}</span>
+          {van && <span><i className="taken" />{t.taken}</span>}
+          <span><i className="mine" />{t.yours}</span>
         </div>
       </div>
 
@@ -216,34 +222,34 @@ export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Pro
           <div className="receipt" aria-live="polite">
             {settings.priceOnRequest ? (
               <div className="line">
-                <span>Najam{q && !q.errors.length ? `, ${q.days} ${dayWord(q.days)}` : ""}</span>
+                <span>{t.rental}{q && !q.errors.length ? `, ${q.days} ${dayWord(q.days)}` : ""}</span>
                 <span className="fill" />
                 <span>{ON_REQUEST}</span>
               </div>
             ) : q && q.rentalLines.length ? (
               q.rentalLines.map((l) => (
                 <div className="line" key={l.rate}>
-                  <span>{l.label}</span>
+                  <span>{translateRentalLine(l.label, locale)}</span>
                   <span className="fill" />
                   <span>{km(l.amount)}</span>
                 </div>
               ))
             ) : (
               <div className="line">
-                <span>Najam od {settings.dailyRate} KM/dan</span>
+                <span>{t.rentalFrom(settings.dailyRate)}</span>
                 <span className="fill" />
                 <span>—</span>
               </div>
             )}
             {q && q.discount > 0 && (
               <div className="line minus">
-                <span>Popust 7+ dana −{q.discountPct}%</span>
+                <span>{t.discount(q.discountPct)}</span>
                 <span className="fill" />
                 <span>−{km(q.discount)}</span>
               </div>
             )}
             <div className="line dim">
-              <span>Depozit (vraća se)</span>
+              <span>{t.deposit}</span>
               <span className="fill" />
               <span>{km(settings.deposit)}</span>
             </div>
@@ -253,14 +259,14 @@ export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Pro
           <div className="t-foot price-bar">
             {settings.priceOnRequest ? (
               <div className="t-total">
-                <span className="t-label">{ready && q ? `Cijena, ${q.days} ${dayWord(q.days)}` : "Cijena"}</span>
+                <span className="t-label">{ready && q ? `${t.price}, ${q.days} ${dayWord(q.days)}` : t.price}</span>
                 <span>
                   <strong>{ON_REQUEST}</strong>
                 </span>
               </div>
             ) : ready && q ? (
               <div className="t-total">
-                <span className="t-label">Ukupno, {q.days} {dayWord(q.days)}</span>
+                <span className="t-label">{t.total}, {q.days} {dayWord(q.days)}</span>
                 <span>
                   <strong>{km(q.total)}</strong>
                   <small>≈ {kmToEur(q.total)} €</small>
@@ -268,33 +274,33 @@ export function BookingWidget({ van, initialStart, initialEnd, onSearched }: Pro
               </div>
             ) : (
               <div className="t-total">
-                <span className="t-label">Cijena</span>
+                <span className="t-label">{t.price}</span>
                 <span>
-                  <strong>od {km(settings.dailyRate)}</strong>
-                  <small>/ dan</small>
+                  <strong>{t.from} {km(settings.dailyRate)}</strong>
+                  <small>{t.perDay}</small>
                 </span>
               </div>
             )}
             <Link
               className="btn-accent"
-              href={ready ? `/rezervacija?van=${van.slug}&start=${start}&end=${end}` : "#rezervacija"}
+              href={ready ? lp(`/rezervacija?van=${van.slug}&start=${start}&end=${end}`) : "#rezervacija"}
               onClick={() =>
                 ready && q && van.name &&
                 trackEcommerce("begin_checkout", [van as TrackedVan], { value: q.total, prices: [q.total], start_date: start, end_date: end, days: q.days })
               }
             >
-              {ready ? "Pošalji upit" : "Odaberite datume"} <span aria-hidden="true">{ready ? "→" : "↑"}</span>
+              {ready ? t.send : t.pickDates} <span aria-hidden="true">{ready ? "→" : "↑"}</span>
             </Link>
           </div>
         </>
       ) : (
         <div className="t-foot">
           <div className="t-total">
-            <span className="t-label">Period</span>
+            <span className="t-label">{t.period}</span>
             <span><strong>{ready ? `${days} ${dayWord(days)}` : "—"}</strong></span>
           </div>
           <button type="button" className="btn-accent" disabled={!ready} onClick={search}>
-            Slobodni kombiji <span aria-hidden="true">→</span>
+            {t.freeVans} <span aria-hidden="true">→</span>
           </button>
         </div>
       )}

@@ -7,7 +7,7 @@
 export const THEME_SCRIPT = `try{var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.dataset.theme=t}catch(e){}`;
 
 /** Switches between the light and the dark theme and remembers the choice. Which icon shows is decided in CSS. */
-export function ThemeToggle() {
+export function ThemeToggle({ label = "Promijeni temu: svijetla ili tamna" }: { label?: string }) {
   function toggle() {
     const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
@@ -18,7 +18,7 @@ export function ThemeToggle() {
     }
   }
   return (
-    <button type="button" className="theme-toggle" onClick={toggle} aria-label="Promijeni temu: svijetla ili tamna" title="Svijetla / tamna tema">
+    <button type="button" className="theme-toggle" onClick={toggle} aria-label={label} title={label}>
       <svg className="moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
         <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
       </svg>

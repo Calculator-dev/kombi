@@ -1,13 +1,13 @@
 import type { IsoDate } from "@kombi/shared";
+import { dict, type Locale } from "./i18n";
 
-export const MONTHS = ["Januar", "Februar", "Mart", "April", "Maj", "Juni", "Juli", "August", "Septembar", "Oktobar", "Novembar", "Decembar"];
-const WEEKDAYS = ["Ned", "Pon", "Uto", "Sri", "Čet", "Pet", "Sub"];
+export const MONTHS = dict("bs").months;
 
-/** "Sri 21.10." */
-export function shortDate(date: IsoDate): string {
+/** "Sri 21.10." / "Wed 21.10." */
+export function shortDate(date: IsoDate, locale: Locale = "bs"): string {
   const [y, m, d] = date.split("-").map(Number) as [number, number, number];
   const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-  return `${WEEKDAYS[wd]} ${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.`;
+  return `${dict(locale).weekdaysShort[wd]} ${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.`;
 }
 
 /** "21. oktobar 2026" */

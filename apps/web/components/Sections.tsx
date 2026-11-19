@@ -1,9 +1,10 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ON_REQUEST, featureLabel, type PublicVan, type Settings, type Terms } from "@kombi/shared";
+import type { PublicVan, Settings, Terms } from "@kombi/shared";
 import { km } from "@/lib/format";
-import { FAQ, SITE } from "@/lib/site";
-import { PLAN_BASICS, PlanList } from "./PlanList";
+import { dict, ownerText, type Locale } from "@/lib/i18n";
+import { SITE } from "@/lib/site";
+import { PlanList } from "./PlanList";
 import { VanDrawing } from "./VanDrawing";
 
 /** Title and intro on the left, the calendar ticket (passed in) on the right. */
@@ -47,28 +48,30 @@ export function Hero({
 }
 
 /** Photos, specs and description of one van. */
-export function VanDetails({ van }: { van: PublicVan }) {
+export function VanDetails({ van, locale = "bs" }: { van: PublicVan; locale?: Locale }) {
+  const d = dict(locale);
+  const t = d.van;
   return (
     <section id="kombi" className="section" aria-labelledby="kombi-h">
       <div className="wrap">
         <div className="van-head">
-          <h2 id="kombi-h" className="display h-lg">O kombiju</h2>
-          <p className="caption">{van.location}, godište {van.year}</p>
+          <h2 id="kombi-h" className="display h-lg">{t.about}</h2>
+          <p className="caption">{t.yearOf(van.location, van.year)}</p>
         </div>
         {/* The photos are at the top of the page; without any, a drawing stands in here. */}
         {van.photos.length === 0 && <VanDrawing label={van.name} />}
         <dl className="grid-specs">
-          <div><dt>Sjedišta</dt><dd>{van.seats}</dd></div>
-          <div><dt>Gorivo</dt><dd>{van.fuel}</dd></div>
-          <div><dt>Mjenjač</dt><dd>{van.gearbox}</dd></div>
-          <div><dt>Godište</dt><dd>{van.year}</dd></div>
-          <div><dt>Dozvola</dt><dd>{van.license}</dd></div>
-          <div><dt>Kofera</dt><dd>{van.luggage || "—"}</dd></div>
-          <div><dt>Motor</dt><dd>{[van.engine, van.powerHp ? `${van.powerHp} KS` : ""].filter(Boolean).join(", ") || "—"}</dd></div>
+          <div><dt>{t.seats}</dt><dd>{van.seats}</dd></div>
+          <div><dt>{t.fuel}</dt><dd>{d.fuels[van.fuel] ?? van.fuel}</dd></div>
+          <div><dt>{t.gearbox}</dt><dd>{d.gearboxes[van.gearbox] ?? van.gearbox}</dd></div>
+          <div><dt>{t.year}</dt><dd>{van.year}</dd></div>
+          <div><dt>{t.license}</dt><dd>{van.license}</dd></div>
+          <div><dt>{t.luggage}</dt><dd>{van.luggage || "—"}</dd></div>
+          <div><dt>{t.engine}</dt><dd>{[van.engine, van.powerHp ? t.hp(van.powerHp) : ""].filter(Boolean).join(", ") || "—"}</dd></div>
         </dl>
         {van.features.length > 0 && (
-          <ul className="feature-list" aria-label="Oprema">
-            {van.features.map((f) => <li key={f}>{featureLabel(f)}</li>)}
+          <ul className="feature-list" aria-label={t.equipment}>
+            {van.features.map((f) => <li key={f}>{d.features[f] ?? f}</li>)}
           </ul>
         )}
         {van.description && <p className="lead van-desc">{van.description}</p>}
@@ -77,59 +80,58 @@ export function VanDetails({ van }: { van: PublicVan }) {
   );
 }
 
-export function Prices({ settings, included }: { settings: Settings; included: string[] }) {
+export function Prices({ settings, included, locale = "bs" }: { settings: Settings; included: string[]; locale?: Locale }) {
+  const t = dict(locale).prices;
   const weekly = Math.round(settings.dailyRate * (1 - settings.weeklyDiscountPct / 100));
   const extra = (e: Settings["extras"][number]) =>
-    e.perDay !== undefined ? `${e.perDay} KM/dan` : `${e.flat} KM`;
+    e.perDay !== undefined ? t.kmDay(e.perDay) : `${e.flat} KM`;
   return (
     <section id="cijene" className="section" aria-labelledby="cijene-h">
       <div className="wrap split">
         <div>
           <h2 id="cijene-h" className="display h-lg">
-            Cjenovnik
+            {t.title}
           </h2>
           <p className="note">
-            {settings.priceOnRequest
-              ? "Cijenu najma dogovarate s vlasnikom nakon što pošaljete upit. Bez naknada koje se pojave na šalteru."
-              : "Cijena koju vidite je cijena koju plaćate. Bez naknada koje se pojave na šalteru."}
+            {settings.priceOnRequest ? t.noteOnRequest : t.note}
           </p>
         </div>
         <div className="tariffs">
           <div>
-            <h3>Najam</h3>
+            <h3>{t.rental}</h3>
             {settings.priceOnRequest ? (
-              <div className="line"><span>Cijena najma</span><span className="fill" /><b>{ON_REQUEST}</b></div>
+              <div className="line"><span>{t.rentalPrice}</span><span className="fill" /><b>{dict(locale).onRequest}</b></div>
             ) : (
               <>
-            <div className="line"><span>1–6 dana</span><span className="fill" /><b>{settings.dailyRate} KM/dan</b></div>
-            <div className="line"><span>7+ dana (−{settings.weeklyDiscountPct}%)</span><span className="fill" /><b>{weekly} KM/dan</b></div>
+            <div className="line"><span>{t.short}</span><span className="fill" /><b>{t.kmDay(settings.dailyRate)}</b></div>
+            <div className="line"><span>{t.week(settings.weeklyDiscountPct)}</span><span className="fill" /><b>{t.kmDay(weekly)}</b></div>
             {settings.seasons.map((s) => (
               <div className="line" key={s.name}>
                 <span>
-                  {s.name} ({s.from.split("-").reverse().join(".")}.–{s.to.split("-").reverse().join(".")}.)
+                  {ownerText(s.name, locale)} ({s.from.split("-").reverse().join(".")}.–{s.to.split("-").reverse().join(".")}.)
                 </span>
                 <span className="fill" />
-                <b>{s.dailyRate} KM/dan</b>
+                <b>{t.kmDay(s.dailyRate)}</b>
               </div>
             ))}
               </>
             )}
-            <div className="line"><span>Depozit</span><span className="fill" /><b>{km(settings.deposit)}</b></div>
+            <div className="line"><span>{t.deposit}</span><span className="fill" /><b>{km(settings.deposit)}</b></div>
           </div>
           <div>
-            <h3>Dodaci</h3>
+            <h3>{t.extras}</h3>
             {settings.extras
               .filter((e) => e.enabled)
               .map((e) => (
-                <div className="line" key={e.id}><span>{e.label}</span><span className="fill" /><b>{extra(e)}</b></div>
+                <div className="line" key={e.id}><span>{ownerText(e.label, locale)}</span><span className="fill" /><b>{extra(e)}</b></div>
               ))}
             {settings.pickup
               .filter((p) => p.enabled && p.fee > 0)
               .map((p) => (
-                <div className="line" key={p.id}><span>{p.label}</span><span className="fill" /><b>{p.fee} KM</b></div>
+                <div className="line" key={p.id}><span>{ownerText(p.label, locale)}</span><span className="fill" /><b>{p.fee} KM</b></div>
               ))}
           </div>
-          {included.length > 0 && <p className="included">Uključeno: {included.join(", ")}</p>}
+          {included.length > 0 && <p className="included">{t.included}: {included.map((i) => ownerText(i, locale)).join(", ")}</p>}
         </div>
       </div>
     </section>
@@ -137,30 +139,24 @@ export function Prices({ settings, included }: { settings: Settings; included: s
 }
 
 /** A van's rental terms, as its owner set them. */
-export function Rules({ terms, settings }: { terms: Terms; settings: Settings }) {
-  const years = (n: number) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? "godinu" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "godine" : "godina"}`;
+export function Rules({ terms, settings, locale = "bs" }: { terms: Terms; settings: Settings; locale?: Locale }) {
+  const t = dict(locale).rules;
   const rules: [string, string][] = [
-    [
-      "Vozač",
-      `Najmanje ${years(terms.minDriverAge)}${terms.minLicenseYears ? ` i ${years(terms.minLicenseYears)} vozačke dozvole` : ""}.`,
-    ],
-    ["Dokumenti", terms.documents],
-    ["Gorivo", terms.fuel],
-    ["Granica", terms.border],
-    ["Depozit", `${km(settings.deposit)}, plaća se pri preuzimanju i vraća pri povratku.`],
-    [
-      "Otkazivanje",
-      terms.cancellationDays ? `Besplatno do ${terms.cancellationDays} dana prije preuzimanja.` : "Besplatno do dana prije preuzimanja.",
-    ],
+    [t.driver, t.driverText(terms.minDriverAge, terms.minLicenseYears)],
+    [t.documents, ownerText(terms.documents, locale)],
+    [t.fuel, ownerText(terms.fuel, locale)],
+    [t.border, ownerText(terms.border, locale)],
+    [t.deposit, t.depositText(km(settings.deposit))],
+    [t.cancel, terms.cancellationDays ? t.cancelDays(terms.cancellationDays) : t.cancelDay],
   ];
-  if (terms.notes) rules.push(["Ostalo", terms.notes]);
+  if (terms.notes) rules.push([t.other, terms.notes]);
   return (
     <section id="uslovi" className="section" aria-labelledby="uslovi-h">
       <div className="wrap split">
         <h2 id="uslovi-h" className="display h-lg">
-          Uslovi
+          {t.title[0]}
           <br />
-          najma
+          {t.title[1]}
         </h2>
         <ul className="rules">
           {rules
@@ -177,15 +173,16 @@ export function Rules({ terms, settings }: { terms: Terms; settings: Settings })
   );
 }
 
-export function Faq() {
+export function Faq({ locale = "bs" }: { locale?: Locale }) {
+  const t = dict(locale).faq;
   return (
     <section id="pitanja" className="section" aria-labelledby="pitanja-h">
       <div className="wrap split">
         <h2 id="pitanja-h" className="display h-lg">
-          Pitanja
+          {t.title}
         </h2>
         <div className="faq">
-          {FAQ.map((f) => (
+          {t.items.map((f) => (
             <details key={f.q}>
               <summary>{f.q}</summary>
               <p>{f.a}</p>
@@ -198,48 +195,46 @@ export function Faq() {
 }
 
 /** For van owners: what each package allows, and how to start. */
-export function Plans() {
+export function Plans({ locale = "bs" }: { locale?: Locale }) {
+  const t = dict(locale).plans;
   return (
     <section id="paketi" className="section" aria-labelledby="paketi-h">
       <div className="wrap plans-section">
         <div className="plans-intro">
-          <p className="eyebrow">Za vlasnike kombija</p>
+          <p className="eyebrow">{t.eyebrow}</p>
           <h2 id="paketi-h" className="display h-lg">
-            Iznajmljujete kombi<span className="dot">?</span>
+            {t.title}<span className="dot">?</span>
           </h2>
-          <p className="lead">
-            Jedan kombi objavljujete besplatno, bez paketa. Za više kombija i uvid u to koliko ljudi gleda vaše kombije
-            izaberite Bronze, Silver ili Gold.
-          </p>
-          <Link className="btn-ghost" href="/admin?registracija" style={{ marginTop: 20 }}>Objavite kombi besplatno</Link>
+          <p className="lead">{t.lead}</p>
+          <Link className="btn-ghost" href="/admin?registracija" style={{ marginTop: 20 }}>{t.publish}</Link>
         </div>
         <div className="plans-basics">
-          <span>Svi paketi uključuju</span>
+          <span>{t.basicsTitle}</span>
           <ul>
-            {PLAN_BASICS.map((b) => <li key={b}>{b}</li>)}
+            {t.basics.map((b) => <li key={b}>{b}</li>)}
           </ul>
         </div>
-        <PlanList />
+        <PlanList locale={locale} />
         <p className="caption plans-foot">
-          Paket mijenjate kad god želite. Pišite na <a href={`mailto:${SITE.email}`}>{SITE.email}</a> i javimo se s
-          ponudom.
+          {t.footBefore} <a href={`mailto:${SITE.email}`}>{SITE.email}</a> {t.footAfter}
         </p>
       </div>
     </section>
   );
 }
 
-export function Contact() {
+export function Contact({ locale = "bs" }: { locale?: Locale }) {
+  const t = dict(locale).contact;
   return (
     <section id="kontakt" className="contact" aria-labelledby="kontakt-h">
       <div className="wrap">
         <h2 id="kontakt-h" className="display">
-          Pitanje?
+          {t.title[0]}
           <br />
-          Pišite nam.
+          {t.title[1]}
         </h2>
         <div className="chips">
-          <a className="chip" href={`mailto:${SITE.email}`}>Pošalji email</a>
+          <a className="chip" href={`mailto:${SITE.email}`}>{t.email}</a>
         </div>
       </div>
     </section>
@@ -247,11 +242,11 @@ export function Contact() {
 }
 
 /** Everything below the van list, shared by the homepage and landing pages. */
-export function PageBody() {
+export function PageBody({ locale = "bs" }: { locale?: Locale }) {
   return (
     <>
-      <Plans />
-      <Contact />
+      <Plans locale={locale} />
+      <Contact locale={locale} />
     </>
   );
 }

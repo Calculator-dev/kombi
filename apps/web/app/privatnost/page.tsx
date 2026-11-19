@@ -7,7 +7,7 @@ import { SITE } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Politika privatnosti",
   description: "Koje lične podatke kombi.ba prikuplja kod upita i rezervacije, zašto, kome ih daje i koja su vaša prava.",
-  alternates: { canonical: "/privatnost" },
+  alternates: { canonical: "/privatnost", languages: { bs: "/privatnost", en: "/en/privatnost" } },
 };
 
 const DATA: [string, string, string][] = [

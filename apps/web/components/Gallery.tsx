@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PhotoUrls } from "@kombi/shared";
 import { track as trackEvent } from "@/lib/analytics";
+import { useLocale } from "@/lib/useLocale";
 import { SpinViewer } from "./SpinViewer";
 
 /**
@@ -11,6 +12,11 @@ import { SpinViewer } from "./SpinViewer";
  * opens a full-screen viewer for all of them; the 360° view opens in its own window.
  */
 export function Gallery({ photos, name, spin }: { photos: PhotoUrls[]; name: string; spin?: PhotoUrls[] | null }) {
+  const { locale, t: d } = useLocale();
+  const t = d.gallery;
+  const en = locale === "en";
+  const photoAlt = (i: number) => (i === 0 ? name : en ? `${name}, photo ${i + 1}` : `${name}, fotografija ${i + 1}`);
+  const view360 = en ? "360° view" : "360° pogled";
   const dialog = useRef<HTMLDialogElement>(null);
   const spinDialog = useRef<HTMLDialogElement>(null);
   const track = useRef<HTMLDivElement>(null);
@@ -79,11 +85,11 @@ export function Gallery({ photos, name, spin }: { photos: PhotoUrls[]; name: str
     <div className="gallery" data-count={shown.length}>
       <div className="gallery-grid">
         {shown.map((p, i) => (
-          <button key={p.id} type="button" onClick={() => open(i)} aria-label={`Otvori fotografiju ${i + 1} od ${photos.length}`}>
+          <button key={p.id} type="button" onClick={() => open(i)} aria-label={en ? `Open photo ${i + 1} of ${photos.length}` : `Otvori fotografiju ${i + 1} od ${photos.length}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={i === 0 ? p.url : p.thumbUrl}
-              alt={i === 0 ? name : `${name}, fotografija ${i + 1}`}
+              alt={photoAlt(i)}
               width={i === 0 ? p.width : 640}
               height={i === 0 ? p.height : 480}
               loading={i === 0 ? "eager" : "lazy"}
@@ -93,9 +99,9 @@ export function Gallery({ photos, name, spin }: { photos: PhotoUrls[]; name: str
       </div>
       <div className="gallery-swipe" ref={swipe} onScroll={onSwipe}>
         {photos.map((p, i) => (
-          <button key={p.id} type="button" onClick={() => open(i)} aria-label={`Otvori fotografiju ${i + 1} od ${photos.length}`}>
+          <button key={p.id} type="button" onClick={() => open(i)} aria-label={en ? `Open photo ${i + 1} of ${photos.length}` : `Otvori fotografiju ${i + 1} od ${photos.length}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.url} alt={i === 0 ? name : `${name}, fotografija ${i + 1}`} width={p.width} height={p.height} loading={i === 0 ? "eager" : "lazy"} />
+            <img src={p.url} alt={photoAlt(i)} width={p.width} height={p.height} loading={i === 0 ? "eager" : "lazy"} />
           </button>
         ))}
       </div>
@@ -107,12 +113,12 @@ export function Gallery({ photos, name, spin }: { photos: PhotoUrls[]; name: str
       <div className="gallery-actions">
         {spin && spin.length > 0 && (
           <button type="button" className="gallery-btn" onClick={openSpin}>
-            <span aria-hidden="true">↻</span> 360° pogled
+            <span aria-hidden="true">↻</span> {view360}
           </button>
         )}
         {photos.length > 1 && (
           <button type="button" className="gallery-btn gallery-all" onClick={() => open(0)}>
-            Sve fotografije ({photos.length})
+            {en ? "All photos" : "Sve fotografije"} ({photos.length})
           </button>
         )}
       </div>
@@ -121,7 +127,7 @@ export function Gallery({ photos, name, spin }: { photos: PhotoUrls[]; name: str
         <dialog
           ref={spinDialog}
           className="spin-dialog"
-          aria-label={`360° pogled: ${name}`}
+          aria-label={`${view360}: ${name}`}
           onClose={() => {
             setSpinOpen(false);
             document.documentElement.style.overflow = "";
@@ -129,8 +135,8 @@ export function Gallery({ photos, name, spin }: { photos: PhotoUrls[]; name: str
           onClick={(e) => e.target === e.currentTarget && spinDialog.current?.close()}
         >
           <div className="spin-dialog-head">
-            <strong>360° pogled</strong>
-            <button type="button" className="lightbox-close" onClick={() => spinDialog.current?.close()} aria-label="Zatvori">
+            <strong>{view360}</strong>
+            <button type="button" className="lightbox-close" onClick={() => spinDialog.current?.close()} aria-label={t.close}>
               <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 2 14 14M14 2 2 14" stroke="currentColor" strokeWidth="2" /></svg>
             </button>
           </div>
@@ -141,30 +147,30 @@ export function Gallery({ photos, name, spin }: { photos: PhotoUrls[]; name: str
       <dialog
         ref={dialog}
         className="lightbox"
-        aria-label={`Fotografije: ${name}`}
+        aria-label={`${en ? "Photos" : "Fotografije"}: ${name}`}
         onClose={() => (document.documentElement.style.overflow = "")}
         onClick={(e) => e.target === e.currentTarget && dialog.current?.close()}
       >
         <span className="lightbox-count" aria-live="polite">{index + 1} / {photos.length}</span>
-        <button type="button" className="lightbox-close" onClick={() => dialog.current?.close()} aria-label="Zatvori">
+        <button type="button" className="lightbox-close" onClick={() => dialog.current?.close()} aria-label={t.close}>
           <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 2 14 14M14 2 2 14" stroke="currentColor" strokeWidth="2" /></svg>
         </button>
         <div className="lightbox-track" ref={track} onScroll={onScroll}>
           {photos.map((p, i) => (
             <figure key={p.id}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.url} alt={`${name}, fotografija ${i + 1}`} width={p.width} height={p.height} loading={i === index ? "eager" : "lazy"} />
+              <img src={p.url} alt={en ? `${name}, photo ${i + 1}` : `${name}, fotografija ${i + 1}`} width={p.width} height={p.height} loading={i === index ? "eager" : "lazy"} />
             </figure>
           ))}
         </div>
         {photos.length > 1 && (
           <>
-            <button type="button" className="lightbox-nav prev" onClick={() => go(index - 1)} disabled={index === 0} aria-label="Prethodna fotografija">←</button>
-            <button type="button" className="lightbox-nav next" onClick={() => go(index + 1)} disabled={index === photos.length - 1} aria-label="Sljedeća fotografija">→</button>
+            <button type="button" className="lightbox-nav prev" onClick={() => go(index - 1)} disabled={index === 0} aria-label={t.prev}>←</button>
+            <button type="button" className="lightbox-nav next" onClick={() => go(index + 1)} disabled={index === photos.length - 1} aria-label={t.next}>→</button>
             <ul className="lightbox-strip" ref={strip}>
               {photos.map((p, i) => (
                 <li key={p.id}>
-                  <button type="button" aria-current={i === index || undefined} aria-label={`Fotografija ${i + 1}`} onClick={() => go(i)}>
+                  <button type="button" aria-current={i === index || undefined} aria-label={`${en ? "Photo" : "Fotografija"} ${i + 1}`} onClick={() => go(i)}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={p.thumbUrl} alt="" width={96} height={72} loading="lazy" />
                   </button>

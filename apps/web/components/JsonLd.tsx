@@ -1,10 +1,12 @@
 import type { PublicVan } from "@kombi/shared";
-import { FAQ, SITE } from "@/lib/site";
+import { dict, type Locale } from "@/lib/i18n";
+import { SITE } from "@/lib/site";
 
 const FUEL: Record<string, string> = { Dizel: "Diesel", Benzin: "Gasoline", Hibrid: "Hybrid", Električni: "Electric" };
 
 /** Structured data so Google can show the business, prices and FAQ in results. */
-export function JsonLd({ path = "/", fromPrice, van }: { path?: string; fromPrice?: number | null; van?: PublicVan }) {
+export function JsonLd({ path = "/", fromPrice, van, locale = "bs" }: { path?: string; fromPrice?: number | null; van?: PublicVan; locale?: Locale }) {
+  const en = locale === "en";
   const price = (van ? (van.pricing.priceOnRequest ? undefined : van.pricing.dailyRate) : fromPrice) ?? undefined;
   const data = [
     {
@@ -13,9 +15,9 @@ export function JsonLd({ path = "/", fromPrice, van }: { path?: string; fromPric
       "@id": `${SITE.url}/#business`,
       name: SITE.name,
       url: SITE.url,
-      priceRange: price ? `od ${price} KM/dan` : undefined,
+      priceRange: price ? (en ? `from ${price} KM/day` : `od ${price} KM/dan`) : undefined,
       currenciesAccepted: "BAM, EUR",
-      areaServed: ["Bosna i Hercegovina"],
+      areaServed: [en ? "Bosnia and Herzegovina" : "Bosna i Hercegovina"],
       address: { "@type": "PostalAddress", addressLocality: SITE.city, addressCountry: "BA" },
       makesOffer: van
         ? {
@@ -40,7 +42,7 @@ export function JsonLd({ path = "/", fromPrice, van }: { path?: string; fromPric
       ? {
           "@context": "https://schema.org",
           "@type": "FAQPage",
-          mainEntity: FAQ.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+          mainEntity: dict(locale).faq.items.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
         }
       : null,
   ].filter(Boolean);

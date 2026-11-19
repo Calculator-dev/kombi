@@ -1,3 +1,5 @@
+import { dict } from "./i18n";
+
 /**
  * Business details shown across the site. Items in [brackets] are
  * placeholders for the owner to fill in before launch.
@@ -14,28 +16,7 @@ export const SITE = {
   keepBookings: "[5 godina]",
 };
 
-export const FAQ: { q: string; a: string }[] = [
-  {
-    q: "Gdje preuzimam kombi?",
-    a: "Svaki kombi ima svoja mjesta preuzimanja, navedena na njegovoj stranici: lokacija vlasnika, vaša adresa ili aerodrom.",
-  },
-  {
-    q: "Mogu li na more u Hrvatsku ili Crnu Goru?",
-    a: "Da. Označite prelazak granice u upitu i pripremit ćemo zeleni karton.",
-  },
-  {
-    q: "Moram li platiti unaprijed?",
-    a: "Ne. Pošaljete upit, vlasnik kombija potvrdi termin, a plaćate pri preuzimanju.",
-  },
-  {
-    q: "Kada dobijam depozit nazad?",
-    a: "Pri povratku kombija, nakon kratkog pregleda vozila.",
-  },
-  {
-    q: "Koja vozačka dozvola mi treba?",
-    a: "Za većinu kombija B kategorija. Tačan uslov (godine vozača i vozačkog iskustva) piše pod „Uslovi najma“ na stranici kombija.",
-  },
-];
+export const FAQ = dict("bs").faq.items;
 
 /** Landing pages for the searches people actually type. */
 export const LANDINGS: Record<

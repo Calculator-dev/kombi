@@ -1,37 +1,36 @@
 import Link from "next/link";
-import { ThemeToggle } from "./ThemeToggle";
+import { dict, localePath, type Locale } from "@/lib/i18n";
+import { HeaderNav } from "./HeaderNav";
 
-export function Logo({ href = "/" }: { href?: string }) {
+export function Logo({ href = "/", label = "kombi.ba početna" }: { href?: string; label?: string }) {
   return (
-    <Link href={href} className="logo" aria-label="kombi.ba početna">
-      Kombi<span>.</span>ba
+    <Link href={href} className="logo" aria-label={label}>
+      {/* Two versions: dark ink on the light theme, cream ink on the dark theme (switched in CSS). */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="logo-light" src="/logo.png" alt="" width={640} height={191} />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="logo-dark" src="/logo-dark.png" alt="" width={640} height={191} />
     </Link>
   );
 }
 
-export function Header() {
+export function Header({ locale = "bs" }: { locale?: Locale }) {
+  const t = dict(locale).header;
   return (
     <>
       <a className="skip" href="#sadrzaj">
-        Preskoči na sadržaj
+        {t.skip}
       </a>
       <div className="topbar">
         <div className="wrap">
-          <span>Najam kombija, Bosna i Hercegovina</span>
-          <span>Bez plaćanja unaprijed</span>
+          <span>{t.topLeft}</span>
+          <span>{t.topRight}</span>
         </div>
       </div>
       <header className="header">
         <div className="wrap">
-          <Logo />
-          <nav className="nav" aria-label="Glavna navigacija">
-            <Link href="/kombiji">Kombiji</Link>
-            <Link href="/#paketi" className="nav-owner">Iznajmljujete kombi?</Link>
-            <Link href="/#rezervacija" className="cta">
-              Rezerviši
-            </Link>
-            <ThemeToggle />
-          </nav>
+          <Logo href={localePath(locale, "/")} label={t.home} />
+          <HeaderNav locale={locale} />
         </div>
       </header>
     </>

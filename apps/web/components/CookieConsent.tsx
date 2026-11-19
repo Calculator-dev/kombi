@@ -4,14 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { readConsent, saveConsent, type Consent } from "@/lib/consent";
+import { useLocale } from "@/lib/useLocale";
 
 /** Fired by the footer's "Postavke kolačića" link to open the settings again. */
 export const OPEN_COOKIE_SETTINGS = "kombi:cookie-settings";
 
 export function CookieSettingsLink() {
+  const { t } = useLocale();
   return (
     <button type="button" className="link-plain" onClick={() => window.dispatchEvent(new Event(OPEN_COOKIE_SETTINGS))}>
-      Postavke kolačića
+      {t.cookies.settings}
     </button>
   );
 }
@@ -22,6 +24,8 @@ export function CookieSettingsLink() {
  */
 export function CookieConsent() {
   const pathname = usePathname();
+  const { t: d, lp } = useLocale();
+  const t = d.cookies;
   const [open, setOpen] = useState(false);
   const [details, setDetails] = useState(false);
   const [choice, setChoice] = useState<Consent>({ analytics: false, marketing: false });
@@ -53,10 +57,9 @@ export function CookieConsent() {
     <section className="cookie-banner" role="dialog" aria-modal="false" aria-labelledby="cookie-h">
       <div className="cookie-inner">
         <div className="cookie-text">
-          <h2 id="cookie-h">Kolačići</h2>
+          <h2 id="cookie-h">{t.title}</h2>
           <p>
-            Nužni kolačići omogućavaju rad stranice. Uz vašu dozvolu koristimo i analitičke kolačiće (da vidimo šta se
-            koristi i popravimo ostalo) i marketinške (da mjerimo oglase). <Link href="/kolacici">Više o kolačićima</Link>
+            {t.text} <Link href={lp("/kolacici")}>{t.more}</Link>
           </p>
         </div>
 
@@ -64,27 +67,27 @@ export function CookieConsent() {
           <div className="cookie-options">
             <label className="check">
               <input type="checkbox" checked disabled />
-              <span><strong>Nužni</strong> — rad stranice i pamćenje ovog izbora. Uvijek uključeni.</span>
+              <span><strong>{t.necessary}</strong> — {t.necessaryText}</span>
             </label>
             <label className="check">
               <input type="checkbox" checked={choice.analytics} onChange={(e) => setChoice((c) => ({ ...c, analytics: e.target.checked }))} />
-              <span><strong>Analitika</strong> — Google Analytics: posjete i korištenje stranice, bez imena i kontakata.</span>
+              <span><strong>{t.analytics}</strong> — {t.analyticsText}</span>
             </label>
             <label className="check">
               <input type="checkbox" checked={choice.marketing} onChange={(e) => setChoice((c) => ({ ...c, marketing: e.target.checked }))} />
-              <span><strong>Marketing</strong> — mjerenje i prilagođavanje oglasa (Google, Meta).</span>
+              <span><strong>{t.marketing}</strong> — {t.marketingText}</span>
             </label>
           </div>
         )}
 
         <div className="cookie-actions">
           {details ? (
-            <button type="button" className="cookie-btn primary" onClick={() => decide(choice)}>Sačuvaj izbor</button>
+            <button type="button" className="cookie-btn primary" onClick={() => decide(choice)}>{t.save}</button>
           ) : (
-            <button type="button" className="cookie-btn" onClick={() => setDetails(true)}>Postavke</button>
+            <button type="button" className="cookie-btn" onClick={() => setDetails(true)}>{t.options}</button>
           )}
-          <button type="button" className="cookie-btn" onClick={() => decide({ analytics: false, marketing: false })}>Samo nužni</button>
-          <button type="button" className="cookie-btn primary" onClick={() => decide({ analytics: true, marketing: true })}>Prihvati sve</button>
+          <button type="button" className="cookie-btn" onClick={() => decide({ analytics: false, marketing: false })}>{t.onlyNecessary}</button>
+          <button type="button" className="cookie-btn primary" onClick={() => decide({ analytics: true, marketing: true })}>{t.acceptAll}</button>
         </div>
       </div>
     </section>
