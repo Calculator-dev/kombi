@@ -747,3 +747,23 @@ button:disabled { cursor: not-allowed; }
   .nav .nav-sub a { padding: 14px 0; border-radius: 0; }
   .nav .nav-sub a:hover { background: none; }
 }
+
+/* Homepage rows that slide sideways (vans, cars) */
+.carousel + .carousel { margin-top: 36px; }
+.carousel-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; margin-bottom: 14px; }
+.carousel-head h3 { margin: 0; font-size: 24px; display: flex; align-items: center; gap: 10px; }
+.carousel-count { display: inline-flex; min-width: 28px; height: 28px; padding: 0 8px; align-items: center; justify-content: center; border-radius: 999px; background: var(--tile); color: var(--muted); font-size: 14px; font-weight: 600; }
+.carousel-tools { display: flex; align-items: center; gap: 16px; }
+.carousel-all { font-weight: 600; text-decoration: none; }
+.carousel-all:hover { text-decoration: underline; }
+.carousel-track {
+  display: flex; gap: 20px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-left: 0;
+  padding: 4px 2px 12px; margin: -4px -2px 0; scrollbar-width: thin; overscroll-behavior-x: contain;
+}
+.carousel-track > li { flex: 0 0 calc((100% - 40px) / 3); scroll-snap-align: start; min-width: 0; }
+@media (max-width: 1000px) { .carousel-track > li { flex-basis: calc((100% - 20px) / 2); } }
+@media (max-width: 640px) {
+  .carousel-track > li { flex-basis: 82%; }
+  .carousel-tools .pager { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .carousel-track { scroll-behavior: auto; } }

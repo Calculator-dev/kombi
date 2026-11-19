@@ -46,7 +46,7 @@ export default function CookiesPage() {
         <h2>Šta ne šaljemo</h2>
         <p>
           Imena, emailovi i brojevi telefona iz upita nikad ne idu u Google Analytics niti u oglasne sisteme. Bilježimo samo
-          šta se na stranici radi: pretrage, pregledane kombije, poslane upite (s iznosom i brojem upita), klikove na Viber,
+          šta se na stranici radi: pretrage, pregledana vozila, poslane upite (s iznosom i brojem upita), klikove na Viber,
           WhatsApp i poziv.
         </p>
 

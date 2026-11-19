@@ -16,7 +16,7 @@ const DATA: [string, string, string][] = [
   ["Date of birth and the year you got your driving licence", "To check the owner's requirements (driver's minimum age and experience).", "Every request"],
   ["Dates, pickup place, extras and your note", "The booking and the price.", "Every request"],
   ["Address, JMB, ID card number, driving licence number", "Filling in the rental contract.", "Only if you enter them; you can also give them at pickup"],
-  ["Name, email, phone, address and company ID of the van's owner", "The owner's account, listing the van and the rental contract (the owner is the lessor).", "Owner sign-up"],
+  ["Name, email, phone, address and company ID of the vehicle's owner", "The owner's account, listing the vehicle and the rental contract (the owner is the lessor).", "Owner sign-up"],
 ];
 
 const PROCESSORS: [string, string, string][] = [
@@ -25,7 +25,7 @@ const PROCESSORS: [string, string, string][] = [
   ["Supabase", "Database and owner sign-in", "The region chosen when the project was set up"],
   ["Backblaze", "Van photos (no personal data)", "EU"],
   ["Resend", "Emails about requests and bookings", "USA"],
-  ["Google Maps", "The map with the van's location; loads only when you click “Show map”", "USA and EU"],
+  ["Google Maps", "The map with the vehicle's location; loads only when you click “Show map”", "USA and EU"],
   ["Google (Tag Manager, Analytics)", "Visit statistics, only with your cookie consent, without names or contacts", "USA and EU"],
 ];
 
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
       <main id="sadrzaj" className="wrap legal">
         <h1 className="display h-lg">Privacy policy</h1>
         <p className="lead">
-          This page explains what personal data we ask for when you send a request for a van, why we need it, who we give it
+          This page explains what personal data we ask for when you send a request for a car or a van, why we need it, who we give it
           to, and how you can see, correct or delete it. The Bosnian version of this policy is the binding one.
         </p>
 
@@ -45,8 +45,9 @@ export default function PrivacyPage() {
           The {SITE.name} platform is run by {SITE.operator}. For questions about your data, write to {SITE.email}.
         </p>
         <p>
-          Vans on {SITE.name} are rented out by their owners. When you send a request for a van, its owner receives the
-          details from your request, because they confirm the booking, hand over the van and sign the contract with you.
+          Cars and vans on {SITE.name} are rented out by their owners. When you send a request for a vehicle, its owner
+          receives the details from your request, because they confirm the booking, hand over the vehicle and sign the
+          contract with you.
           The owner is also responsible for the data they receive.
         </p>
 
@@ -68,13 +69,13 @@ export default function PrivacyPage() {
           legal obligations (e.g. accounting). We keep visit statistics only if you allow it in the cookie settings.
         </p>
         <p>
-          For the owners' statistics we only count how many times a van's page and its booking form were opened. Nothing
+          For the owners' statistics we only count how many times a vehicle's page and its booking form were opened. Nothing
           about the visitor is kept with it.
         </p>
 
         <h2>Who we give data to</h2>
         <ul>
-          <li>The owner of the van you send a request for.</li>
+          <li>The owner of the vehicle you send a request for.</li>
           <li>Companies that run the technology for us. They process data only on our instructions and not for their own purposes:</li>
         </ul>
         <div className="table-scroll">
