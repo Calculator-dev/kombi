@@ -41,6 +41,8 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [datesOpen, setDatesOpen] = useState(false);
   const first = useRef(true);
+  const [text, setText] = useState(q.q ?? "");
+  useEffect(() => setText(q.q ?? ""), [q.q]);
 
   // New results whenever the address changes (the server already rendered the first ones).
   useEffect(() => {
@@ -64,7 +66,7 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
   useEffect(() => {
     if (loading) return;
     track("search", {
-      search_term: [q.city, q.seats && `${q.seats}+ putnika`, q.gearbox].filter(Boolean).join(", ") || "svi kombiji",
+      search_term: [q.q, q.city, q.seats && `${q.seats}+ putnika`, q.gearbox].filter(Boolean).join(", ") || "svi kombiji",
       start_date: q.start,
       end_date: q.end,
       filter_seats: q.seats,
@@ -179,10 +181,34 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
       </aside>
 
       <section className="results" aria-labelledby="results-h" aria-busy={loading}>
+        <form
+          role="search"
+          className="search-box"
+          onSubmit={(e) => {
+            e.preventDefault();
+            update({ q: text.trim() || undefined });
+          }}
+        >
+          <label htmlFor="kombiji-q" className="sr-only">Pretraži kombije</label>
+          <input
+            id="kombiji-q"
+            type="search"
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              if (!e.target.value && q.q) update({ q: undefined });
+            }}
+            placeholder="npr. Sarajevo ili Vito"
+            maxLength={80}
+            autoComplete="off"
+            enterKeyHint="search"
+          />
+          <button type="submit" className="btn-dark">Traži</button>
+        </form>
         <div className="results-bar">
           <div>
             <h1 id="results-h" className="display h-md">
-              {dates ? `${shortDate(dates.start)} – ${shortDate(dates.end)}` : "Svi kombiji"}
+              {dates ? `${shortDate(dates.start)} – ${shortDate(dates.end)}` : q.q ? `„${q.q}"` : "Svi kombiji"}
             </h1>
             <p className="caption" aria-live="polite">{error ? "Rezultati se nisu učitali. Pokušajte ponovo." : summary}</p>
           </div>
@@ -217,7 +243,8 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
 
         {result.items.length === 0 && !loading ? (
           <div className="placeholder-box">
-            Nema kombija za ove filtere.{" "}
+            {q.q ? `Nema kombija za „${q.q}".` : "Nema kombija za ove filtere."}{" "}
+            {q.q && <button type="button" className="link" onClick={() => update({ q: undefined })}>Obriši pretragu</button>}{" "}
             {active > 0 && <button type="button" className="link" onClick={clear}>Očisti filtere</button>}
           </div>
         ) : (

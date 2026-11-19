@@ -12,6 +12,7 @@ export function Hero({
   intro,
   specs,
   media,
+  search,
   children,
 }: {
   title: ReactNode;
@@ -19,6 +20,8 @@ export function Hero({
   specs: [string, string][];
   /** Shown above everything else, e.g. a van's photos. */
   media?: ReactNode;
+  /** Shown under the intro, e.g. the search box. */
+  search?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -30,6 +33,7 @@ export function Hero({
             {title}
           </h1>
           <p className="lead">{intro}</p>
+          {search}
           <dl className="specs">
             {specs.map(([t, d]) => (
               <div key={t}><dt>{t}</dt><dd>{d}</dd></div>

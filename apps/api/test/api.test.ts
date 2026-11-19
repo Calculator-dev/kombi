@@ -433,6 +433,14 @@ describe("search (/kombiji)", () => {
     expect(slugs(await request(app).get("/api/search?priceMin=150&priceMax=210&sort=daily"))).toEqual(["vw-caravelle", "ford-transit-15"]);
   });
 
+  it("finds vans by words in the name or city, any case", async () => {
+    expect(slugs(await request(app).get("/api/search?q=caravelle"))).toEqual(["vw-caravelle"]);
+    expect(slugs(await request(app).get("/api/search?q=tuzla%20FORD"))).toEqual(["ford-transit-15"]);
+    expect(slugs(await request(app).get("/api/search?q=sarajevo%20ford"))).toEqual([]);
+    expect(slugs(await request(app).get("/api/search?q=100%25"))).toEqual([]);
+    expect((await request(app).get("/api/search?q=%20%20")).body.total).toBeGreaterThanOrEqual(5);
+  });
+
   it("requires every chosen piece of equipment", async () => {
     expect(slugs(await request(app).get("/api/search?features=ac"))).toEqual(["vw-caravelle", "ford-transit-15"]);
     expect(slugs(await request(app).get("/api/search?features=ac,isofix"))).toEqual(["vw-caravelle"]);

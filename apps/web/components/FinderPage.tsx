@@ -3,6 +3,7 @@ import type { VanCard } from "@kombi/shared";
 import { Footer } from "./Footer";
 import { Header } from "./Header";
 import { JsonLd } from "./JsonLd";
+import { SearchBox } from "./SearchBox";
 import { SearchTicket } from "./SearchTicket";
 import { Hero, PageBody } from "./Sections";
 import { VanGrid } from "./VanGrid";
@@ -19,6 +20,7 @@ export function FinderPage({ title, intro, vans, path = "/" }: { title: ReactNod
         <Hero
           title={title}
           intro={intro}
+          search={<SearchBox />}
           specs={[
             ["Kombija", String(vans.length || "—")],
             ["Od", from ? `${from} KM / dan` : "—"],
