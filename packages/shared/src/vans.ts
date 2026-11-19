@@ -15,9 +15,15 @@ export type UserStatus = (typeof USER_STATUSES)[number];
 
 export const FUELS = ["Dizel", "Benzin", "Hibrid", "Električni"] as const;
 export const GEARBOXES = ["Manuelni", "Automatski"] as const;
-/** Passenger vans carry people; cargo vans carry things (moving house, furniture, building material). */
-export const CATEGORIES = ["passenger", "cargo"] as const;
+/**
+ * Passenger vans carry people; cargo vans carry things (moving house,
+ * furniture, building material); cars are ordinary passenger cars.
+ */
+export const CATEGORIES = ["passenger", "cargo", "car"] as const;
 export type Category = (typeof CATEGORIES)[number];
+/** Packages count vans and cars separately: the same number of each. */
+export type VehicleKind = "van" | "car";
+export const kindOf = (category: Category | undefined): VehicleKind => (category === "car" ? "car" : "van");
 
 export const MAX_PHOTOS = 12;
 

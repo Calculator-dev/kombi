@@ -16,7 +16,7 @@ export async function vanMetadata(slug: string, locale: Locale): Promise<Metadat
   const d = dict(locale);
   const t = d.van;
   const gearbox = (d.gearboxes[van.gearbox] ?? van.gearbox).toLowerCase();
-  const title = t.metaTitle(van.name, van.location);
+  const title = van.category === "car" ? d.car.metaTitle(van.name, van.location) : t.metaTitle(van.name, van.location);
   const description = van.pricing.priceOnRequest
     ? t.metaOnRequest(van.name, van.year, van.seats, gearbox)
     : t.metaPriced(van.name, van.year, van.seats, gearbox, van.pricing.dailyRate);
@@ -58,7 +58,11 @@ export async function VanPage({ slug, locale }: { slug: string; locale: Locale }
           }
           intro={
             (locale === "bs" && van.description.split("\n")[0]) ||
-            (van.category === "cargo" ? d.cargo.intro(gearbox.toLowerCase(), onRequest) : t.intro(van.seats, gearbox.toLowerCase(), onRequest))
+            (van.category === "cargo"
+              ? d.cargo.intro(gearbox.toLowerCase(), onRequest)
+              : van.category === "car"
+                ? d.car.intro(van.seats, gearbox.toLowerCase(), onRequest)
+                : t.intro(van.seats, gearbox.toLowerCase(), onRequest))
           }
           media={van.photos.length > 0 && <Gallery photos={van.photos} name={van.name} spin={van.spin} />}
           specs={[

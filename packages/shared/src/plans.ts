@@ -1,12 +1,13 @@
 /**
- * Packages for van owners. Everyone starts on "free" with one published van;
- * a paid package raises that number and opens the analytics. A platform admin
+ * Packages for van owners. Everyone starts on "free" with one published van
+ * and one published car; a paid package raises both numbers (the same limit
+ * for each) and opens the analytics. A platform admin
  * sets an owner's package (there is no online payment).
  */
 export const PLANS = ["free", "bronze", "silver", "gold"] as const;
 export type Plan = (typeof PLANS)[number];
 
-export const PLAN_INFO: Record<Plan, { label: string; /** Published vans allowed; null = no limit. */ maxVans: number | null; analytics: boolean }> = {
+export const PLAN_INFO: Record<Plan, { label: string; /** Published vans allowed, and as many cars; null = no limit. */ maxVans: number | null; analytics: boolean }> = {
   free: { label: "Osnovni", maxVans: 1, analytics: false },
   bronze: { label: "Bronze", maxVans: 3, analytics: true },
   silver: { label: "Silver", maxVans: 10, analytics: true },
@@ -14,9 +15,11 @@ export const PLAN_INFO: Record<Plan, { label: string; /** Published vans allowed
 };
 
 export const vansWord = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? "kombi" : "kombija");
+export const carsWord = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? "auto" : "auta");
+/** "3 kombija i 3 auta". */
 export const planVans = (plan: Plan) => {
   const max = PLAN_INFO[plan].maxVans;
-  return max === null ? "neograničen broj kombija" : `${max} ${vansWord(max)}`;
+  return max === null ? "neograničen broj kombija i auta" : `${max} ${vansWord(max)} i ${max} ${carsWord(max)}`;
 };
 
 /** Numbers for the owner's analytics page. */

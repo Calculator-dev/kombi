@@ -26,7 +26,7 @@ export function VanCardView({
   const query = dates ? `?start=${dates.start}&end=${dates.end}` : "";
   const cargo = c.category === "cargo";
   const specs = [
-    cargo ? t.category.cargo : null,
+    cargo ? t.category.cargo : c.category === "car" ? t.category.car : null,
     cargo && c.cargoM3 ? t.cargo.m3(c.cargoM3) : null,
     cargo && c.payloadKg ? t.cargo.kg(c.payloadKg) : null,
     t.card.seats(c.seats),

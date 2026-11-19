@@ -56,7 +56,7 @@ export function VanDetails({ van, locale = "bs" }: { van: PublicVan; locale?: Lo
     <section id="kombi" className="section" aria-labelledby="kombi-h">
       <div className="wrap">
         <div className="van-head">
-          <h2 id="kombi-h" className="display h-lg">{t.about}</h2>
+          <h2 id="kombi-h" className="display h-lg">{van.category === "car" ? d.car.about : t.about}</h2>
           <p className="caption">{t.yearOf(van.location, van.year)}</p>
         </div>
         {/* The photos are at the top of the page; without any, a drawing stands in here. */}
@@ -81,7 +81,7 @@ export function VanDetails({ van, locale = "bs" }: { van: PublicVan; locale?: Lo
         )}
         {van.description && <p className="lead van-desc">{van.description}</p>}
         <h3 className="van-map-h">{d.map.title}</h3>
-        <VanMap city={van.location} />
+        <VanMap city={van.location} car={van.category === "car"} />
       </div>
     </section>
   );

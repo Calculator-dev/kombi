@@ -117,7 +117,9 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
     ? t.searching
     : dates
       ? t.freeCount(result.free, q.taken && result.total > result.free ? result.total - result.free : 0)
-      : t.count(result.total);
+      : q.type === "car"
+        ? t.carCount(result.total)
+        : t.count(result.total);
 
   return (
     <div className="wrap search-layout">
@@ -226,7 +228,7 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
                 ? `${shortDate(dates.start, locale)} – ${shortDate(dates.end, locale)}`
                 : q.q
                   ? locale === "en" ? `“${q.q}”` : `„${q.q}"`
-                  : q.type === "cargo" ? d.category.cargoLong : q.type === "passenger" ? d.category.passengerLong : t.allVans}
+                  : q.type === "cargo" ? d.category.cargoLong : q.type === "passenger" ? d.category.passengerLong : q.type === "car" ? d.category.carLong : t.allVans}
             </h1>
             <p className="caption" aria-live="polite">{error ? t.loadFailed : summary}</p>
           </div>

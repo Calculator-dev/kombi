@@ -97,7 +97,7 @@ export const vans = pgTable(
     index("vans_owner_idx").on(t.ownerId),
     index("vans_search_idx").on(t.status, t.seats),
     check("vans_status_check", sql`${t.status} in ('draft', 'published')`),
-    check("vans_category_check", sql`${t.category} in ('passenger', 'cargo')`),
+    check("vans_category_check", sql`${t.category} in ('passenger', 'cargo', 'car')`),
   ],
 ).enableRLS();
 
