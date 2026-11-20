@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, gte, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import {
   DEFAULT_CONTRACT_TERMS,
   DEFAULT_SETTINGS,
@@ -16,6 +16,7 @@ import {
   slugify,
   termsSchema,
   upgradeSettings,
+  type BrandId,
   type ContractTerms,
   type PhotoUrls,
   type PublicVan,
@@ -84,11 +85,35 @@ export async function ownerNameOf(db: Executor, van: VanRow): Promise<string | n
   return (await ownerOf(db, van))?.name ?? null;
 }
 
-/** What the public page says about a van's owner: profile name and VAT status. Null for the platform's own vans. */
-export async function ownerOf(db: Executor, van: VanRow): Promise<{ name: string | null; vat: boolean } | null> {
+/** What the public page says about a van's owner: profile name, VAT status, logo. Null for the platform's own vans. */
+export async function ownerOf(
+  db: Executor,
+  van: VanRow,
+): Promise<{ id: string; name: string | null; vat: boolean; slug: string | null; logo: { key: string } | null; email: string } | null> {
   if (!van.ownerId) return null;
-  const [row] = await db.select({ name: users.name, vat: users.vatRegistered }).from(users).where(eq(users.id, van.ownerId));
-  return row ? { name: row.name?.trim() || null, vat: row.vat } : null;
+  const [row] = await db
+    .select({ id: users.id, name: users.name, vat: users.vatRegistered, slug: users.slug, logo: users.logo, email: users.email })
+    .from(users)
+    .where(eq(users.id, van.ownerId));
+  return row ? { ...row, name: row.name?.trim() || null } : null;
+}
+
+export const logoUrl = (storage: PhotoStorage, logo: { key: string } | null | undefined) => (logo ? storage.url(logo.key) : null);
+
+/** Logo addresses of the owners of these vans, by van id. */
+export async function ownerLogos(db: Executor, storage: PhotoStorage, list: Pick<VanRow, "id" | "ownerId">[]): Promise<Map<string, string>> {
+  const ids = [...new Set(list.map((v) => v.ownerId).filter((x): x is string => Boolean(x)))];
+  if (!ids.length) return new Map();
+  const rows = await db.select({ id: users.id, logo: users.logo }).from(users).where(and(inArray(users.id, ids), isNotNull(users.logo)));
+  const byOwner = new Map(rows.map((r) => [r.id, logoUrl(storage, r.logo)!]));
+  return new Map(list.flatMap((v) => (v.ownerId && byOwner.has(v.ownerId) ? [[v.id, byOwner.get(v.ownerId)!] as const] : [])));
+}
+
+/** How many vehicles of each make, most first; vehicles without a make are left out. */
+export function brandCounts(list: Pick<VanRow, "brand">[]): { id: BrandId; count: number }[] {
+  const counts = new Map<BrandId, number>();
+  for (const v of list) if (v.brand) counts.set(v.brand, (counts.get(v.brand) ?? 0) + 1);
+  return [...counts].map(([id, count]) => ({ id, count })).sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
 }
 
 /**
@@ -334,6 +359,7 @@ export async function vanNames(db: Executor, ids: string[]): Promise<Map<string,
 
 const details = (v: VanRow) => ({
   name: v.name,
+  brand: v.brand ?? null,
   category: v.category,
   cargoM3: v.cargoM3,
   payloadKg: v.payloadKg,
@@ -361,6 +387,7 @@ export function toPublicVan(storage: PhotoStorage, v: VanRow): PublicVan {
     ...details(v),
     photos: v.photos.map((p) => photoUrls(storage, p)),
     spin: publicSpin(storage, v),
+    spinVideo: v.spinVideo ? { url: storage.url(v.spinVideo.key), contentType: v.spinVideo.contentType } : null,
     pricing: pricingOf(v),
     terms: termsOf(v),
   };
@@ -370,6 +397,7 @@ export function toCard(storage: PhotoStorage, v: VanRow): VanCard {
   return {
     id: v.id,
     slug: v.slug,
+    brand: v.brand ?? null,
     name: v.name,
     category: v.category,
     cargoM3: v.cargoM3,
@@ -426,8 +454,8 @@ export async function searchVans(db: Executor, storage: PhotoStorage, q: VanSear
     q.priceMin !== undefined ? and(priced, sql`${dailyRate} >= ${q.priceMin}`) : undefined,
     q.priceMax !== undefined ? and(priced, sql`${dailyRate} <= ${q.priceMax}`) : undefined,
   );
-  const [rows, cityRows] = await Promise.all([
-    db.select({ van: vans }).from(vans).leftJoin(users, eq(users.id, vans.ownerId)).where(where),
+  const [all, cityRows] = await Promise.all([
+    db.select({ van: vans, logo: users.logo }).from(vans).leftJoin(users, eq(users.id, vans.ownerId)).where(where),
     db
       .selectDistinct({ city: vans.location })
       .from(vans)
@@ -436,10 +464,13 @@ export async function searchVans(db: Executor, storage: PhotoStorage, q: VanSear
       .orderBy(asc(vans.location)),
   ]);
 
+  // The make filter applies last, so the list of makes shows what else there is.
+  const brands = brandCounts(all.map((r) => r.van));
+  const rows = q.brand ? all.filter((r) => r.van.brand === q.brand) : all;
   type Card = ReturnType<typeof toCard>;
   const bookable = (c: Card) => c.available !== false && !c.quote?.errors.length;
   const ratings = await ratingsOf(db, rows.map(({ van }) => van.id));
-  let cards: Card[] = rows.map(({ van }) => ({ ...toCard(storage, van), rating: ratings.get(van.id) }));
+  let cards: Card[] = rows.map(({ van, logo }) => ({ ...toCard(storage, van), rating: ratings.get(van.id), ownerLogo: logoUrl(storage, logo) }));
   let free = cards.length;
   if (q.start && q.end) {
     const dates = { start: q.start, end: q.end };
@@ -474,5 +505,6 @@ export async function searchVans(db: Executor, storage: PhotoStorage, q: VanSear
     page,
     pageSize: SEARCH_PAGE_SIZE,
     cities: cityRows.map((r) => r.city),
+    brands,
   };
 }

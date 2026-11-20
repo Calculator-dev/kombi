@@ -6,6 +6,9 @@ import { HttpError } from "../errors";
 import { getBooking, type Booking } from "./bookings";
 import { contractTermsOf, pricingOf, termsOf } from "./vans";
 import { getUser } from "./users";
+import type { PhotoStorage } from "./storage";
+import { handoverOf } from "./videos";
+import { logoUrl } from "./vans";
 
 const { bookings, vans } = schema;
 
@@ -14,10 +17,10 @@ const { bookings, vans } = schema;
  * lessor, the customer as renter, the van's papers and the agreed dates and price.
  * Whatever is missing comes back empty and is filled in by hand.
  */
-export async function contractFor(db: Executor, user: UserRow, bookingId: string, today: string): Promise<ContractData> {
+export async function contractFor(db: Executor, storage: PhotoStorage, user: UserRow, bookingId: string, today: string): Promise<ContractData> {
   const b = await getBooking(db, user, bookingId);
   if (!b) throw new HttpError(404, "not_found", "Rezervacija ne postoji.");
-  return fill(db, b, today);
+  return fill(db, storage, b, today);
 }
 
 /**
@@ -25,16 +28,16 @@ export async function contractFor(db: Executor, user: UserRow, bookingId: string
  * confirmation email. Only confirmed bookings: until then the owner may still
  * change the terms, and a declined request has no contract.
  */
-export async function contractByToken(db: Executor, token: string, today: string): Promise<ContractData> {
+export async function contractByToken(db: Executor, storage: PhotoStorage, token: string, today: string): Promise<ContractData> {
   const [b] = await db
     .select()
     .from(bookings)
     .where(and(eq(bookings.contractToken, token), eq(bookings.status, "confirmed")));
   if (!b) throw new HttpError(404, "not_found", "Ugovor ne postoji.");
-  return fill(db, b, today);
+  return fill(db, storage, b, today);
 }
 
-async function fill(db: Executor, b: Omit<Booking, "vanName" | "holdExpired">, today: string): Promise<ContractData> {
+async function fill(db: Executor, storage: PhotoStorage, b: Omit<Booking, "vanName" | "holdExpired">, today: string): Promise<ContractData> {
   const [van] = await db.select().from(vans).where(eq(vans.id, b.vanId));
   if (!van) throw new HttpError(404, "not_found", "Kombi ne postoji.");
   const owner = van.ownerId ? await getUser(db, van.ownerId) : null;
@@ -49,7 +52,9 @@ async function fill(db: Executor, b: Omit<Booking, "vanName" | "holdExpired">, t
       representative: owner?.representative ?? "",
       phone: owner?.phone ?? "",
       email: owner?.email ?? "",
+      logo: logoUrl(storage, owner?.logo),
     },
+    handover: (await handoverOf(db, storage, [b.id])).get(b.id) ?? [],
     renter: {
       name: b.name,
       jmb: b.jmb ?? "",

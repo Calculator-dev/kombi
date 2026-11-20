@@ -6,6 +6,7 @@ import { trackEcommerce } from "@/lib/analytics";
 import { km } from "@/lib/format";
 import { translateQuoteError } from "@/lib/i18n";
 import { useLocale } from "@/lib/useLocale";
+import { BrandLogo } from "./BrandLogo";
 import { VanDrawing } from "./VanDrawing";
 
 /** One van in a list: photo, key specs and the price (exact total when dates are picked). */
@@ -49,9 +50,14 @@ export function VanCardView({
             <VanDrawing compact />
           )}
           <span className="van-city">{c.location}</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {c.ownerLogo && <img className="van-owner-logo" src={c.ownerLogo} alt="" width={40} height={40} loading="lazy" />}
         </div>
         <div className="van-info">
-          <h3>{c.name}</h3>
+          <h3>
+            {c.brand && c.brand !== "other" && <BrandLogo brand={c.brand} size={20} />}
+            {c.name}
+          </h3>
           {c.rating && (
             <p className="van-rating" aria-label={t.reviews.summary(String(c.rating.average), c.rating.count)}>
               <span className="stars" aria-hidden="true">★</span> {c.rating.average.toFixed(1)} <span>({c.rating.count})</span>

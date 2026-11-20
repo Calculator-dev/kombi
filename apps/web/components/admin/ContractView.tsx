@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { createContext, useContext, useEffect, useState } from "react";
-import type { ContractData } from "@kombi/shared";
+import { HANDOVER_LABELS, HANDOVER_SIDES, HANDOVER_STAGES, type ContractData } from "@kombi/shared";
 import { ApiError, adminApi } from "@/lib/api";
 import { PREAMBLE, contractArticles, dotDate, lessorRows, placeOf, renterRows, type Block } from "@/lib/contract";
 
@@ -118,6 +118,8 @@ export function ContractSheet({ data, renter }: { data: ContractData; renter?: b
       </div>
 
       <article className="contract">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {data.lessor.logo && <img className="contract-logo" src={data.lessor.logo} alt="" width={72} height={72} />}
         <h1>
           Ugovor o najmu
           <br />
@@ -144,6 +146,30 @@ export function ContractSheet({ data, renter }: { data: ContractData; renter?: b
           <div>Najmodavac</div>
         </div>
       </article>
+
+      {data.handover && data.handover.length > 0 && (
+        <section className="contract-handover" aria-labelledby="handover-h">
+          <h2 id="handover-h" className="display h-md">Zapisnik o stanju vozila</h2>
+          <p className="caption">Najmodavac je snimio vozilo sa svih strana pri predaji i povratku. Videi se ne štampaju.</p>
+          {HANDOVER_STAGES.map((stage) => {
+            const list = HANDOVER_SIDES.flatMap((side) => data.handover!.filter((v) => v.stage === stage && v.side === side));
+            if (!list.length) return null;
+            return (
+              <div key={stage} className="handover-stage">
+                <h3>{HANDOVER_LABELS[stage]}</h3>
+                <div className="handover-grid">
+                  {list.map((v) => (
+                    <figure key={v.id}>
+                      <video src={v.url} controls playsInline preload="metadata" />
+                      <figcaption>{HANDOVER_LABELS[v.side]} · {new Date(v.createdAt).toLocaleString("bs-BA", { timeZone: "Europe/Sarajevo", dateStyle: "short", timeStyle: "short" })}</figcaption>
+                    </figure>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      )}
     </main>
   );
 }

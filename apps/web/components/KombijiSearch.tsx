@@ -18,6 +18,7 @@ import { api } from "@/lib/api";
 import { track, trackEcommerce } from "@/lib/analytics";
 import { shortDate } from "@/lib/format";
 import { useLocale } from "@/lib/useLocale";
+import { BrandCounts } from "./BrandCounts";
 import { VanCardView } from "./VanCardView";
 
 const SEAT_OPTIONS = [5, 7, 8, 9, 12, 15, 20];
@@ -106,8 +107,8 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
   }
 
   const dates = q.start && q.end ? { start: q.start, end: q.end } : null;
-  const active = [q.type, q.seats, q.luggage, q.gearbox, q.fuel, q.city, q.priceMin, q.priceMax, q.yearMin, q.features?.length].filter(Boolean).length;
-  const clear = () => update({ type: undefined, seats: undefined, luggage: undefined, gearbox: undefined, fuel: undefined, city: undefined, priceMin: undefined, priceMax: undefined, yearMin: undefined, features: undefined });
+  const active = [q.brand, q.type, q.seats, q.luggage, q.gearbox, q.fuel, q.city, q.priceMin, q.priceMax, q.yearMin, q.features?.length].filter(Boolean).length;
+  const clear = () => update({ brand: undefined, type: undefined, seats: undefined, luggage: undefined, gearbox: undefined, fuel: undefined, city: undefined, priceMin: undefined, priceMax: undefined, yearMin: undefined, features: undefined });
 
   const summary = loading
     ? t.searching
@@ -125,6 +126,13 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
           {active > 0 && <button type="button" className="link" onClick={clear}>{t.clear(active)}</button>}
           <button type="button" className="filters-close" onClick={() => setFiltersOpen(false)} aria-label={t.closeFilters}>✕</button>
         </div>
+
+        {result.brands?.length > 0 && (
+          <fieldset className="filter-group">
+            <legend>{t.brand}</legend>
+            <BrandCounts brands={result.brands} active={q.brand} onPick={(id) => update({ brand: q.brand === id ? undefined : id })} />
+          </fieldset>
+        )}
 
         <fieldset className="filter-group">
           <legend>{t.type}</legend>

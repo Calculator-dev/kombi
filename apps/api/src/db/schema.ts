@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, date, index, integer, jsonb, pgSequence, pgTable, primaryKey, real, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import type { BookingStatus, Category, ContactChannel, ContractTerms, DocumentKind, DocumentRules, Plan, Quote, Settings, Terms, UserRole, UserStatus, VanStatus } from "@kombi/shared";
+import { boolean, check, date, index, integer, jsonb, pgSequence, pgTable, primaryKey, real, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import type { BookingStatus, BrandId, Category, HandoverSide, HandoverStage, ContactChannel, ContractTerms, DocumentKind, DocumentRules, Plan, Quote, Settings, Terms, UserRole, UserStatus, VanStatus } from "@kombi/shared";
 
 // Row-Level Security is on for every table with no policies: on Supabase this keeps the
 // tables closed to its public REST API. The API connects as the table owner, which bypasses RLS.
@@ -28,6 +28,10 @@ export const users = pgTable(
     /** In the VAT system: prices on their vans include PDV. */
     vatRegistered: boolean("vat_registered").notNull().default(false),
     /** Which document photos customers upload with a booking request for this owner's vans. */
+    /** Address of the owner's public company page: /firma/<slug>. Set when the profile is first saved. */
+    slug: text("slug").unique(),
+    /** The company's logo (WebP, square), shown on its vans, page and contracts. */
+    logo: jsonb("logo").$type<{ key: string } | null>(),
     documentRules: jsonb("document_rules").$type<DocumentRules>().notNull().default({ id: "off", license: "off" }),
     role: text("role").$type<UserRole>().notNull().default("owner"),
     status: text("status").$type<UserStatus>().notNull().default("pending"),
@@ -51,6 +55,13 @@ export interface StoredPhoto {
   height: number;
 }
 
+/** A video in the bucket, stored as uploaded. */
+export interface StoredVideo {
+  key: string;
+  contentType: string;
+  size: number;
+}
+
 /** A photo of the 360° view; slot 0 is 12 o'clock (the front), going clockwise. */
 export interface SpinPhoto extends StoredPhoto {
   slot: number;
@@ -65,6 +76,8 @@ export const vans = pgTable(
     slug: text("slug").notNull().unique(),
     status: text("status").$type<VanStatus>().notNull().default("draft"),
     name: text("name").notNull(),
+    /** The make (see BRANDS in @kombi/shared); null = not said. */
+    brand: text("brand").$type<BrandId>(),
     /** "passenger" or "cargo" (see CATEGORIES in @kombi/shared). */
     category: text("category").$type<Category>().notNull().default("passenger"),
     /** Cargo space in m³; 0 = not given. */
@@ -89,6 +102,8 @@ export const vans = pgTable(
     /** Whether the 360° view is shown; switching it off keeps its photos. */
     spinEnabled: boolean("spin_enabled").notNull().default(false),
     spinPhotos: jsonb("spin_photos").$type<SpinPhoto[]>().notNull().default([]),
+    /** A walk-around video shown with the 360° view. */
+    spinVideo: jsonb("spin_video").$type<StoredVideo | null>(),
     /** Prices, seasons, extras and pickup places of this van. */
     pricing: jsonb("pricing").$type<Settings>().notNull(),
     /** Rental terms (driver age, cancellation, what's included…). */
@@ -182,6 +197,49 @@ export const bookingDocuments = pgTable(
 ).enableRLS();
 
 export type BookingDocumentRow = typeof bookingDocuments.$inferSelect;
+
+/** A video of one side of the vehicle, recorded by the owner at pickup or return. */
+export const handoverVideos = pgTable(
+  "handover_videos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+    stage: text("stage").$type<HandoverStage>().notNull(),
+    side: text("side").$type<HandoverSide>().notNull(),
+    key: text("key").notNull(),
+    contentType: text("content_type").notNull(),
+    size: integer("size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("handover_videos_side_idx").on(t.bookingId, t.stage, t.side),
+    check("handover_videos_stage_check", sql`${t.stage} in ('pickup', 'return')`),
+    check("handover_videos_side_check", sql`${t.side} in ('front', 'right', 'back', 'left')`),
+  ],
+).enableRLS();
+
+export type HandoverVideoRow = typeof handoverVideos.$inferSelect;
+
+/** A service or repair the owner noted for a vehicle; shown on its page. */
+export const vanServices = pgTable(
+  "van_services",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    vanId: uuid("van_id")
+      .notNull()
+      .references(() => vans.id, { onDelete: "cascade" }),
+    date: date("date", { mode: "string" }).notNull(),
+    title: text("title").notNull(),
+    km: integer("km").notNull().default(0),
+    work: text("work").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("van_services_van_idx").on(t.vanId, t.date)],
+).enableRLS();
+
+export type VanServiceRow = typeof vanServices.$inferSelect;
 
 export const blockedRanges = pgTable(
   "blocked_ranges",

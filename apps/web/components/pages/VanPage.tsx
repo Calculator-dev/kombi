@@ -7,7 +7,10 @@ import { Footer } from "../Footer";
 import { Gallery } from "../Gallery";
 import { Header } from "../Header";
 import { JsonLd } from "../JsonLd";
-import { Contact, Faq, Hero, Prices, Reviews, Rules, VanDetails } from "../Sections";
+import Link from "next/link";
+import { brandName } from "@kombi/shared";
+import { BrandLogo } from "../BrandLogo";
+import { Contact, Faq, Hero, Prices, Reviews, Rules, Services, SpinVideo, VanDetails } from "../Sections";
 import { VanTicket } from "../VanTicket";
 
 export async function vanMetadata(slug: string, locale: Locale): Promise<Metadata> {
@@ -70,7 +73,21 @@ export async function VanPage({ slug, locale }: { slug: string; locale: Locale }
             onRequest ? [t.price, d.onRequest] : [t.from, d.home.kmPerDay(van.pricing.dailyRate)],
             van.category === "cargo" && van.cargoM3 ? [d.cargo.space, d.cargo.m3(van.cargoM3)] : [t.seats, String(van.seats)],
             [t.gearbox, gearbox],
-            [d.owner.label, van.owner || d.owner.platform],
+            ...(van.brand && van.brand !== "other"
+              ? [[d.owner.brand, <span key="b" className="spec-brand"><BrandLogo brand={van.brand} size={20} title="" />{brandName(van.brand)}</span>] as [string, React.ReactNode]]
+              : []),
+            [
+              d.owner.label,
+              van.ownerSlug ? (
+                <Link className="spec-owner" href={localePath(locale, `/firma/${van.ownerSlug}`)}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {van.ownerLogo && <img src={van.ownerLogo} alt="" width={28} height={28} />}
+                  {van.owner || d.owner.platform}
+                </Link>
+              ) : (
+                van.owner || d.owner.platform
+              ),
+            ],
             ...(van.reviews?.count ? [[d.reviews.title.join(" "), `★ ${van.reviews.average} (${van.reviews.count})`] as [string, string]] : []),
             [t.payment, t.paymentValue],
           ]}
@@ -81,9 +98,11 @@ export async function VanPage({ slug, locale }: { slug: string; locale: Locale }
             />
           </Suspense>
         </Hero>
+        <SpinVideo video={van.spinVideo} name={van.name} locale={locale} />
         <VanDetails van={van} locale={locale} />
         <Prices settings={van.pricing} included={van.terms.included} vat={van.vat} locale={locale} />
         <Rules terms={van.terms} settings={van.pricing} limits={van.limits} locale={locale} />
+        <Services services={van.services} locale={locale} />
         <Reviews reviews={van.reviews} locale={locale} />
         <Faq locale={locale} />
         <Contact locale={locale} />

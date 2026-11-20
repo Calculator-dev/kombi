@@ -1,5 +1,5 @@
 import "server-only";
-import { DEFAULT_TERMS, SEARCH_PAGE_SIZE, type PublicVan, type SearchResult, type VanCard } from "@kombi/shared";
+import { DEFAULT_TERMS, SEARCH_PAGE_SIZE, type CompanyPage, type PublicVan, type SearchResult, type VanCard } from "@kombi/shared";
 
 const API_URL = process.env.API_URL ?? "http://localhost:4000";
 
@@ -62,8 +62,19 @@ export async function searchVans(query: string): Promise<SearchResult> {
   try {
     const res = await fetch(`${API_URL}/api/search?${query}`, { cache: "no-store", signal: AbortSignal.timeout(8000) });
     if (!res.ok) throw new Error(String(res.status));
-    return (await res.json()) as SearchResult;
+    const r = (await res.json()) as SearchResult;
+    // An older API (mid-deploy) has no makes yet.
+    return { ...r, brands: r.brands ?? [] };
   } catch {
-    return { items: [], total: 0, free: 0, page: 1, pageSize: SEARCH_PAGE_SIZE, cities: [] };
+    return { items: [], total: 0, free: 0, page: 1, pageSize: SEARCH_PAGE_SIZE, cities: [], brands: [] };
   }
+}
+
+/** An owner's public page; null when there is no such (approved) owner. */
+export async function getCompany(slug: string): Promise<CompanyPage | null> {
+  if (!/^[a-z0-9-]{1,80}$/.test(slug)) return null;
+  const res = await fetch(`${API_URL}/api/companies/${slug}`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(15000) });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`API answered ${res.status} for company ${slug}`);
+  return (await res.json()) as CompanyPage;
 }

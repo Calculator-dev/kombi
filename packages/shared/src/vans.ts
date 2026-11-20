@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { NO_DOCUMENTS, documentRulesSchema, type DocumentRules } from "./documents";
+import { BRAND_IDS, type BrandId } from "./brands";
 import { isIsoDate } from "./dates";
 import type { Quote } from "./pricing";
 import type { Settings } from "./settings";
@@ -54,6 +55,8 @@ export const featureLabel = (id: string) => FEATURES.find(([f]) => f === id)?.[1
 /** What an owner fills in about a van. */
 export const vanDetailsSchema = z.object({
   name: z.string().trim().min(2, "Upišite naziv").max(80),
+  /** The make, picked from a list (with its logo); null = not said. */
+  brand: z.enum(BRAND_IDS).nullable().default(null),
   category: z.enum(CATEGORIES).default("passenger"),
   /** Cargo space in m³ (cargo vans); 0 = not given. */
   cargoM3: z.number().min(0).max(100, "Najviše 100 m³").default(0),
@@ -143,10 +146,17 @@ export interface PublicVan extends VanDetails {
   photos: PhotoUrls[];
   /** The 360° view, in clock order; only when it's switched on and every slot has a photo. */
   spin?: PhotoUrls[] | null;
+  /** A video walking around the vehicle, shown with the 360° view. */
+  spinVideo?: VideoUrl | null;
   pricing: Settings;
   terms: Terms;
   /** Who rents it out: the owner's profile name; null when kombi.ba runs it itself. */
   owner?: string | null;
+  /** The owner's company page and logo. */
+  ownerSlug?: string | null;
+  ownerLogo?: string | null;
+  /** Service history, newest first. */
+  services?: VanService[];
   /** Whether the owner is in the VAT system; null when not known (kombi.ba's own vans). */
   vat?: boolean | null;
   /** Mileage and damage terms, as far as the owner has filled them in for the contract. */
@@ -191,7 +201,7 @@ export type ReviewInput = z.infer<typeof reviewSchema>;
 
 /** A van in a list, optionally with availability and price for chosen dates. */
 export interface VanCard
-  extends Pick<VanDetails, "name" | "year" | "seats" | "fuel" | "gearbox" | "location" | "luggage" | "powerHp" | "features" | "category" | "cargoM3" | "payloadKg"> {
+  extends Pick<VanDetails, "brand" | "name" | "year" | "seats" | "fuel" | "gearbox" | "location" | "luggage" | "powerHp" | "features" | "category" | "cargoM3" | "payloadKg"> {
   id: string;
   slug: string;
   photo: PhotoUrls | null;
@@ -200,6 +210,8 @@ export interface VanCard
   priceOnRequest?: boolean;
   /** Average stars and how many reviews; only when there are any. */
   rating?: { average: number; count: number };
+  /** The owner's company logo, if they added one. */
+  ownerLogo?: string | null;
   /** Only when dates were given. */
   available?: boolean;
   quote?: Pick<Quote, "days" | "total" | "errors">;
@@ -243,6 +255,7 @@ export const vanSearchSchema = z
     q: z.preprocess((v) => (typeof v === "string" && v.trim() ? v.trim() : undefined), z.string().max(80).optional()).catch(undefined),
     /** Passenger or cargo vans only. */
     type: z.enum(CATEGORIES).optional().catch(undefined),
+    brand: z.enum(BRAND_IDS).optional().catch(undefined),
     start: z.string().refine(isIsoDate).optional().catch(undefined),
     end: z.string().refine(isIsoDate).optional().catch(undefined),
     seats: optInt(1, 60).catch(undefined),
@@ -294,4 +307,61 @@ export interface SearchResult {
   pageSize: number;
   /** Cities that have vans, for the city filter. */
   cities: string[];
+  /** Makes with how many vehicles of each (with every other filter applied), most first. */
+  brands: { id: BrandId; count: number }[];
 }
+
+export interface VideoUrl {
+  url: string;
+  contentType: string;
+}
+
+/** A service or repair, as the owner notes it for a vehicle. */
+export const vanServiceSchema = z.object({
+  date: z.string().refine(isIsoDate, "Neispravan datum"),
+  /** e.g. "Mali servis", "Veliki servis", "Zamjena guma". */
+  title: z.string().trim().min(2, "Upišite vrstu servisa").max(80),
+  /** Odometer at the service; 0 = not given. */
+  km: z.number().int().min(0).max(5_000_000).default(0),
+  /** What was done or replaced. */
+  work: z.string().trim().max(1000).default(""),
+});
+export type VanServiceInput = z.infer<typeof vanServiceSchema>;
+export type VanService = VanServiceInput & { id: string };
+export const SERVICE_TITLES = ["Mali servis", "Veliki servis", "Zamjena guma", "Kočnice", "Tehnički pregled", "Popravak"] as const;
+
+/** A company page: the owner, their logo, what makes they have and their vehicles. */
+export interface CompanyPage {
+  slug: string;
+  name: string;
+  logo: string | null;
+  location: string | null;
+  brands: { id: BrandId; count: number }[];
+  vans: VanCard[];
+}
+
+/** Videos of the vehicle's four sides an owner records at pickup and return. */
+export const HANDOVER_STAGES = ["pickup", "return"] as const;
+export type HandoverStage = (typeof HANDOVER_STAGES)[number];
+export const HANDOVER_SIDES = ["front", "right", "back", "left"] as const;
+export type HandoverSide = (typeof HANDOVER_SIDES)[number];
+export const HANDOVER_LABELS = {
+  pickup: "Pri preuzimanju",
+  return: "Pri povratku",
+  front: "Prednja strana",
+  right: "Desna strana",
+  back: "Zadnja strana",
+  left: "Lijeva strana",
+} as const;
+export interface HandoverVideo extends VideoUrl {
+  id: string;
+  stage: HandoverStage;
+  side: HandoverSide;
+  createdAt: string;
+}
+
+/** Videos (360° walk-around, handover) are streamed to storage; this is the most one may be. */
+export const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
+export const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"] as const;
+/** Handover videos are deleted this many days after the return, unless a dispute needs them longer. */
+export const KEEP_HANDOVER_DAYS = 365;

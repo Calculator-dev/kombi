@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { DOCUMENT_KINDS, DOCUMENT_LABELS, KEEP_DOCUMENTS_DAYS, NO_DOCUMENTS, profileSchema, type DocumentRule, type DocumentRules } from "@kombi/shared";
 import { ApiError, adminApi } from "@/lib/api";
+import { LogoUpload } from "./LogoUpload";
 import type { Me } from "./types";
 
 export function ProfileForm({ me, onSaved }: { me: Me; onSaved: (m: Me) => void }) {
@@ -39,6 +40,7 @@ export function ProfileForm({ me, onSaved }: { me: Me; onSaved: (m: Me) => void 
 
   return (
     <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <LogoUpload me={me} onSaved={onSaved} />
       <div className="fields">
         <label className="field" data-invalid={Boolean(errors.name)}>
           Ime i prezime ili firma

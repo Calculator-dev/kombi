@@ -30,7 +30,9 @@ import { checkUploads, documentRulesFor, documentsKey, prepareUploads, saveDocum
 import { ratingsOf, reviewContext, reviewSummary, submitReview } from "../services/reviews";
 import { recordVanEvent } from "../services/stats";
 import { getUser } from "../services/users";
-import { getPublicVan, listPublicVans, ownerOf, pricingOf, publicLimits, searchVans, toCard, toPublicVan } from "../services/vans";
+import { companyPage, ensureSlug } from "../services/company";
+import { servicesOf } from "../services/services";
+import { getPublicVan, listPublicVans, logoUrl, ownerLogos, ownerOf, pricingOf, publicLimits, searchVans, toCard, toPublicVan } from "../services/vans";
 
 const isoDate = z.string().refine(isIsoDate, "Neispravan datum");
 const slug = z.string().regex(/^[a-z0-9-]{1,80}$/);
@@ -57,8 +59,8 @@ export function publicRoutes({ db, config, notifier, storage, now }: Deps): Rout
       .optional()
       .parse(req.query.start || req.query.end ? { start: req.query.start, end: req.query.end } : undefined);
     const vans = await listPublicVans(db.orm);
-    const ratings = await ratingsOf(db.orm, vans.map((v) => v.id));
-    let cards: VanCard[] = vans.map((v) => ({ ...toCard(storage, v), rating: ratings.get(v.id) }));
+    const [ratings, logos] = await Promise.all([ratingsOf(db.orm, vans.map((v) => v.id)), ownerLogos(db.orm, storage, vans)]);
+    let cards: VanCard[] = vans.map((v) => ({ ...toCard(storage, v), rating: ratings.get(v.id), ownerLogo: logos.get(v.id) ?? null }));
     if (dates) {
       const busy = await busyVans(db.orm, vans.map((v) => v.id), dates.start, dates.end);
       cards = vans.map((v, i) => {
@@ -82,15 +84,31 @@ export function publicRoutes({ db, config, notifier, storage, now }: Deps): Rout
   r.get("/vans/:slug", async (req, res) => {
     res.set("Cache-Control", "public, max-age=60");
     const van = await publicVan(req.params.slug);
-    const [owner, reviews, documents] = await Promise.all([ownerOf(db.orm, van), reviewSummary(db.orm, van.id), documentRulesFor(db.orm, van.ownerId)]);
+    const [owner, reviews, documents, services] = await Promise.all([
+      ownerOf(db.orm, van),
+      reviewSummary(db.orm, van.id),
+      documentRulesFor(db.orm, van.ownerId),
+      servicesOf(db.orm, van.id),
+    ]);
     res.json({
       ...toPublicVan(storage, van),
       owner: owner?.name ?? null,
+      ownerSlug: owner ? await ensureSlug(db.orm, owner) : null,
+      ownerLogo: logoUrl(storage, owner?.logo),
+      services,
       vat: owner ? owner.vat : null,
       limits: publicLimits(van),
       reviews,
       documents: askedDocuments(documents).length ? documents : undefined,
     });
+  });
+
+  /** An owner's public page: logo, makes and vehicles. */
+  r.get("/companies/:slug", async (req, res) => {
+    const page = await companyPage(db.orm, storage, slug.parse(req.params.slug));
+    if (!page) throw new HttpError(404, "not_found", "Firma ne postoji.");
+    res.set("Cache-Control", "public, max-age=60");
+    res.json(page);
   });
 
   r.get("/vans/:slug/availability", async (req, res) => {
@@ -153,7 +171,7 @@ export function publicRoutes({ db, config, notifier, storage, now }: Deps): Rout
     const token = z.string().regex(/^[0-9a-f]{64}$/).safeParse(req.params.token);
     if (!token.success) throw new HttpError(404, "not_found", "Ugovor ne postoji.");
     res.set("Cache-Control", "private, no-store");
-    res.json(await contractByToken(db.orm, token.data, today()));
+    res.json(await contractByToken(db.orm, storage, token.data, today()));
   });
 
   const reviewToken = (t: unknown) => {
