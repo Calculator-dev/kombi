@@ -101,6 +101,8 @@ const bs = {
     privacy: "Privatnost",
     cookies: "Kolačići",
     country: "Bosna i Hercegovina",
+    company: "Firma",
+    idNumber: "ID broj",
   },
   search: {
     label: "Pretraži auta i kombije",
@@ -509,6 +511,8 @@ const en: Dict = {
     privacy: "Privacy",
     cookies: "Cookies",
     country: "Bosnia and Herzegovina",
+    company: "Company",
+    idNumber: "ID number",
   },
   search: {
     label: "Search cars and vans",

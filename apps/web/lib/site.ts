@@ -1,10 +1,15 @@
 import type { Category } from "@kombi/shared";
 import { dict } from "./i18n";
 
-/**
- * Business details shown across the site. Items in [brackets] are
- * placeholders for the owner to fill in before launch.
- */
+/** The business that runs the platform, as registered. */
+const COMPANY = {
+  name: "Obrtnička djelatnost Staze Kotromanića",
+  owner: "Bakir Hadžiahmetović",
+  address: "Geteova 15, Sarajevo",
+  idNumber: "4304350010002",
+};
+
+/** Business details shown across the site. */
 export const SITE = {
   name: "kombi.ba",
   url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://kombi.ba",
@@ -12,7 +17,8 @@ export const SITE = {
   email: "info@kombi.ba",
   replyWithin: "2 sata",
   /** Who runs the platform: shown in the privacy policy as the data controller. */
-  operator: "Obrtnička djelatnost Staze Kotromanića, vl. Bakir Hadžiahmetović, Geteova 15, Sarajevo, ID 4304350010002",
+  operator: `${COMPANY.name}, vl. ${COMPANY.owner}, ${COMPANY.address}, ID ${COMPANY.idNumber}`,
+  company: COMPANY,
   /** How long booking data is kept after the rental ends. */
   keepBookings: "5 godina",
   keepBookingsEn: "5 years",

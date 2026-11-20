@@ -32,8 +32,16 @@ export function Footer({ locale = "bs" }: { locale?: Locale }) {
           <span>{SITE.city}, {t.country}</span>
           <a href={`mailto:${SITE.email}`}>{SITE.email}</a>
         </div>
+        <div>
+          <b>{t.company}</b>
+          <span lang="bs">{SITE.company.name}</span>
+          <span>{SITE.company.address}</span>
+          <span>{t.idNumber}: {SITE.company.idNumber}</span>
+        </div>
       </div>
-      <div className="wrap copy">© {new Date().getFullYear()} kombi.ba</div>
+      <div className="wrap copy">
+        © {new Date().getFullYear()} kombi.ba · <span lang="bs">{SITE.company.name}</span>
+      </div>
     </footer>
   );
 }
