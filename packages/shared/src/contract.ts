@@ -1,3 +1,4 @@
+import type { HandoverVideo } from "./vans";
 import { z } from "zod";
 
 const text = (max: number) => z.string().trim().max(max).default("");
@@ -50,7 +51,9 @@ export interface ContractData {
   ref: string;
   /** The day the contract is made (YYYY-MM-DD). */
   date: string;
-  lessor: { name: string; address: string; companyId: string; representative: string; phone: string; email: string };
+  lessor: { name: string; address: string; companyId: string; representative: string; phone: string; email: string; logo?: string | null };
+  /** Videos of the vehicle's sides the owner recorded at pickup and return. */
+  handover?: HandoverVideo[];
   renter: { name: string; jmb: string; idNumber: string; licenseNumber: string; address: string; phone: string; email: string };
   van: { name: string; year: number; location: string };
   start: string;

@@ -56,6 +56,28 @@ const bs = {
   owner: {
     label: "Iznajmljuje",
     platform: "kombi.ba",
+    brand: "Marka",
+  },
+  services: {
+    title: ["Servisna", "historija"],
+    note: "Servise i popravke upisuje vlasnik vozila.",
+    km: (n: number) => `${n.toLocaleString("bs-BA")} km`,
+  },
+  spinVideo: {
+    title: ["Video", "obilaska"],
+    note: "Vozilo snimljeno sa svih strana, kakvo ćete ga preuzeti.",
+  },
+  company: {
+    vehicles: (n: number) => `${n} ${plural(n, "vozilo", "vozila", "vozila")}`,
+    makes: "Marke",
+    all: "Sva vozila",
+    metaTitle: (name: string) => `${name}: najam auta i kombija`,
+    metaDescription: (name: string, n: number, city: string) => `${name}${city ? `, ${city}` : ""}: ${n} ${plural(n, "vozilo", "vozila", "vozila")} za najam na kombi.ba. Cijene, slobodni termini i rezervacija.`,
+    empty: "Ova firma trenutno nema objavljenih vozila.",
+  },
+  handover: {
+    title: "Zapisnik o stanju vozila",
+    note: "Vlasnik je snimio vozilo sa svih strana pri predaji i povratku.",
   },
   map: {
     title: "Lokacija",
@@ -176,6 +198,7 @@ const bs = {
     freeVans: "Slobodna vozila",
   },
   results: {
+    brand: "Marka",
     type: "Vrsta",
     filters: "Filteri",
     clear: (n: number) => `Očisti (${n})`,
@@ -479,6 +502,28 @@ const en: Dict = {
   owner: {
     label: "Rented by",
     platform: "kombi.ba",
+    brand: "Make",
+  },
+  services: {
+    title: ["Service", "history"],
+    note: "Services and repairs are entered by the vehicle's owner.",
+    km: (n: number) => `${n.toLocaleString("en-GB")} km`,
+  },
+  spinVideo: {
+    title: ["Walk-around", "video"],
+    note: "The vehicle filmed from every side, as you'll pick it up.",
+  },
+  company: {
+    vehicles: (n: number) => `${n} ${n === 1 ? "vehicle" : "vehicles"}`,
+    makes: "Makes",
+    all: "All vehicles",
+    metaTitle: (name: string) => `${name}: car and van rental`,
+    metaDescription: (name: string, n: number, city: string) => `${name}${city ? `, ${city}` : ""}: ${n} ${n === 1 ? "vehicle" : "vehicles"} for rent on kombi.ba. Prices, free dates and booking.`,
+    empty: "This company has no vehicles listed right now.",
+  },
+  handover: {
+    title: "Vehicle condition record",
+    note: "The owner filmed the vehicle from every side at pickup and return.",
   },
   map: {
     title: "Location",
@@ -599,6 +644,7 @@ const en: Dict = {
     freeVans: "Available vehicles",
   },
   results: {
+    brand: "Make",
     type: "Type",
     filters: "Filters",
     clear: (n: number) => `Clear (${n})`,

@@ -48,6 +48,35 @@ export async function adminBlob(path: string): Promise<Blob> {
   return res.blob();
 }
 
+/**
+ * Sends a video as the raw request body to the admin API, reporting progress
+ * (0–1). Phones' .mov files sometimes come without a type, so it is guessed.
+ */
+export async function adminUploadVideo<T>(path: string, file: File, onProgress: (p: number) => void): Promise<T> {
+  const { supabase } = await import("./supabase");
+  const { data } = await supabase().auth.getSession();
+  if (!data.session) throw new ApiError(401, "unauthorized", "Prijavite se ponovo.");
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  const type = file.type || ({ mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm" } as Record<string, string>)[ext ?? ""] || "video/mp4";
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", `/api/admin${path}`);
+    xhr.setRequestHeader("Authorization", `Bearer ${data.session!.access_token}`);
+    xhr.setRequestHeader("Content-Type", type);
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
+    xhr.onload = () => {
+      let body: { error?: string; message?: string } = {};
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {}
+      if (xhr.status >= 200 && xhr.status < 300) resolve(body as T);
+      else reject(new ApiError(xhr.status, body.error ?? "error", body.message ?? "Video nije poslan. Pokušajte ponovo."));
+    };
+    xhr.onerror = () => reject(new ApiError(0, "network", "Veza je prekinuta. Pokušajte ponovo."));
+    xhr.send(file);
+  });
+}
+
 /** Calls the admin API as the logged-in Supabase user. */
 export async function adminApi<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
   const { supabase } = await import("./supabase");

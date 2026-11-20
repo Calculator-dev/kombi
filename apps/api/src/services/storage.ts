@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { Readable } from "node:stream";
 import { DeleteObjectsCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 import type { Config } from "../config";
@@ -8,6 +9,8 @@ import { HttpError } from "../errors";
 export interface PhotoStorage {
   /** `private`: not to be cached anywhere (customers' documents). */
   put(key: string, body: Buffer, contentType: string, opts?: { private?: boolean }): Promise<void>;
+  /** Stores a large file (a video) as it arrives, without holding it all in memory. */
+  putStream(key: string, body: Readable, length: number, contentType: string): Promise<void>;
   /** The stored bytes, or null when there is no such file. */
   get(key: string): Promise<Buffer | null>;
   remove(keys: string[]): Promise<void>;
@@ -37,6 +40,18 @@ export function backblazeStorage(config: Config): PhotoStorage {
         }),
       );
     },
+    async putStream(key, body, length, contentType) {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: body,
+          ContentLength: length,
+          ContentType: contentType,
+          CacheControl: "public, max-age=31536000, immutable",
+        }),
+      );
+    },
     async get(key) {
       try {
         const out = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
@@ -61,6 +76,11 @@ export function memoryStorage(): PhotoStorage & { files: Map<string, Buffer> } {
     files,
     async put(key, body) {
       files.set(key, body);
+    },
+    async putStream(key, body) {
+      const chunks: Buffer[] = [];
+      for await (const c of body) chunks.push(Buffer.from(c as Buffer));
+      files.set(key, Buffer.concat(chunks));
     },
     async get(key) {
       return files.get(key) ?? null;

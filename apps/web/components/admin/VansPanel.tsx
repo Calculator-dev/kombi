@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { FEATURES, FUELS, GEARBOXES, PLAN_INFO, kindOf, planVans, vanDetailsSchema, type FeatureId, type VanDetails } from "@kombi/shared";
+import { BRANDS, FEATURES, FUELS, GEARBOXES, PLAN_INFO, guessBrand, kindOf, planVans, vanDetailsSchema, type BrandId, type FeatureId, type VanDetails } from "@kombi/shared";
+import { BrandLogo } from "../BrandLogo";
+import { ServicesPanel } from "./ServicesPanel";
+import { VideoUpload } from "./VideoUpload";
 import { ApiError, adminApi } from "@/lib/api";
 import { km } from "@/lib/format";
 import { PhotoManager } from "./PhotoManager";
@@ -196,11 +199,29 @@ function VanEditor({
       <section>
         <h2 className="display h-md" style={{ marginBottom: 8 }}>360° pogled</h2>
         <SpinManager van={van} onSaved={onSaved} />
+        <div style={{ marginTop: 24 }}>
+          <h3 style={{ margin: "0 0 6px", fontSize: 17 }}>Video obilaska</h3>
+          <p className="caption" style={{ margin: "0 0 12px" }}>
+            Polako obiđite vozilo s telefonom (i unutrašnjost, ako želite). Prikazuje se uz 360° pogled. MP4 ili MOV, do 500 MB.
+          </p>
+          <VideoUpload<OwnerVan>
+            path={`/vans/${van.id}/spin-video`}
+            label="Dodaj video"
+            current={van.spinVideo}
+            onDone={onSaved}
+            onRemove={async () => onSaved(await adminApi<OwnerVan>(`/vans/${van.id}/spin-video`, { method: "DELETE" }))}
+          />
+        </div>
       </section>
 
       <section>
         <h2 className="display h-md" style={{ marginBottom: 8 }}>Podaci</h2>
         <DetailsForm van={van} onSaved={onSaved} />
+      </section>
+
+      <section>
+        <h2 className="display h-md" style={{ marginBottom: 8 }}>Servisna historija</h2>
+        <ServicesPanel key={`services-${van.id}`} vanId={van.id} />
       </section>
 
       <SettingsPanel
@@ -234,6 +255,7 @@ function VanEditor({
 
 const EMPTY: VanDetails = {
   name: "",
+  brand: null,
   category: "passenger",
   cargoM3: 0,
   payloadKg: 0,
@@ -299,7 +321,31 @@ function DetailsForm({ van, onSaved }: { van?: OwnerVan; onSaved: (v: OwnerVan) 
         </div>
       </fieldset>
       <div className="fields">
-        {field("name", "Naziv (marka i model)", <input value={d.name} placeholder="npr. Toyota Proace Verso 8+1" onChange={(e) => set("name", e.target.value)} />)}
+        {field(
+          "brand",
+          "Marka",
+          <div className="brand-pick">
+            <BrandLogo brand={d.brand} size={28} />
+            <select value={d.brand ?? ""} onChange={(e) => set("brand", (e.target.value || null) as BrandId | null)}>
+              <option value="">Odaberite marku</option>
+              {BRANDS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+            </select>
+          </div>,
+        )}
+        {field(
+          "name",
+          "Naziv (marka i model)",
+          <input
+            value={d.name}
+            placeholder="npr. Toyota Proace Verso 8+1"
+            onChange={(e) => {
+              set("name", e.target.value);
+              // Fill in the make from the name while none is picked.
+              const guess = guessBrand(e.target.value);
+              if (guess && !d.brand) set("brand", guess);
+            }}
+          />,
+        )}
         {field("location", "Grad", <input value={d.location} placeholder="npr. Sarajevo" onChange={(e) => set("location", e.target.value)} />)}
         {field("year", "Godište", <input inputMode="numeric" value={d.year || ""} onChange={(e) => set("year", int(e.target.value))} />)}
         {field("seats", "Broj sjedišta (s vozačem)", <input inputMode="numeric" value={d.seats || ""} onChange={(e) => set("seats", int(e.target.value))} />)}
@@ -360,7 +406,7 @@ function DetailsForm({ van, onSaved }: { van?: OwnerVan; onSaved: (v: OwnerVan) 
 function pick(v: OwnerVan): VanDetails {
   const { name, year, seats, fuel, gearbox, engine, license, location, description, luggage, powerHp, features } = v;
   const category = v.category ?? "passenger";
-  return { name, category, cargoM3: v.cargoM3 ?? 0, payloadKg: v.payloadKg ?? 0, year, seats, fuel, gearbox, engine, license, location, description, luggage, powerHp, features };
+  return { name, brand: v.brand ?? guessBrand(name), category, cargoM3: v.cargoM3 ?? 0, payloadKg: v.payloadKg ?? 0, year, seats, fuel, gearbox, engine, license, location, description, luggage, powerHp, features };
 }
 
 /** Cubic metres with one decimal; accepts "12,5" as well as "12.5". */

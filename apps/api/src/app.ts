@@ -39,10 +39,11 @@ export function createApp(
     // Development without Backblaze: serve the in-memory photos.
     app.get("/api/dev-photos/*key", (req, res) => {
       const key = ([] as string[]).concat(req.params.key as string | string[]).join("/");
-      // Only van photos; customers' documents are never served this way.
-      const file = key.startsWith("vans/") ? files.get(key) : undefined;
+      // Only public files (vans, logos, videos); customers' documents are never served this way.
+      const file = /^(vans|logos|handover)\//.test(key) ? files.get(key) : undefined;
       if (!file) return void res.status(404).end();
-      res.type("image/webp").send(file);
+      const ext = key.split(".").pop() ?? "";
+      res.type({ webp: "image/webp", mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm" }[ext] ?? "application/octet-stream").send(file);
     });
   }
 

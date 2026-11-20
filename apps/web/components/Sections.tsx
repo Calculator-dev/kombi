@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { FREE_TRIAL_DAYS, type PublicVan, type ReviewSummary, type Settings, type Terms, type VanLimits } from "@kombi/shared";
+import { FREE_TRIAL_DAYS, type PublicVan, type ReviewSummary, type Settings, type Terms, type VanLimits, type VanService, type VideoUrl } from "@kombi/shared";
 import { km } from "@/lib/format";
 import { dict, ownerText, type Locale } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
@@ -20,7 +20,7 @@ export function Hero({
   title: ReactNode;
   /** One paragraph, or several. */
   intro: string | readonly string[];
-  specs: [string, string][];
+  specs: [string, ReactNode][];
   /** Shown above everything else, e.g. a van's photos. */
   media?: ReactNode;
   /** Shown under the intro, e.g. the search box. */
@@ -256,6 +256,62 @@ export function Reviews({ reviews, locale = "bs" }: { reviews?: ReviewSummary; l
             </li>
           ))}
         </ul>
+      </div>
+    </section>
+  );
+}
+
+/** What the owner noted about services and repairs, newest first. Nothing without entries. */
+export function Services({ services, locale = "bs" }: { services?: VanService[]; locale?: Locale }) {
+  if (!services?.length) return null;
+  const t = dict(locale).services;
+  const date = (iso: string) => iso.split("-").reverse().join(".") + ".";
+  return (
+    <section id="servis" className="section" aria-labelledby="servis-h">
+      <div className="wrap split">
+        <div>
+          <h2 id="servis-h" className="display h-lg">
+            {t.title[0]}
+            <br />
+            {t.title[1]}
+          </h2>
+          <p className="note">{t.note}</p>
+        </div>
+        <ol className="service-timeline">
+          {services.map((s) => (
+            <li key={s.id}>
+              <div className="review-head">
+                <strong>{s.title}</strong>
+                <span className="caption">{date(s.date)}{s.km ? ` · ${t.km(s.km)}` : ""}</span>
+              </div>
+              {s.work && <p>{s.work}</p>}
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
+/** The owner's walk-around video, with the 360° view. */
+export function SpinVideo({ video, name, locale = "bs" }: { video?: VideoUrl | null; name: string; locale?: Locale }) {
+  if (!video) return null;
+  const t = dict(locale).spinVideo;
+  return (
+    <section id="video" className="section" aria-labelledby="video-h">
+      <div className="wrap split">
+        <div>
+          <h2 id="video-h" className="display h-lg">
+            {t.title[0]}
+            <br />
+            {t.title[1]}
+          </h2>
+          <p className="note">{t.note}</p>
+        </div>
+        <video className="spin-video" controls playsInline preload="metadata" aria-label={name}>
+          <source src={video.url} type={video.contentType === "video/quicktime" ? "video/mp4" : video.contentType} />
+          <source src={video.url} type={video.contentType} />
+        </video>
       </div>
     </section>
   );

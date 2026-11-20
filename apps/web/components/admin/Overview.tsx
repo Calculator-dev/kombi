@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { addDays, eachDate, todayIn } from "@kombi/shared";
 import { MONTHS, km, shortDate } from "@/lib/format";
+import { BrandCounts } from "../BrandCounts";
 import { BookingRow } from "./BookingRow";
 import { VanSelect } from "./VanSelect";
 import type { AdminBooking, Block, OwnerVan } from "./types";
@@ -62,6 +63,7 @@ export function Overview({ vans, bookings: allBookings, blocks: allBlocks, onSta
         <div><dt>Sljedeće preuzimanje</dt><dd>{upcoming[0] ? shortDate(upcoming[0].start) : "—"}</dd></div>
         <div><dt>Potvrđeno, {MONTHS[m]!.toLowerCase()}</dt><dd>{km(monthRevenue)}</dd></div>
       </dl>
+      <BrandCounts brands={brandsOf(vans)} />
       <div className="two">
         <section aria-labelledby="pending-h">
           <h2 id="pending-h" className="display h-md" style={{ marginBottom: 16 }}>Novi upiti</h2>
@@ -101,4 +103,11 @@ export function Overview({ vans, bookings: allBookings, blocks: allBlocks, onSta
       </div>
     </>
   );
+}
+
+/** How many vehicles of each make the owner has, most first. */
+function brandsOf(vans: OwnerVan[]) {
+  const counts = new Map<NonNullable<OwnerVan["brand"]>, number>();
+  for (const v of vans) if (v.brand) counts.set(v.brand, (counts.get(v.brand) ?? 0) + 1);
+  return [...counts].map(([id, count]) => ({ id, count })).sort((a, b) => b.count - a.count);
 }

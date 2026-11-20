@@ -3,6 +3,8 @@ import multer from "multer";
 import { z } from "zod";
 import {
   BOOKING_STATUSES,
+  HANDOVER_SIDES,
+  HANDOVER_STAGES,
   PLANS,
   USER_STATUSES,
   SPIN_SLOTS,
@@ -11,6 +13,7 @@ import {
   profileSchema,
   todayIn,
   vanDetailsSchema,
+  vanServiceSchema,
 } from "@kombi/shared";
 import type { Deps } from "../app";
 import { currentUser } from "../auth";
@@ -19,6 +22,10 @@ import { HttpError } from "../errors";
 import { createBlock, deleteBlock, listBlocks } from "../services/blocks";
 import { getBooking, listBookings, setBookingStatus } from "../services/bookings";
 import { deleteDocumentsOf, documentsKey, documentsOf, readDocument } from "../services/documents";
+import { ensureSlug, removeLogo, setLogo } from "../services/company";
+import { addService, removeService, servicesOf, updateService } from "../services/services";
+import type { PhotoStorage } from "../services/storage";
+import { handoverOf, removeHandoverVideo, removeSpinVideo, setHandoverVideo, setSpinVideo } from "../services/videos";
 import { canBeReviewed, listReviews, markReviewRequested, setReviewHidden } from "../services/reviews";
 import { contractFor } from "../services/contract";
 import { analyticsFor } from "../services/stats";
@@ -27,6 +34,7 @@ import {
   addPhoto,
   createVan,
   deleteVan,
+  logoUrl,
   orderPhotos,
   removePhoto,
   removeSpinPhoto,
@@ -47,7 +55,7 @@ const isoDate = z.string().refine(isIsoDate, "Neispravan datum");
 const uuid = z.uuid();
 const spinSlot = z.coerce.number().int().min(0).max(SPIN_SLOTS - 1);
 
-const toMe = (u: UserRow) => ({ id: u.id, email: u.email, name: u.name, phone: u.phone, address: u.address ?? "", companyId: u.companyId ?? "", representative: u.representative ?? "", vatRegistered: u.vatRegistered, documents: u.documentRules, role: u.role, status: u.status, plan: u.plan });
+const toMe = (u: UserRow, storage: PhotoStorage) => ({ id: u.id, email: u.email, name: u.name, phone: u.phone, address: u.address ?? "", companyId: u.companyId ?? "", representative: u.representative ?? "", vatRegistered: u.vatRegistered, documents: u.documentRules, slug: u.slug, logo: logoUrl(storage, u.logo), role: u.role, status: u.status, plan: u.plan });
 
 /**
  * The admin panel API, for van owners and platform admins. Owners only ever
@@ -63,11 +71,23 @@ export function adminRoutes({ db, auth, notifier, storage, config, now }: Deps):
   r.use(auth.requireUser);
 
   r.get("/me", (_req, res) => {
-    res.json(toMe(currentUser(res)));
+    res.json(toMe(currentUser(res), storage));
   });
 
   r.put("/me", async (req, res) => {
-    res.json(toMe(await updateProfile(db.orm, currentUser(res).id, profileSchema.parse(req.body))));
+    const user = await updateProfile(db.orm, currentUser(res).id, profileSchema.parse(req.body));
+    // The company page gets its address with the first saved profile.
+    const slug = await ensureSlug(db.orm, user);
+    res.json(toMe({ ...user, slug }, storage));
+  });
+
+  r.put("/me/logo", upload.single("logo"), async (req, res) => {
+    if (!req.file) throw new HttpError(400, "no_file", "Odaberite sliku logotipa.");
+    res.json(toMe(await setLogo(db.orm, storage, currentUser(res), req.file.buffer), storage));
+  });
+
+  r.delete("/me/logo", async (_req, res) => {
+    res.json(toMe(await removeLogo(db.orm, storage, currentUser(res)), storage));
   });
 
   // Vans
@@ -155,14 +175,50 @@ export function adminRoutes({ db, auth, notifier, storage, config, now }: Deps):
     res.json(toOwnerVan(storage, await removeSpinPhoto(db.orm, storage, van, spinSlot.parse(req.params.slot))));
   });
 
+  /** A walk-around video, shown with the 360° view. The body is the video itself. */
+  r.put("/vans/:id/spin-video", async (req, res) => {
+    const van = await vanForUser(db.orm, currentUser(res), uuid.parse(req.params.id));
+    res.json(toOwnerVan(storage, await setSpinVideo(db.orm, storage, van, req)));
+  });
+
+  r.delete("/vans/:id/spin-video", async (req, res) => {
+    const van = await vanForUser(db.orm, currentUser(res), uuid.parse(req.params.id));
+    res.json(toOwnerVan(storage, await removeSpinVideo(db.orm, storage, van)));
+  });
+
+  // Service history
+
+  r.get("/vans/:id/services", async (req, res) => {
+    const van = await vanForUser(db.orm, currentUser(res), uuid.parse(req.params.id));
+    res.json(await servicesOf(db.orm, van.id));
+  });
+
+  r.post("/vans/:id/services", async (req, res) => {
+    const van = await vanForUser(db.orm, currentUser(res), uuid.parse(req.params.id));
+    await addService(db.orm, van.id, vanServiceSchema.parse(req.body));
+    res.status(201).json(await servicesOf(db.orm, van.id));
+  });
+
+  r.put("/vans/:id/services/:sid", async (req, res) => {
+    const van = await vanForUser(db.orm, currentUser(res), uuid.parse(req.params.id));
+    await updateService(db.orm, van.id, uuid.parse(req.params.sid), vanServiceSchema.parse(req.body));
+    res.json(await servicesOf(db.orm, van.id));
+  });
+
+  r.delete("/vans/:id/services/:sid", async (req, res) => {
+    const van = await vanForUser(db.orm, currentUser(res), uuid.parse(req.params.id));
+    await removeService(db.orm, van.id, uuid.parse(req.params.sid));
+    res.json(await servicesOf(db.orm, van.id));
+  });
+
   // Bookings
 
   r.get("/bookings", async (req, res) => {
     const status = z.enum(BOOKING_STATUSES).optional().parse(req.query.status);
     const vanId = uuid.optional().parse(req.query.vanId);
     const list = await listBookings(db.orm, currentUser(res), { status, vanId, upcoming: req.query.upcoming === "1" });
-    const docs = await documentsOf(db.orm, list.map((b) => b.id));
-    res.json(list.map((b) => ({ ...b, documents: docs.get(b.id) ?? [] })));
+    const [docs, videos] = await Promise.all([documentsOf(db.orm, list.map((b) => b.id)), handoverOf(db.orm, storage, list.map((b) => b.id))]);
+    res.json(list.map((b) => ({ ...b, documents: docs.get(b.id) ?? [], handover: videos.get(b.id) ?? [] })));
   });
 
   r.patch("/bookings/:id", async (req, res) => {
@@ -172,8 +228,8 @@ export function adminRoutes({ db, auth, notifier, storage, config, now }: Deps):
     if (status === "confirmed") void notifier.bookingConfirmed(booking);
     // No rental, so no reason to keep the customer's documents.
     if (status !== "confirmed") await deleteDocumentsOf(db.orm, storage, booking.id);
-    const docs = await documentsOf(db.orm, [booking.id]);
-    res.json({ ...booking, documents: docs.get(booking.id) ?? [] });
+    const [docs, videos] = await Promise.all([documentsOf(db.orm, [booking.id]), handoverOf(db.orm, storage, [booking.id])]);
+    res.json({ ...booking, documents: docs.get(booking.id) ?? [], handover: videos.get(booking.id) ?? [] });
   });
 
   /** A photo of the customer's document, for the owner of the van (or a platform admin). Never cached. */
@@ -183,6 +239,27 @@ export function adminRoutes({ db, auth, notifier, storage, config, now }: Deps):
     const jpeg = await readDocument(db.orm, storage, documentsKey(config), booking.id, uuid.parse(req.params.docId));
     res.set({ "Cache-Control": "private, no-store", "Content-Disposition": "inline" });
     res.type("image/jpeg").send(jpeg);
+  });
+
+  /**
+   * Digital handover record: the owner films each side of the vehicle at pickup
+   * and at return. The body is the video itself; the customer sees them with the contract.
+   */
+  r.put("/bookings/:id/handover/:stage/:side", async (req, res) => {
+    const booking = await getBooking(db.orm, currentUser(res), uuid.parse(req.params.id));
+    if (!booking) throw new HttpError(404, "not_found", "Rezervacija ne postoji.");
+    if (booking.status !== "confirmed") throw new HttpError(409, "not_confirmed", "Zapisnik se pravi za potvrđenu rezervaciju.");
+    const stage = z.enum(HANDOVER_STAGES).parse(req.params.stage);
+    const side = z.enum(HANDOVER_SIDES).parse(req.params.side);
+    await setHandoverVideo(db.orm, storage, booking.id, stage, side, req);
+    res.json((await handoverOf(db.orm, storage, [booking.id])).get(booking.id) ?? []);
+  });
+
+  r.delete("/bookings/:id/handover/:stage/:side", async (req, res) => {
+    const booking = await getBooking(db.orm, currentUser(res), uuid.parse(req.params.id));
+    if (!booking) throw new HttpError(404, "not_found", "Rezervacija ne postoji.");
+    await removeHandoverVideo(db.orm, storage, booking.id, z.enum(HANDOVER_STAGES).parse(req.params.stage), z.enum(HANDOVER_SIDES).parse(req.params.side));
+    res.json((await handoverOf(db.orm, storage, [booking.id])).get(booking.id) ?? []);
   });
 
   /** After the rental: emails the customer the link to rate it. */
@@ -209,7 +286,7 @@ export function adminRoutes({ db, auth, notifier, storage, config, now }: Deps):
 
   /** The rental contract for a booking, filled in from the request, the van and its owner. */
   r.get("/bookings/:id/contract", async (req, res) => {
-    res.json(await contractFor(db.orm, currentUser(res), uuid.parse(req.params.id), todayIn(config.BUSINESS_TZ, now())));
+    res.json(await contractFor(db.orm, storage, currentUser(res), uuid.parse(req.params.id), todayIn(config.BUSINESS_TZ, now())));
   });
 
   // Blocked days
@@ -246,7 +323,7 @@ export function adminRoutes({ db, auth, notifier, storage, config, now }: Deps):
   // Platform admins only
 
   r.get("/users", auth.requireAdmin, async (_req, res) => {
-    res.json((await listUsers(db.orm)).map(toMe));
+    res.json((await listUsers(db.orm)).map((u) => toMe(u, storage)));
   });
 
   r.patch("/users/:id", auth.requireAdmin, async (req, res) => {
@@ -261,7 +338,7 @@ export function adminRoutes({ db, auth, notifier, storage, config, now }: Deps):
     let updated = target;
     if (plan) updated = await setUserPlan(db.orm, id, plan);
     if (status) updated = await setUserStatus(db.orm, id, status);
-    res.json(toMe(updated));
+    res.json(toMe(updated, storage));
   });
 
   r.patch("/vans/:id/owner", auth.requireAdmin, async (req, res) => {

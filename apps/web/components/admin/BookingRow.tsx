@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { DOCUMENT_LABELS } from "@kombi/shared";
+import { DOCUMENT_LABELS, HANDOVER_LABELS, HANDOVER_SIDES, HANDOVER_STAGES, type HandoverVideo } from "@kombi/shared";
+import { VideoUpload } from "./VideoUpload";
 import { ApiError, adminApi, adminBlob } from "@/lib/api";
 import { km, shortDate } from "@/lib/format";
 import type { AdminBooking } from "./types";
@@ -75,6 +76,7 @@ export function BookingRow({
         </div>
         {b.notes && <div className="meta dim">„{b.notes}"</div>}
         {b.documents?.length > 0 && <Documents b={b} />}
+        {b.status === "confirmed" && <Handover b={b} />}
       </div>
       <div className="btns">
         {(b.status === "pending" || b.status === "confirmed") && (
@@ -147,6 +149,55 @@ function Documents({ b }: { b: AdminBooking }) {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * Digital handover record: a video of each side of the vehicle at pickup and
+ * at return. On a phone the camera opens straight away. The customer sees them
+ * with the contract.
+ */
+function Handover({ b }: { b: AdminBooking }) {
+  const [videos, setVideos] = useState<HandoverVideo[]>(b.handover ?? []);
+  const [open, setOpen] = useState(false);
+  const total = HANDOVER_STAGES.length * HANDOVER_SIDES.length;
+  return (
+    <div className="handover">
+      <button type="button" className="link" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        Zapisnik o stanju vozila (video): {videos.length}/{total} {open ? "▴" : "▾"}
+      </button>
+      {open && (
+        <>
+          <p className="caption" style={{ margin: "6px 0 12px" }}>
+            Snimite svaku stranu vozila pri predaji i pri povratku, polako i s dovoljno svjetla. Kupac vidi videe uz ugovor.
+          </p>
+          {HANDOVER_STAGES.map((stage) => (
+            <div key={stage} className="handover-stage">
+              <h4>{HANDOVER_LABELS[stage]}</h4>
+              <div className="handover-grid">
+                {HANDOVER_SIDES.map((side) => {
+                  const v = videos.find((x) => x.stage === stage && x.side === side);
+                  const path = `/bookings/${b.id}/handover/${stage}/${side}`;
+                  return (
+                    <div key={side} className="handover-side">
+                      <span className="dim">{HANDOVER_LABELS[side]}{v ? " ✓" : ""}</span>
+                      <VideoUpload<HandoverVideo[]>
+                        path={path}
+                        label="Snimi"
+                        capture
+                        current={v}
+                        onDone={setVideos}
+                        onRemove={async () => setVideos(await adminApi<HandoverVideo[]>(path, { method: "DELETE" }))}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }

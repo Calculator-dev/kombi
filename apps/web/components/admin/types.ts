@@ -1,4 +1,4 @@
-import type { BookingStatus, ContractTerms, DocumentKind, DocumentRules, PhotoUrls, Plan, PublicVan, Quote, UserRole, UserStatus, VanStatus } from "@kombi/shared";
+import type { BookingStatus, ContractTerms, DocumentKind, DocumentRules, HandoverVideo, PhotoUrls, Plan, PublicVan, Quote, UserRole, UserStatus, VanStatus } from "@kombi/shared";
 
 export interface Me {
   id: string;
@@ -11,6 +11,9 @@ export interface Me {
   vatRegistered: boolean;
   /** Which document photos customers upload with a booking request. */
   documents: DocumentRules;
+  /** The company page: /firma/<slug>; null until the profile is saved. */
+  slug: string | null;
+  logo: string | null;
   role: UserRole;
   status: UserStatus;
   plan: Plan;
@@ -60,6 +63,8 @@ export interface AdminBooking {
   reviewRequestedAt: string | null;
   /** Photos of the customer's documents, while they are kept. */
   documents: { id: string; kind: DocumentKind }[];
+  /** Videos of the vehicle's sides at pickup and return. */
+  handover: HandoverVideo[];
   createdAt: string;
 }
 

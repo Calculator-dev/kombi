@@ -800,3 +800,115 @@ describe("documents with a booking request", () => {
     expect(after.documents).toEqual([]);
   });
 });
+
+describe("makes, company page, logo, service history and videos", () => {
+  const video = Buffer.alloc(64 * 1024, 7);
+
+  it("keeps the make, counts vehicles per make and filters by it", async () => {
+    const amir = await as(AMIR);
+    const [mine] = (await amir.get("/api/admin/vans").expect(200)).body as { id: string; slug: string; name: string }[];
+    const full = (await amir.get(`/api/admin/vans/${mine!.id}`)).body;
+    const details = { name: full.name, year: full.year, seats: full.seats, fuel: full.fuel, gearbox: full.gearbox, location: full.location, category: full.category };
+    await amir.put(`/api/admin/vans/${mine!.id}`).send({ ...details, brand: "nope" }).expect(400);
+    await amir.put(`/api/admin/vans/${mine!.id}`).send({ ...details, brand: "ford" }).expect(200);
+    expect((await request(app).get(`/api/vans/${mine!.slug}`)).body.brand).toBe("ford");
+
+    const all = (await request(app).get("/api/search")).body;
+    expect(all.brands).toContainEqual({ id: "ford", count: 1 });
+    const fords = (await request(app).get("/api/search?brand=ford")).body;
+    expect(fords.items.map((v: { slug: string }) => v.slug)).toEqual([mine!.slug]);
+    // The list of makes doesn't shrink to the one picked.
+    expect(fords.brands).toEqual(all.brands);
+  });
+
+  it("gives an owner a company page with their logo, makes and vehicles", async () => {
+    const amir = await as(AMIR);
+    const me = (await amir.get("/api/admin/me")).body;
+    const saved = (await amir.put("/api/admin/me").send({ name: me.name, phone: me.phone, documents: me.documents }).expect(200)).body;
+    expect(saved.slug).toMatch(/^[a-z0-9-]+$/);
+    expect(saved.logo).toBeNull();
+
+    await amir.put("/api/admin/me/logo").attach("logo", Buffer.from("not an image"), "logo.png").expect(400);
+    const withLogo = (await amir.put("/api/admin/me/logo").attach("logo", await photo(), "logo.jpg").expect(200)).body;
+    expect(withLogo.logo).toMatch(/^\/api\/dev-photos\/logos\//);
+    const key = withLogo.logo.replace("/api/dev-photos/", "");
+    const meta = await sharp(storage.files.get(key)!).metadata();
+    expect([meta.format, meta.width, meta.height]).toEqual(["webp", 400, 400]);
+
+    const page = (await request(app).get(`/api/companies/${saved.slug}`).expect(200)).body;
+    expect(page).toMatchObject({ name: me.name, logo: withLogo.logo, brands: [{ id: "ford", count: 1 }] });
+    expect(page.vans[0].ownerLogo).toBe(withLogo.logo);
+    const [mine] = (await amir.get("/api/admin/vans")).body as { slug: string }[];
+    const vanPage = (await request(app).get(`/api/vans/${mine!.slug}`)).body;
+    expect(vanPage).toMatchObject({ ownerSlug: saved.slug, ownerLogo: withLogo.logo });
+    const card = (await request(app).get("/api/search")).body.items.find((v: { slug: string }) => v.slug === mine!.slug);
+    expect(card.ownerLogo).toBe(withLogo.logo);
+    await request(app).get("/api/companies/nobody-here").expect(404);
+
+    await amir.delete("/api/admin/me/logo").expect(200);
+    expect(storage.files.has(key)).toBe(false);
+  });
+
+  it("keeps a service history the public page shows, newest first", async () => {
+    const amir = await as(AMIR);
+    const [mine] = (await amir.get("/api/admin/vans")).body as { id: string; slug: string }[];
+    await amir.post(`/api/admin/vans/${mine!.id}/services`).send({ date: "2026-10-16", title: "" }).expect(400);
+    await amir.post(`/api/admin/vans/${mine!.id}/services`).send({ date: "2026-03-02", title: "Veliki servis", km: 120000, work: "Zupčasti remen, pumpa vode" }).expect(201);
+    const list = (await amir.post(`/api/admin/vans/${mine!.id}/services`).send({ date: "2026-10-16", title: "Mali servis", work: "Ulje i filteri" }).expect(201)).body;
+    expect(list.map((s: { title: string }) => s.title)).toEqual(["Mali servis", "Veliki servis"]);
+    // Another owner can't touch it.
+    await (await as(BELMA)).post(`/api/admin/vans/${mine!.id}/services`).send({ date: "2026-10-16", title: "Mali servis" }).expect(404);
+    const page = (await request(app).get(`/api/vans/${mine!.slug}`)).body;
+    expect(page.services).toHaveLength(2);
+    expect(page.services[0]).toMatchObject({ date: "2026-10-16", title: "Mali servis", work: "Ulje i filteri" });
+    await amir.delete(`/api/admin/vans/${mine!.id}/services/${list[1].id}`).expect(200);
+    expect((await amir.get(`/api/admin/vans/${mine!.id}/services`)).body).toHaveLength(1);
+  });
+
+  it("takes a 360° walk-around video", async () => {
+    const amir = await as(AMIR);
+    const [mine] = (await amir.get("/api/admin/vans")).body as { id: string; slug: string }[];
+    await amir.put(`/api/admin/vans/${mine!.id}/spin-video`).set("Content-Type", "image/png").send(video).expect(415);
+    const van = (await amir.put(`/api/admin/vans/${mine!.id}/spin-video`).set("Content-Type", "video/mp4").send(video).expect(200)).body;
+    expect(van.spinVideo).toMatchObject({ contentType: "video/mp4" });
+    const key = van.spinVideo.url.replace("/api/dev-photos/", "");
+    expect(storage.files.get(key)!.length).toBe(video.length);
+    expect((await request(app).get(`/api/vans/${mine!.slug}`)).body.spinVideo.url).toBe(van.spinVideo.url);
+    // Replacing it removes the old file.
+    const again = (await amir.put(`/api/admin/vans/${mine!.id}/spin-video`).set("Content-Type", "video/quicktime").send(video).expect(200)).body;
+    expect(again.spinVideo.url).toMatch(/\.mov$/);
+    expect(storage.files.has(key)).toBe(false);
+    await amir.delete(`/api/admin/vans/${mine!.id}/spin-video`).expect(200);
+    expect((await request(app).get(`/api/vans/${mine!.slug}`)).body.spinVideo).toBeNull();
+  });
+
+  it("records the vehicle's sides at pickup and return, for the owner and the customer's contract", async () => {
+    const { purgeHandover } = await import("../src/services/videos");
+    const amir = await as(AMIR);
+    const [mine] = (await amir.get("/api/admin/vans")).body as { id: string }[];
+    const created = await request(app)
+      .post("/api/bookings")
+      .field("data", JSON.stringify(booking({ vanId: mine!.id, start: "2027-05-01", end: "2027-05-04", extras: [] })))
+      .attach("id", await photo(), "id.jpg")
+      .expect(201);
+    const b = ((await amir.get("/api/admin/bookings")).body as { id: string; ref: string; contractToken: string }[]).find((x) => x.ref === created.body.ref)!;
+    // Only for a confirmed rental.
+    await amir.put(`/api/admin/bookings/${b.id}/handover/pickup/front`).set("Content-Type", "video/mp4").send(video).expect(409);
+    await amir.patch(`/api/admin/bookings/${b.id}`).send({ status: "confirmed" }).expect(200);
+    await amir.put(`/api/admin/bookings/${b.id}/handover/pickup/top`).set("Content-Type", "video/mp4").send(video).expect(400);
+    await amir.put(`/api/admin/bookings/${b.id}/handover/pickup/front`).set("Content-Type", "video/mp4").send(video).expect(200);
+    const after = (await amir.put(`/api/admin/bookings/${b.id}/handover/return/front`).set("Content-Type", "video/mp4").send(video).expect(200)).body;
+    expect(after.map((v: { stage: string; side: string }) => `${v.stage}:${v.side}`).sort()).toEqual(["pickup:front", "return:front"]);
+    await (await as(BELMA)).put(`/api/admin/bookings/${b.id}/handover/return/back`).set("Content-Type", "video/mp4").send(video).expect(404);
+
+    const listed = ((await amir.get("/api/admin/bookings")).body as { id: string; handover: unknown[] }[]).find((x) => x.id === b.id)!;
+    expect(listed.handover).toHaveLength(2);
+    const contract = (await request(app).get(`/api/contracts/${b.contractToken}`).expect(200)).body;
+    expect(contract.handover).toHaveLength(2);
+
+    await amir.delete(`/api/admin/bookings/${b.id}/handover/return/front`).expect(200);
+    expect(await purgeHandover(db.orm, storage, "2027-06-01")).toBe(0);
+    expect(await purgeHandover(db.orm, storage, "2028-06-01")).toBe(1);
+    expect([...storage.files.keys()].some((k) => k.startsWith(`handover/${b.id}/`))).toBe(false);
+  });
+});
