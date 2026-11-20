@@ -16,8 +16,7 @@ export function Logo({ href = "/", label = "kombi.ba početna" }: { href?: strin
   );
 }
 
-/** `search={false}` on pages that already have a big search box of their own (homepage, landing pages). */
-export function Header({ locale = "bs", search = true }: { locale?: Locale; search?: boolean }) {
+export function Header({ locale = "bs" }: { locale?: Locale }) {
   const t = dict(locale).header;
   return (
     <>
@@ -33,11 +32,9 @@ export function Header({ locale = "bs", search = true }: { locale?: Locale; sear
       <header className="header">
         <div className="wrap">
           <Logo href={localePath(locale, "/")} label={t.home} />
-          {search && (
-            <Suspense>
-              <HeaderSearch locale={locale} />
-            </Suspense>
-          )}
+          <Suspense>
+            <HeaderSearch locale={locale} />
+          </Suspense>
           <HeaderNav locale={locale} />
         </div>
       </header>

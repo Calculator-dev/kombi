@@ -676,8 +676,7 @@ button:disabled { cursor: not-allowed; }
   .fill-in[data-wide]:empty { border-bottom-color: transparent; }
 }
 
-/* Text search: homepage hero and /kombiji */
-.quick-search { width: 100%; max-width: 34em; }
+/* Text search in the header */
 .search-box { display: flex; flex: none; min-width: 0; }
 .search-box input {
   flex: 1; min-width: 0; height: 52px; padding: 0 16px; border: 1px solid var(--line-strong); border-right: 0;
