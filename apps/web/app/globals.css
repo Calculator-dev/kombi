@@ -518,7 +518,16 @@ button:disabled { cursor: not-allowed; }
 .results-tools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 .results-tools .sort { min-width: 200px; }
 .results-tools .sort select { height: 48px; font-size: 16px; }
-.dates-panel { max-width: 720px; }
+.date-range { display: flex; align-items: flex-end; gap: 8px; }
+.date-range .field input { height: 48px; font-size: 16px; min-width: 0; width: 160px; }
+.date-clear { flex: none; width: 44px; height: 48px; border: var(--rule); border-radius: var(--radius-sm); background: var(--card); color: var(--muted); font-size: 16px; }
+.date-clear:hover { color: var(--ink); }
+@media (max-width: 640px) {
+  .results-tools { width: 100%; min-width: 0; }
+  .date-range { flex-basis: 100%; min-width: 0; }
+  .date-range .field { flex: 1; min-width: 0; }
+  .date-range .field input { width: 100%; padding: 0 8px; font-size: 15px; }
+}
 .show-taken { font-size: 15px; }
 .load-more { align-self: center; }
 
