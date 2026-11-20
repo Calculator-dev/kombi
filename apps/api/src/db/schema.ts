@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { boolean, check, date, index, integer, jsonb, pgSequence, pgTable, primaryKey, real, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import type { BookingStatus, Category, ContactChannel, ContractTerms, Plan, Quote, Settings, Terms, UserRole, UserStatus, VanStatus } from "@kombi/shared";
+import type { BookingStatus, Category, ContactChannel, ContractTerms, DocumentKind, DocumentRules, Plan, Quote, Settings, Terms, UserRole, UserStatus, VanStatus } from "@kombi/shared";
 
 // Row-Level Security is on for every table with no policies: on Supabase this keeps the
 // tables closed to its public REST API. The API connects as the table owner, which bypasses RLS.
@@ -27,6 +27,8 @@ export const users = pgTable(
     representative: text("representative"),
     /** In the VAT system: prices on their vans include PDV. */
     vatRegistered: boolean("vat_registered").notNull().default(false),
+    /** Which document photos customers upload with a booking request for this owner's vans. */
+    documentRules: jsonb("document_rules").$type<DocumentRules>().notNull().default({ id: "off", license: "off" }),
     role: text("role").$type<UserRole>().notNull().default("owner"),
     status: text("status").$type<UserStatus>().notNull().default("pending"),
     /** The owner's package: how many vans they may publish, and whether they see analytics. */
@@ -159,6 +161,27 @@ export const bookings = pgTable(
     check("bookings_dates_check", sql`${t.end} > ${t.start}`),
   ],
 ).enableRLS();
+
+/**
+ * A photo of the customer's ID or driving licence, sent with a booking request.
+ * The file is encrypted before it is stored (see services/documents.ts), and is
+ * deleted some days after the rental ends.
+ */
+export const bookingDocuments = pgTable(
+  "booking_documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<DocumentKind>().notNull(),
+    key: text("key").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("booking_documents_booking_idx").on(t.bookingId), check("booking_documents_kind_check", sql`${t.kind} in ('id', 'license')`)],
+).enableRLS();
+
+export type BookingDocumentRow = typeof bookingDocuments.$inferSelect;
 
 export const blockedRanges = pgTable(
   "blocked_ranges",

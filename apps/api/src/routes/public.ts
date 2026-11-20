@@ -1,8 +1,13 @@
 import { Router } from "express";
+import multer from "multer";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import {
+  DOCUMENT_KINDS,
+  MAX_DOCUMENT_BYTES,
+  MAX_FILES_PER_DOCUMENT,
   MAX_EXTRAS,
+  askedDocuments,
   addDays,
   bookingRequestSchema,
   diffDays,
@@ -14,11 +19,14 @@ import {
   vanSearchSchema,
   type VanCard,
 } from "@kombi/shared";
+import { eq } from "drizzle-orm";
 import type { Deps } from "../app";
+import { schema } from "../db";
 import { HttpError } from "../errors";
 import { busyVans, unavailableDates } from "../services/availability";
 import { createBooking } from "../services/bookings";
 import { contractByToken } from "../services/contract";
+import { checkUploads, documentRulesFor, documentsKey, prepareUploads, saveDocuments, type Upload } from "../services/documents";
 import { ratingsOf, reviewContext, reviewSummary, submitReview } from "../services/reviews";
 import { recordVanEvent } from "../services/stats";
 import { getUser } from "../services/users";
@@ -74,8 +82,15 @@ export function publicRoutes({ db, config, notifier, storage, now }: Deps): Rout
   r.get("/vans/:slug", async (req, res) => {
     res.set("Cache-Control", "public, max-age=60");
     const van = await publicVan(req.params.slug);
-    const [owner, reviews] = await Promise.all([ownerOf(db.orm, van), reviewSummary(db.orm, van.id)]);
-    res.json({ ...toPublicVan(storage, van), owner: owner?.name ?? null, vat: owner ? owner.vat : null, limits: publicLimits(van), reviews });
+    const [owner, reviews, documents] = await Promise.all([ownerOf(db.orm, van), reviewSummary(db.orm, van.id), documentRulesFor(db.orm, van.ownerId)]);
+    res.json({
+      ...toPublicVan(storage, van),
+      owner: owner?.name ?? null,
+      vat: owner ? owner.vat : null,
+      limits: publicLimits(van),
+      reviews,
+      documents: askedDocuments(documents).length ? documents : undefined,
+    });
   });
 
   r.get("/vans/:slug/availability", async (req, res) => {
@@ -159,7 +174,22 @@ export function publicRoutes({ db, config, notifier, storage, now }: Deps): Rout
     res.status(201).json(await reviewContext(db.orm, token, today()));
   });
 
-  r.post("/bookings", bookingLimiter, async (req, res) => {
+  // With documents the request is multipart: the form as JSON in "data", the photos as "id" and "license".
+  const documentUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_DOCUMENT_BYTES, files: DOCUMENT_KINDS.length * MAX_FILES_PER_DOCUMENT, fields: 1, fieldSize: 50_000 },
+  }).fields(DOCUMENT_KINDS.map((name) => ({ name, maxCount: MAX_FILES_PER_DOCUMENT })));
+
+  r.post("/bookings", bookingLimiter, documentUpload, async (req, res) => {
+    if (typeof req.body?.data === "string") {
+      try {
+        req.body = JSON.parse(req.body.data);
+      } catch {
+        throw new HttpError(400, "invalid_request", "Neispravan upit.");
+      }
+    }
+    const files = (req.files ?? {}) as Partial<Record<(typeof DOCUMENT_KINDS)[number], Express.Multer.File[]>>;
+    const uploads: Upload[] = DOCUMENT_KINDS.flatMap((kind) => (files[kind] ?? []).map((f) => ({ kind, buffer: f.buffer })));
     const { vanId } = z.object({ vanId: z.uuid() }).parse(req.body);
     const van = await getPublicVan(db.orm, { id: vanId });
     if (!van) throw new HttpError(404, "not_found", "Ovaj kombi više nije dostupan.");
@@ -169,7 +199,18 @@ export function publicRoutes({ db, config, notifier, storage, now }: Deps): Rout
       res.status(201).json({ ref: "KB-0000", status: "pending" });
       return;
     }
+    checkUploads(await documentRulesFor(db.orm, van.ownerId), uploads);
+    const photos = await prepareUploads(uploads);
     const booking = await createBooking(db.orm, body, van, today());
+    if (photos.length) {
+      try {
+        await saveDocuments(db.orm, storage, documentsKey(config), booking.id, photos);
+      } catch (e) {
+        // Without its documents the request is incomplete: take it back.
+        await db.orm.delete(schema.bookings).where(eq(schema.bookings.id, booking.id));
+        throw e;
+      }
+    }
     const owner = van.ownerId ? await getUser(db.orm, van.ownerId) : null;
     void notifier.bookingRequested(booking, owner?.email ?? null);
     res.status(201).json({

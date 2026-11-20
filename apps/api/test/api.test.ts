@@ -727,3 +727,76 @@ describe("VAT, mileage and reviews", () => {
     expect((await request(app).get("/api/vans/toyota-proace-verso")).body.reviews.count).toBe(0);
   });
 });
+
+describe("documents with a booking request", () => {
+  const send = (body: Record<string, unknown>, files: [string, Buffer][] = []) => {
+    let req = request(app).post("/api/bookings").field("data", JSON.stringify(body));
+    for (const [kind, file] of files) req = req.attach(kind, file, `${kind}.jpg`);
+    return req;
+  };
+
+  it("asks only for what the owner wants, keeps the photos encrypted and shows them only to the owner", async () => {
+    const amir = await as(AMIR);
+    const me = (await amir.get("/api/admin/me").expect(200)).body;
+    expect(me.documents).toEqual({ id: "off", license: "off" });
+    await amir.put("/api/admin/me").send({ name: me.name, phone: me.phone, documents: { id: "required", license: "optional" } }).expect(200);
+    expect((await amir.get("/api/admin/me")).body.documents).toEqual({ id: "required", license: "optional" });
+
+    const [mine] = (await amir.get("/api/admin/vans").expect(200)).body as { id: string; slug: string }[];
+    expect((await request(app).get(`/api/vans/${mine!.slug}`)).body.documents).toEqual({ id: "required", license: "optional" });
+    // Vans of owners who ask for nothing say nothing.
+    expect((await request(app).get("/api/vans/toyota-proace-verso")).body.documents).toBeUndefined();
+
+    const body = booking({ vanId: mine!.id, start: "2027-03-01", end: "2027-03-04", extras: [] });
+    const missing = await request(app).post("/api/bookings").send(body).expect(400);
+    expect(missing.body).toMatchObject({ error: "documents_required", fields: { doc_id: "Obavezno" } });
+    // A file that isn't a photo fails the whole request; nothing is booked.
+    await send(body, [["id", Buffer.from("%PDF-1.4 not a photo")]]).expect(400);
+    const before = (await amir.get("/api/admin/bookings")).body.length;
+
+    const pic = await photo();
+    const ok = await send(body, [["id", pic], ["id", pic], ["license", pic]]).expect(201);
+    const list = (await amir.get("/api/admin/bookings")).body as { id: string; ref: string; documents: { id: string; kind: string }[] }[];
+    expect(list).toHaveLength(before + 1);
+    const b = list.find((x) => x.ref === ok.body.ref)!;
+    expect(b.documents.map((d) => d.kind)).toEqual(["id", "id", "license"]);
+
+    // Stored encrypted: no JPEG in the bucket.
+    const stored = [...storage.files.entries()].filter(([k]) => k.startsWith(`documents/${b.id}/`));
+    expect(stored).toHaveLength(3);
+    for (const [, blob] of stored) expect(blob.subarray(0, 2).toString("hex")).not.toBe("ffd8");
+
+    const doc = await amir.get(`/api/admin/bookings/${b.id}/documents/${b.documents[0]!.id}`).expect(200);
+    expect(doc.headers["content-type"]).toContain("image/jpeg");
+    expect(doc.headers["cache-control"]).toBe("private, no-store");
+    expect((doc.body as Buffer).subarray(0, 2).toString("hex")).toBe("ffd8");
+    const meta = await sharp(doc.body as Buffer).metadata();
+    expect(Math.max(meta.width!, meta.height!)).toBeLessThanOrEqual(2000);
+    expect(meta.exif).toBeUndefined();
+    // Another owner can't see them.
+    await (await as(BELMA)).get(`/api/admin/bookings/${b.id}/documents/${b.documents[0]!.id}`).expect(404);
+
+    // Declined: the photos go.
+    await amir.patch(`/api/admin/bookings/${b.id}`).send({ status: "declined" }).expect(200);
+    expect([...storage.files.keys()].some((k) => k.startsWith(`documents/${b.id}/`))).toBe(false);
+    await amir.get(`/api/admin/bookings/${b.id}/documents/${b.documents[0]!.id}`).expect(404);
+
+    // A van whose owner doesn't ask for documents takes none.
+    await send(booking({ start: "2027-03-10", end: "2027-03-13", extras: [] }), [["id", pic]]).expect(400);
+  });
+
+  it("deletes the photos some time after the rental", async () => {
+    const { purgeDocuments } = await import("../src/services/documents");
+    const amir = await as(AMIR);
+    const [mine] = (await amir.get("/api/admin/vans").expect(200)).body as { id: string }[];
+    const ok = await send(booking({ vanId: mine!.id, start: "2027-04-01", end: "2027-04-03", extras: [] }), [["id", await photo()]]).expect(201);
+    const b = ((await amir.get("/api/admin/bookings")).body as { id: string; ref: string }[]).find((x) => x.ref === ok.body.ref)!;
+    await amir.patch(`/api/admin/bookings/${b.id}`).send({ status: "confirmed" }).expect(200);
+
+    expect(await purgeDocuments(db.orm, storage, "2027-04-20")).toBe(0);
+    expect(await purgeDocuments(db.orm, storage, "2027-05-10")).toBe(1);
+    expect([...storage.files.keys()].some((k) => k.startsWith(`documents/${b.id}/`))).toBe(false);
+    const after = ((await amir.get("/api/admin/bookings")).body as { id: string; documents: unknown[] }[]).find((x) => x.id === b.id)!;
+    expect(after.documents).toEqual([]);
+  });
+});

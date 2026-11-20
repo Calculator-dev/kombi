@@ -5,3 +5,4 @@ export * from "./booking";
 export * from "./vans";
 export * from "./plans";
 export * from "./contract";
+export * from "./documents";

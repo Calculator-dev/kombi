@@ -18,6 +18,7 @@ import type { UserRow } from "../db/schema";
 import { HttpError } from "../errors";
 import { createBlock, deleteBlock, listBlocks } from "../services/blocks";
 import { getBooking, listBookings, setBookingStatus } from "../services/bookings";
+import { deleteDocumentsOf, documentsKey, documentsOf, readDocument } from "../services/documents";
 import { canBeReviewed, listReviews, markReviewRequested, setReviewHidden } from "../services/reviews";
 import { contractFor } from "../services/contract";
 import { analyticsFor } from "../services/stats";
@@ -46,7 +47,7 @@ const isoDate = z.string().refine(isIsoDate, "Neispravan datum");
 const uuid = z.uuid();
 const spinSlot = z.coerce.number().int().min(0).max(SPIN_SLOTS - 1);
 
-const toMe = (u: UserRow) => ({ id: u.id, email: u.email, name: u.name, phone: u.phone, address: u.address ?? "", companyId: u.companyId ?? "", representative: u.representative ?? "", vatRegistered: u.vatRegistered, role: u.role, status: u.status, plan: u.plan });
+const toMe = (u: UserRow) => ({ id: u.id, email: u.email, name: u.name, phone: u.phone, address: u.address ?? "", companyId: u.companyId ?? "", representative: u.representative ?? "", vatRegistered: u.vatRegistered, documents: u.documentRules, role: u.role, status: u.status, plan: u.plan });
 
 /**
  * The admin panel API, for van owners and platform admins. Owners only ever
@@ -159,7 +160,9 @@ export function adminRoutes({ db, auth, notifier, storage, config, now }: Deps):
   r.get("/bookings", async (req, res) => {
     const status = z.enum(BOOKING_STATUSES).optional().parse(req.query.status);
     const vanId = uuid.optional().parse(req.query.vanId);
-    res.json(await listBookings(db.orm, currentUser(res), { status, vanId, upcoming: req.query.upcoming === "1" }));
+    const list = await listBookings(db.orm, currentUser(res), { status, vanId, upcoming: req.query.upcoming === "1" });
+    const docs = await documentsOf(db.orm, list.map((b) => b.id));
+    res.json(list.map((b) => ({ ...b, documents: docs.get(b.id) ?? [] })));
   });
 
   r.patch("/bookings/:id", async (req, res) => {
@@ -167,7 +170,19 @@ export function adminRoutes({ db, auth, notifier, storage, config, now }: Deps):
     const { status } = z.object({ status: z.enum(["confirmed", "declined", "cancelled"]) }).parse(req.body);
     const booking = await setBookingStatus(db.orm, currentUser(res), id, status);
     if (status === "confirmed") void notifier.bookingConfirmed(booking);
-    res.json(booking);
+    // No rental, so no reason to keep the customer's documents.
+    if (status !== "confirmed") await deleteDocumentsOf(db.orm, storage, booking.id);
+    const docs = await documentsOf(db.orm, [booking.id]);
+    res.json({ ...booking, documents: docs.get(booking.id) ?? [] });
+  });
+
+  /** A photo of the customer's document, for the owner of the van (or a platform admin). Never cached. */
+  r.get("/bookings/:id/documents/:docId", async (req, res) => {
+    const booking = await getBooking(db.orm, currentUser(res), uuid.parse(req.params.id));
+    if (!booking) throw new HttpError(404, "not_found", "Rezervacija ne postoji.");
+    const jpeg = await readDocument(db.orm, storage, documentsKey(config), booking.id, uuid.parse(req.params.docId));
+    res.set({ "Cache-Control": "private, no-store", "Content-Disposition": "inline" });
+    res.type("image/jpeg").send(jpeg);
   });
 
   /** After the rental: emails the customer the link to rate it. */

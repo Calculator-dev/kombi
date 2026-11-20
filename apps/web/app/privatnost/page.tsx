@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { KEEP_DOCUMENTS_DAYS } from "@kombi/shared";
 import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ const DATA: [string, string, string][] = [
   ["Datum rođenja i godina vozačke dozvole", "Provjera uslova vlasnika (minimalna starost i staž vozača).", "Svaki upit"],
   ["Datumi, mjesto preuzimanja, dodaci i napomena", "Rezervacija i obračun cijene.", "Svaki upit"],
   ["Adresa, JMB, broj lične karte, broj vozačke dozvole", "Popunjavanje ugovora o najmu.", "Samo ako ih upišete; možete ih dati i pri preuzimanju"],
+  ["Fotografija lične karte ili pasoša i vozačke dozvole", "Vlasnik provjerava identitet i vozačku dozvolu prije potvrde rezervacije.", "Samo kod vlasnika koji to traže; uz upit piše da li je obavezno"],
   ["Ime, email, telefon, adresa i ID broj firme vlasnika vozila", "Račun vlasnika, objava vozila i ugovor o najmu (vlasnik je najmodavac).", "Registracija vlasnika"],
 ];
 
@@ -23,7 +25,7 @@ const PROCESSORS: [string, string, string][] = [
   // who, what for, where
   ["Render", "Server na kojem rade stranica i aplikacija", "Njemačka (Frankfurt)"],
   ["Supabase", "Baza podataka i prijava vlasnika", "Server koji je odabran pri postavljanju projekta"],
-  ["Backblaze", "Fotografije vozila (bez ličnih podataka)", "EU"],
+  ["Backblaze", "Fotografije vozila, i fotografije dokumenata kupaca, šifrovane prije spremanja", "EU"],
   ["Resend", "Slanje emailova o upitu i rezervaciji", "SAD"],
   ["Google Maps", "Mapa s lokacijom vozila; učitava se tek kad kliknete „Prikaži mapu“", "SAD i EU"],
   ["Google (Tag Manager, Analytics)", "Statistika posjeta, samo uz vaš pristanak na kolačiće, bez imena i kontakata", "SAD i EU"],
@@ -102,8 +104,16 @@ export default function PrivacyPage() {
           treba ga prosljeđivati. Stranica s ugovorom se ne pojavljuje na Googleu.
         </p>
 
+        <h2>Fotografije dokumenata</h2>
+        <p>
+          Neki vlasnici uz upit traže fotografiju lične karte ili pasoša i vozačke dozvole. Fotografiju prije spremanja
+          smanjujemo i iz nje uklanjamo sve osim slike (npr. lokaciju i podatke o telefonu), a zatim je šifrujemo. Vidi je
+          samo vlasnik vozila za koje šaljete upit, u svom panelu nakon prijave; nema javnog linka do nje.
+        </p>
+
         <h2>Koliko dugo čuvamo podatke</h2>
         <ul>
+          <li>Fotografije dokumenata brišemo {KEEP_DOCUMENTS_DAYS} dana nakon povratka vozila, a odmah ako vlasnik upit odbije ili rezervaciju otkaže.</li>
           <li>Upit koji nije potvrđen brišemo kad više nije potreban, najkasnije godinu dana nakon traženih datuma.</li>
           <li>Podatke rezervacije i ugovora čuvamo {SITE.keepBookings} nakon završetka najma, zbog knjigovodstva i mogućih sporova (npr. šteta ili kazne).</li>
           <li>Račun vlasnika čuvamo dok ga vlasnik ne zatvori.</li>

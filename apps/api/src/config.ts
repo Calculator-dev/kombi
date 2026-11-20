@@ -29,6 +29,11 @@ const schema = z.object({
   BACKBLAZE_BUCKET_NAME: optional,
   /** Public address of the bucket's files. Default: https://<bucket>.s3.<region>.backblazeb2.com */
   BACKBLAZE_PUBLIC_URL: optional,
+  /**
+   * Secret for encrypting photos of customers' documents (any long random string,
+   * e.g. `openssl rand -base64 32`). Changing it makes stored documents unreadable.
+   */
+  DOCUMENTS_KEY: optional,
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
   /** Gets a copy of every booking request, for the platform. */
   OWNER_EMAIL: optional,
@@ -58,6 +63,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
   if (!parsed.RESEND_API_KEY && !parsed.SMTP_HOST && parsed.NODE_ENV === "production") {
     console.warn("[config] Neither RESEND_API_KEY nor SMTP_HOST is set — emails are only printed to the log.");
+  }
+  if (!parsed.DOCUMENTS_KEY && parsed.NODE_ENV === "production") {
+    console.warn("[config] DOCUMENTS_KEY is not set — customers' documents are encrypted with a key derived from BACKBLAZE_APP_KEY. Set DOCUMENTS_KEY.");
   }
   if (!parsed.PLATFORM_ADMIN_EMAILS.length && parsed.NODE_ENV !== "test") {
     console.warn("[config] PLATFORM_ADMIN_EMAILS is empty — nobody can approve new owners.");
