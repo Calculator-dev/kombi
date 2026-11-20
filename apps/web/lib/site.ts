@@ -12,7 +12,7 @@ export const SITE = {
   email: "info@kombi.ba",
   replyWithin: "[2 sata]",
   /** Who runs the platform: shown in the privacy policy as the data controller. */
-  operator: "Obrtnička djelatnost Staze Kotromanića, Geteova 15, [ID broj]",
+  operator: "Obrtnička djelatnost Staze Kotromanića, vl. Bakir Hadžiahmetović, Geteova 15, Sarajevo, ID 4304350010002",
   /** How long booking data is kept after the rental ends. */
   keepBookings: "[5 godina]",
 };
