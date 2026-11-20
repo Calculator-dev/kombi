@@ -24,7 +24,7 @@ export function switchPath(pathname: string): string {
   return hasEnglish(pathname) ? localePath("en", pathname) : "/en";
 }
 
-const plural = (n: number, one: string, few: string, many: string) =>
+export const plural = (n: number, one: string, few: string, many: string) =>
   n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many;
 
 const bs = {
@@ -110,7 +110,7 @@ const bs = {
   home: {
     title: ["Auto ili kombi", "za svaki put"],
     intro:
-      "Najam auta i kombija, bez vozača. Za grad, na more, na Jahorinu, na svadbu ili po goste na aerodrom. Odaberite datume i odmah vidite koja su auta i kombiji slobodni i koliko koštaju.",
+      "Najam auta i kombija, bez vozača. Za grad, na more, na Jahorinu, na svadbu ili po goste na aerodrom. Odaberite datume i odmah vidite koja su auta i kombiji slobodni. Gdje je vlasnik objavio cijenu, vidite i tačan iznos za vaše dane; ostalo je na upit.",
     specVans: "Vozila",
     specFrom: "Od",
     specCities: "Gradovi",
@@ -207,7 +207,7 @@ const bs = {
     sorts: { total: "Najjeftinije ukupno", daily: "Najjeftinije po danu", seats: "Najviše sjedišta", newest: "Najnovije godište" },
     metaTitle: "Auta i kombiji za najam — filtrirajte po broju putnika, prtljagu i opremi",
     metaDescription:
-      "Sva auta i kombiji za najam na jednom mjestu. Odaberite datume, broj putnika i kofera, mjenjač i opremu, i odmah vidite slobodna vozila s tačnom cijenom.",
+      "Sva auta i kombiji za najam na jednom mjestu. Odaberite datume, broj putnika i kofera, mjenjač i opremu, i odmah vidite slobodna vozila, s tačnom cijenom gdje je vlasnik objavio.",
   },
   fuels: { Dizel: "Dizel", Benzin: "Benzin", Hibrid: "Hibrid", Električni: "Električni" } as Record<string, string>,
   gearboxes: { Manuelni: "Manuelni", Automatski: "Automatski" } as Record<string, string>,
@@ -250,8 +250,8 @@ const bs = {
   },
   prices: {
     title: "Cjenovnik",
-    noteOnRequest: "Cijenu najma dogovarate s vlasnikom nakon što pošaljete upit. Bez naknada koje se pojave na šalteru.",
-    note: "Cijena koju vidite je cijena koju plaćate. Bez naknada koje se pojave na šalteru.",
+    noteOnRequest: "Cijenu najma dogovarate s vlasnikom nakon što pošaljete upit. Depozit, dodaci i ostali troškovi su navedeni ispod i poznati su prije potvrde rezervacije.",
+    note: "Cijena koju vidite je cijena koju plaćate. Svi dodatni troškovi su navedeni ovdje i poznati su prije potvrde rezervacije.",
     rental: "Najam",
     rentalPrice: "Cijena najma",
     short: "1–6 dana",
@@ -260,6 +260,8 @@ const bs = {
     deposit: "Depozit",
     extras: "Dodaci",
     included: "Uključeno",
+    vatIn: "Cijene uključuju PDV.",
+    vatOut: "Iznajmljivač nije u sistemu PDV-a, pa se PDV ne obračunava.",
   },
   rules: {
     title: ["Uslovi", "najma"],
@@ -275,6 +277,19 @@ const bs = {
     cancelDays: (n: number) => `Besplatno do ${n} dana prije preuzimanja.`,
     cancelDay: "Besplatno do dana prije preuzimanja.",
     other: "Ostalo",
+    mileage: "Kilometraža",
+    mileageText: (km: number) => (km ? `${km} km po danu uključeno u cijenu.` : "Neograničena, bez doplate za kilometre."),
+    extraKm: "Dodatni kilometri",
+    damage: "Učešće u šteti",
+    damageText: (amount: string) => `Najviše ${amount} plaćate ako se vozilo ošteti tokom najma.`,
+    kasko: "Kasko",
+    kaskoText: { included: "Uključen u cijenu.", extra: "Moguć uz doplatu, pitajte u upitu.", no: "Nije dostupan; vozilo ima obavezno osiguranje (AO)." } as Record<string, string>,
+  },
+  reviews: {
+    title: ["Ocjene", "kupaca"],
+    summary: (avg: string, n: number) => `${avg} od 5 · ${n} ${plural(n, "ocjena", "ocjene", "ocjena")}`,
+    verified: "Ocjenu može ostaviti samo kupac nakon potvrđenog i završenog najma, preko linka koji dobije emailom.",
+    stars: (n: number) => `${n} od 5 zvjezdica`,
   },
   faq: {
     title: "Pitanja",
@@ -292,7 +307,10 @@ const bs = {
   plans: {
     eyebrow: "Za vlasnike auta i kombija",
     title: "Iznajmljujete auto ili kombi",
-    lead: "Jedan kombi i jedan auto objavljujete besplatno, bez paketa. Za više vozila i uvid u to koliko ljudi gleda vaše oglase izaberite Bronze, Silver ili Gold. Svaki paket vrijedi i za kombije i za auta: isti broj jednih i drugih.",
+    lead: "Jedan kombi i jedan auto objavljujete besplatno. Za više vozila i uvid u to koliko ljudi gleda vaše oglase izaberite Bronze, Silver ili Gold: vozila u paketu mogu biti i kombiji i auta, kako vam odgovara.",
+    trial: (days: number) => `Prvi partneri koriste bilo koji paket besplatno ${days} dana. Nakon toga paket plaćate samo ako ga želite zadržati, bez automatske naplate.`,
+    perMonth: "KM mjesečno",
+    free: "Besplatno",
     publish: "Objavite vozilo besplatno",
     basicsTitle: "Svi paketi uključuju",
     basics: [
@@ -302,16 +320,17 @@ const bs = {
       "Cijene po sezoni ili po dogovoru",
     ],
     footBefore: "Paket mijenjate kad god želite. Pišite na",
-    footAfter: "i javimo se s ponudom.",
-    forWho: { free: "", bronze: "Za nekoliko vozila", silver: "Za rent-a-car firme", gold: "Za velike flote" } as Record<string, string>,
-    vansNote: { free: "kombi i 1 auto", bronze: "kombija i 3 auta", silver: "kombija i 10 auta", gold: "neograničeno kombija i auta" } as Record<string, string>,
+    footAfter: "i paket uključujemo isti dan.",
+    forWho: { free: "Za probu ili jedno vozilo", bronze: "Za nekoliko vozila", silver: "Za rent-a-car firme", gold: "Za velike flote" } as Record<string, string>,
+    vansCount: { free: "1 + 1", bronze: "6", silver: "20", gold: "∞" } as Record<string, string>,
+    vansNote: { free: "kombi i auto", bronze: "vozila", silver: "vozila", gold: "vozila, bez ograničenja" } as Record<string, string>,
     recommended: "Preporučeno",
     yours: "Vaš paket",
-    priceOnRequest: "Cijena na upit",
     allBasics: "Sve osnovne mogućnosti",
     analytics: "Analitika: pregledi, upiti i prihod",
     noAnalytics: "Bez analitike",
     ask: (plan: string) => `Zatražite ${plan}`,
+    start: "Počnite besplatno",
     subject: (plan: string) => `Paket ${plan}`,
   },
   contact: {
@@ -496,7 +515,7 @@ const en: Dict = {
   home: {
     title: ["A car or a van", "for every trip"],
     intro:
-      "Car and van rental, self-drive. Around town, to the seaside, to Jahorina, to a wedding or to pick up guests at the airport. Pick your dates and instantly see which cars and vans are free and what they cost.",
+      "Car and van rental, self-drive. Around town, to the seaside, to Jahorina, to a wedding or to pick up guests at the airport. Pick your dates and instantly see which cars and vans are free. Where the owner lists a price you see the exact total for your dates; the rest are on request.",
     specVans: "Vehicles",
     specFrom: "From",
     specCities: "Cities",
@@ -593,7 +612,7 @@ const en: Dict = {
     sorts: { total: "Cheapest in total", daily: "Cheapest per day", seats: "Most seats", newest: "Newest" },
     metaTitle: "Cars and vans for rent — filter by passengers, luggage and equipment",
     metaDescription:
-      "Every car and van for rent in one place. Pick dates, passengers, suitcases, gearbox and equipment, and instantly see available vehicles with the exact price.",
+      "Every car and van for rent in one place. Pick dates, passengers, suitcases, gearbox and equipment, and instantly see available vehicles, with the exact price where the owner lists one.",
   },
   fuels: { Dizel: "Diesel", Benzin: "Petrol", Hibrid: "Hybrid", Električni: "Electric" },
   gearboxes: { Manuelni: "Manual", Automatski: "Automatic" },
@@ -636,8 +655,8 @@ const en: Dict = {
   },
   prices: {
     title: "Prices",
-    noteOnRequest: "You agree the rental price with the owner after sending a request. No surprise fees at the counter.",
-    note: "The price you see is the price you pay. No surprise fees at the counter.",
+    noteOnRequest: "You agree the rental price with the owner after sending a request. The deposit, extras and other costs are listed below and known before the booking is confirmed.",
+    note: "The price you see is the price you pay. All extra costs are listed here and known before the booking is confirmed.",
     rental: "Rental",
     rentalPrice: "Rental price",
     short: "1–6 days",
@@ -646,6 +665,8 @@ const en: Dict = {
     deposit: "Deposit",
     extras: "Extras",
     included: "Included",
+    vatIn: "Prices include VAT.",
+    vatOut: "The owner is not VAT-registered, so no VAT is charged.",
   },
   rules: {
     title: ["Rental", "terms"],
@@ -661,6 +682,19 @@ const en: Dict = {
     cancelDays: (n: number) => `Free up to ${n} days before pickup.`,
     cancelDay: "Free up to the day before pickup.",
     other: "Other",
+    mileage: "Mileage",
+    mileageText: (km: number) => (km ? `${km} km per day included in the price.` : "Unlimited, no charge per kilometre."),
+    extraKm: "Extra kilometres",
+    damage: "Damage excess",
+    damageText: (amount: string) => `The most you pay if the vehicle is damaged during the rental is ${amount}.`,
+    kasko: "Collision cover",
+    kaskoText: { included: "Included in the price.", extra: "Available for a fee; ask in your request.", no: "Not available; the vehicle has compulsory third-party insurance." } as Record<string, string>,
+  },
+  reviews: {
+    title: ["Customer", "reviews"],
+    summary: (avg: string, n: number) => `${avg} out of 5 · ${n} ${n === 1 ? "review" : "reviews"}`,
+    verified: "Only customers can leave a review, after a confirmed rental has ended, through a link they get by email.",
+    stars: (n: number) => `${n} out of 5 stars`,
   },
   faq: {
     title: "Questions",
@@ -678,7 +712,10 @@ const en: Dict = {
   plans: {
     eyebrow: "For car and van owners",
     title: "Rent out a car or a van",
-    lead: "Publish one van and one car for free, no package needed. For more vehicles and insight into how many people view your listings, choose Bronze, Silver or Gold. Every package covers both vans and cars: the same number of each.",
+    lead: "Publish one van and one car for free. For more vehicles and insight into how many people view your listings, choose Bronze, Silver or Gold: the vehicles in a package can be vans or cars, whichever you need.",
+    trial: (days: number) => `Our first partners use any package free for ${days} days. After that you pay only if you want to keep it; nothing is charged automatically.`,
+    perMonth: "KM per month",
+    free: "Free",
     publish: "List your vehicle for free",
     basicsTitle: "Every package includes",
     basics: [
@@ -688,16 +725,17 @@ const en: Dict = {
       "Seasonal prices or price on request",
     ],
     footBefore: "You can change your package any time. Write to",
-    footAfter: "and we'll send you an offer.",
-    forWho: { free: "", bronze: "For a few vehicles", silver: "For rent-a-car companies", gold: "For large fleets" },
-    vansNote: { free: "van and 1 car", bronze: "vans and 3 cars", silver: "vans and 10 cars", gold: "unlimited vans and cars" },
+    footAfter: "and we switch it on the same day.",
+    forWho: { free: "To try it, or for one vehicle", bronze: "For a few vehicles", silver: "For rent-a-car companies", gold: "For large fleets" },
+    vansCount: { free: "1 + 1", bronze: "6", silver: "20", gold: "∞" },
+    vansNote: { free: "van and car", bronze: "vehicles", silver: "vehicles", gold: "vehicles, no limit" },
     recommended: "Recommended",
     yours: "Your package",
-    priceOnRequest: "Price on request",
     allBasics: "All the basics",
     analytics: "Analytics: views, requests and revenue",
     noAnalytics: "No analytics",
     ask: (plan: string) => `Ask for ${plan}`,
+    start: "Start for free",
     subject: (plan: string) => `${plan} package`,
   },
   contact: {

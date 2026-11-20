@@ -14,11 +14,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
   title: {
-    default: "Najam auta i kombija u BiH — slobodna vozila i cijena odmah | kombi.ba",
+    default: "Najam auta i kombija u BiH — slobodna vozila i cijene na jednom mjestu | kombi.ba",
     template: "%s | kombi.ba",
   },
   description:
-    "Najam auta i kombija, bez vozača. Odaberite datume i odmah vidite slobodna auta i kombije i tačnu cijenu. Plaćanje pri preuzimanju.",
+    "Najam auta i kombija, bez vozača. Odaberite datume i odmah vidite slobodna auta i kombije, a uz objavljenu cijenu i tačan iznos za vaše dane. Plaćanje pri preuzimanju.",
   openGraph: { type: "website", locale: "bs_BA", siteName: SITE.name },
   formatDetection: { telephone: false },
 };

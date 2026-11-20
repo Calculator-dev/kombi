@@ -5,7 +5,11 @@ import { contractTermsSchema, type ContractTerms } from "@kombi/shared";
 import { ApiError, adminApi } from "@/lib/api";
 import type { OwnerVan } from "./types";
 
-/** What the rental contract says about this van: its papers and the amounts in the contract. Not shown on the site. */
+/**
+ * What the rental contract says about this van: its papers and the amounts in
+ * the contract. The papers stay private; the mileage and the damage share are
+ * also shown on the van's page once saved.
+ */
 export function ContractForm({ van, onSaved }: { van: OwnerVan; onSaved: (v: OwnerVan) => void }) {
   const [t, setT] = useState<ContractTerms>(van.contract);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -50,8 +54,9 @@ export function ContractForm({ van, onSaved }: { van: OwnerVan; onSaved: (v: Own
     <section>
       <h2 className="display h-md" style={{ marginBottom: 8 }}>Ugovor o najmu</h2>
       <p className="lead" style={{ marginBottom: 20 }}>
-        Ovi podaci se upisuju u ugovor koji otvarate dugmetom „Ugovor" na rezervaciji. Ne prikazuju se na stranici. Vaši
-        podaci kao najmodavca su u Profilu.
+        Ovi podaci se upisuju u ugovor koji otvarate dugmetom „Ugovor" na rezervaciji. Registracija, šasija i boja se ne
+        prikazuju nigdje. Kilometraža po danu, cijena dodatnih kilometara i učešće u šteti prikazuju se i na oglasu, da
+        kupac zna uslove prije upita. Vaši podaci kao najmodavca su u Profilu.
       </p>
       <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <div className="fields">

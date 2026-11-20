@@ -6,6 +6,8 @@ export interface Notifier {
   /** `ownerEmail`: the van's owner; null for vans the platform runs itself. */
   bookingRequested(b: Booking, ownerEmail: string | null): Promise<void>;
   bookingConfirmed(b: Booking): Promise<void>;
+  /** After the rental: asks the customer to rate it. */
+  reviewRequest(b: Booking): Promise<void>;
 }
 
 const CHANNEL: Record<string, string> = { viber: "Viber", whatsapp: "WhatsApp", email: "Email", phone: "Poziv" };
@@ -105,6 +107,15 @@ export function createNotifier(config: Config, fetchImpl: typeof fetch = fetch):
           `Javit ćemo vam se da dogovorimo tačno mjesto i vrijeme preuzimanja.\n\n` +
           `Ugovor o najmu možete pročitati prije preuzimanja (link je samo vaš, ne prosljeđujte ga):\n` +
           `${config.WEB_ORIGIN}/ugovor/${b.contractToken}\n\nkombi.ba`,
+      );
+    },
+    async reviewRequest(b) {
+      await send(
+        b.email,
+        `kombi.ba — kako je bilo s vozilom ${b.vanName}?`,
+        `Zdravo ${b.name.split(" ")[0]},\n\nhvala što ste vozili ${b.vanName} (${fmt(b.start)} – ${fmt(b.end)}).\n` +
+          `Ocijenite najam u pola minute. Ocjena pomaže drugima da izaberu, a vlasniku da bude još bolji:\n` +
+          `${config.WEB_ORIGIN}/ocjena/${b.reviewToken}\n\nOcjene mogu ostaviti samo kupci koji su stvarno iznajmili vozilo.\n\nkombi.ba`,
       );
     },
   };

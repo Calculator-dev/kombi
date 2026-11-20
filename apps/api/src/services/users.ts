@@ -1,5 +1,5 @@
 import { asc, eq, sql } from "drizzle-orm";
-import { PLAN_INFO, carsWord, planVans, vansWord, type Plan, type Profile, type UserStatus } from "@kombi/shared";
+import { PLAN_INFO, carsWord, planAllows, planVans, vansWord, type Plan, type Profile, type UserStatus } from "@kombi/shared";
 import { schema, type Executor } from "../db";
 import type { UserRow } from "../db/schema";
 import { HttpError } from "../errors";
@@ -46,7 +46,7 @@ export async function ensureUser(
 export async function updateProfile(db: Executor, id: string, p: Profile): Promise<UserRow> {
   const [row] = await db
     .update(users)
-    .set({ name: p.name, phone: p.phone, address: p.address, companyId: p.companyId, representative: p.representative, updatedAt: sql`now()` })
+    .set({ name: p.name, phone: p.phone, address: p.address, companyId: p.companyId, representative: p.representative, vatRegistered: p.vatRegistered, updatedAt: sql`now()` })
     .where(eq(users.id, id))
     .returning();
   return row!;
@@ -73,10 +73,9 @@ export async function setUserStatus(db: Executor, id: string, status: UserStatus
 
 /** Changes an owner's package. A smaller one is refused while more vans are published than it allows. */
 export async function setUserPlan(db: Executor, id: string, plan: Plan): Promise<UserRow> {
-  const max = PLAN_INFO[plan].maxVans;
-  if (max !== null) {
+  if (PLAN_INFO[plan].limit) {
     const live = await publishedCount(db, id);
-    if (live.van > max || live.car > max) {
+    if (!planAllows(plan, live)) {
       throw new HttpError(
         409,
         "plan_too_small",

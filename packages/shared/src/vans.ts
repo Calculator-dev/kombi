@@ -78,6 +78,10 @@ export const vanDetailsSchema = z.object({
 });
 export type VanDetails = z.infer<typeof vanDetailsSchema>;
 
+/** Kasko: included in the price, available for a fee, not offered; "" = the owner hasn't said. */
+export const KASKO = ["", "included", "extra", "no"] as const;
+export type Kasko = (typeof KASKO)[number];
+
 /** A van's rental terms, set by its owner and shown on its page. */
 export const termsSchema = z.object({
   minDriverAge: z.number().int().min(18, "Najmanje 18").max(99),
@@ -88,6 +92,8 @@ export const termsSchema = z.object({
   fuel: z.string().trim().max(300),
   border: z.string().trim().max(300),
   included: z.array(z.string().trim().min(1).max(60)).max(12),
+  /** Comprehensive insurance (kasko): "" = not said. */
+  kasko: z.enum(KASKO).default(""),
   /** Anything else: pets, smoking, mileage limit… */
   notes: z.string().trim().max(1500),
 });
@@ -100,7 +106,8 @@ export const DEFAULT_TERMS: Terms = {
   documents: "Lična karta ili pasoš i vozačka dozvola.",
   fuel: "Preuzimate pun rezervoar, vraćate pun rezervoar.",
   border: "Najavite u upitu, pripremamo zeleni karton.",
-  included: ["Osiguranje", "PDV", "Pomoć na putu 0–24h"],
+  included: ["Obavezno osiguranje (AO)", "Pomoć na putu 0–24h"],
+  kasko: "",
   notes: "",
 };
 
@@ -111,6 +118,8 @@ export const profileSchema = z.object({
   address: z.string().trim().max(200).default(""),
   /** Company or trade ID number (ID broj). */
   companyId: z.string().trim().max(30).default(""),
+  /** In the VAT system (PDV obveznik): the site then says prices include PDV. */
+  vatRegistered: z.boolean().default(false),
   /** Who signs for a company, e.g. "zastupana po vlasniku obrta …". */
   representative: z.string().trim().max(200).default(""),
 });
@@ -135,7 +144,45 @@ export interface PublicVan extends VanDetails {
   terms: Terms;
   /** Who rents it out: the owner's profile name; null when kombi.ba runs it itself. */
   owner?: string | null;
+  /** Whether the owner is in the VAT system; null when not known (kombi.ba's own vans). */
+  vat?: boolean | null;
+  /** Mileage and damage terms, as far as the owner has filled them in for the contract. */
+  limits?: VanLimits;
+  /** Ratings from finished rentals. */
+  reviews?: ReviewSummary;
 }
+
+export interface VanLimits {
+  /** Kilometres included per day; 0 = unlimited. */
+  kmPerDay?: number;
+  /** Price of kilometres above the limit, one tier per line. */
+  extraKm?: string;
+  /** The renter's share in any damage, in KM. */
+  damageFee?: number;
+}
+
+export interface PublicReview {
+  rating: number;
+  comment: string;
+  name: string;
+  /** ISO date the review was written. */
+  date: string;
+}
+
+export interface ReviewSummary {
+  count: number;
+  /** Average stars, one decimal; 0 without reviews. */
+  average: number;
+  /** Newest first, at most 20. */
+  items: PublicReview[];
+}
+
+/** What a customer sends to rate a finished rental. */
+export const reviewSchema = z.object({
+  rating: z.number().int().min(1, "Odaberite ocjenu").max(5),
+  comment: z.string().trim().max(1000, "Najviše 1000 znakova").default(""),
+});
+export type ReviewInput = z.infer<typeof reviewSchema>;
 
 /** A van in a list, optionally with availability and price for chosen dates. */
 export interface VanCard
@@ -146,6 +193,8 @@ export interface VanCard
   dailyRate: number;
   /** "Cijena po dogovoru": show no price for this van. */
   priceOnRequest?: boolean;
+  /** Average stars and how many reviews; only when there are any. */
+  rating?: { average: number; count: number };
   /** Only when dates were given. */
   available?: boolean;
   quote?: Pick<Quote, "days" | "total" | "errors">;

@@ -13,6 +13,7 @@ import { BookingList } from "./BookingList";
 import { Overview } from "./Overview";
 import { PlanCards } from "./PlanCards";
 import { ProfileForm } from "./ProfileForm";
+import { ReviewsPanel } from "./ReviewsPanel";
 import { UsersPanel } from "./UsersPanel";
 import { VansPanel } from "./VansPanel";
 import type { AdminBooking, Block, Me, OwnerVan } from "./types";
@@ -24,6 +25,7 @@ const TABS = [
   ["blokade", "Blokirani dani"],
   ["analitika", "Analitika"],
   ["vlasnici", "Vlasnici"],
+  ["ocjene", "Ocjene"],
   ["profil", "Profil"],
 ] as const;
 type Tab = (typeof TABS)[number][0];
@@ -114,7 +116,7 @@ export function AdminApp() {
     );
   }
 
-  const tabs = TABS.filter(([id]) => id !== "vlasnici" || me.role === "admin");
+  const tabs = TABS.filter(([id]) => (id !== "vlasnici" && id !== "ocjene") || me.role === "admin");
   return (
     <>
       <header className="header">
@@ -145,6 +147,7 @@ export function AdminApp() {
         {tab === "blokade" && <BlocksPanel vans={vans} blocks={blocks} onChange={setBlocks} />}
         {tab === "analitika" && <AnalyticsPanel me={me} vans={vans} />}
         {tab === "vlasnici" && me.role === "admin" && <UsersPanel vans={vans} onVansChange={setVans} />}
+        {tab === "ocjene" && me.role === "admin" && <ReviewsPanel />}
         {tab === "profil" && (
           <>
             <h1 className="display h-lg">Profil</h1>

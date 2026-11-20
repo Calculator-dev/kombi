@@ -17,6 +17,7 @@ export function FinderPage({
   path = "/",
   locale = "bs",
   category,
+  guide,
 }: {
   title: ReactNode;
   intro: string;
@@ -25,6 +26,8 @@ export function FinderPage({
   locale?: Locale;
   /** A landing page for one type of van. */
   category?: Category;
+  /** A landing page's own content, shown after the vehicles. */
+  guide?: ReactNode;
 }) {
   const t = dict(locale).home;
   const priced = vans.filter((v) => !v.priceOnRequest);
@@ -51,6 +54,7 @@ export function FinderPage({
           </Suspense>
         </Hero>
         <VanGrid vans={vans} locale={locale} category={category} />
+        {guide}
         <PageBody locale={locale} />
       </main>
       <Footer locale={locale} />

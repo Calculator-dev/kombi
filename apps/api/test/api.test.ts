@@ -5,7 +5,9 @@ import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from "jose";
 import { createApp } from "../src/app";
 import { loadConfig } from "../src/config";
 import { createDb, type Db } from "../src/db";
+import { bookings } from "../src/db/schema";
 import type { Notifier } from "../src/services/notify";
+import { eq } from "drizzle-orm";
 import { memoryStorage } from "../src/services/storage";
 
 // Runs on in-memory PGlite by default. Set TEST_DATABASE_URL to an EMPTY PostgreSQL
@@ -69,6 +71,7 @@ beforeAll(async () => {
   const notifier: Notifier = {
     bookingRequested: async (b, owner) => void sent.push(`requested:${b.ref}:${owner ?? "platform"}`),
     bookingConfirmed: async (b) => void sent.push(`confirmed:${b.ref}`),
+    reviewRequest: async (b) => void sent.push(`review:${b.ref}`),
   };
   app = createApp({ db, config, notifier, storage, now: () => NOW, authKeys: createLocalJWKSet({ keys: [jwk] }) });
   firstVanId = (await request(app).get("/api/vans").expect(200)).body[0].id;
@@ -535,6 +538,24 @@ describe("packages, analytics and price by agreement", () => {
     await (await as(ADMIN)).patch(`/api/admin/users/${AMIR.id}`).send({ plan: "free" }).expect(409);
   });
 
+  it("counts vans and cars together on a paid package: Bronze allows six vehicles", async () => {
+    const amir = await as(AMIR);
+    const live = async () => (await amir.get("/api/admin/vans")).body.filter((v: { status: string }) => v.status === "published").length as number;
+    const added: string[] = [];
+    // Two vans are live already; four cars fill the package.
+    while ((await live()) < 6) {
+      const id = (await amir.post("/api/admin/vans").send(van({ name: `Auto ${added.length + 1}`, category: "car", seats: 5 })).expect(201)).body.id as string;
+      await amir.post(`/api/admin/vans/${id}/photos`).attach("photo", await photo(), "v.jpg").expect(201);
+      await amir.patch(`/api/admin/vans/${id}/status`).send({ status: "published" }).expect(200);
+      added.push(id);
+    }
+    expect(added.length).toBe(4);
+    const seventh = (await amir.post("/api/admin/vans").send(van({ name: "Opel Movano" })).expect(201)).body.id as string;
+    await amir.post(`/api/admin/vans/${seventh}/photos`).attach("photo", await photo(), "v.jpg").expect(201);
+    expect((await amir.patch(`/api/admin/vans/${seventh}/status`).send({ status: "published" }).expect(403)).body.error).toBe("plan_limit");
+    for (const id of [...added, seventh]) await amir.delete(`/api/admin/vans/${id}`).expect(204);
+  });
+
   it("shows analytics to paying owners only, for their own vans", async () => {
     const belma = await as(BELMA);
     expect((await belma.get("/api/admin/analytics").expect(403)).body.error).toBe("plan_required");
@@ -647,5 +668,62 @@ describe("rental contract", () => {
 
     await request(app).get(`/api/contracts/${"0".repeat(64)}`).expect(404);
     await request(app).get(`/api/contracts/${b.id}`).expect(404);
+  });
+});
+
+describe("VAT, mileage and reviews", () => {
+  it("shows the owner's VAT status and the mileage and damage terms they saved", async () => {
+    const amir = await as(AMIR);
+    const [mine] = (await amir.get("/api/admin/vans").expect(200)).body as { slug: string }[];
+    const before = (await request(app).get(`/api/vans/${mine!.slug}`).expect(200)).body;
+    expect(before.vat).toBe(false);
+    // Saved in the contract test (the form sends every amount).
+    expect(before.limits).toMatchObject({ kmPerDay: 300, damageFee: 500 });
+    expect(before.limits.extraKm).toContain("0,35 KM/km");
+    // A van whose contract terms were never saved shows none: the sample values aren't the owner's.
+    expect((await request(app).get("/api/vans/toyota-proace-verso")).body.limits).toEqual({});
+    const me = (await amir.get("/api/admin/me").expect(200)).body;
+    await amir.put("/api/admin/me").send({ name: me.name, phone: me.phone, vatRegistered: true }).expect(200);
+    expect((await amir.get("/api/admin/me")).body.vatRegistered).toBe(true);
+    expect((await request(app).get(`/api/vans/${mine!.slug}`)).body.vat).toBe(true);
+    // The platform's own vans: not known.
+    expect((await request(app).get("/api/vans/toyota-proace-verso")).body.vat).toBeNull();
+  });
+
+  it("lets only a customer with a finished, confirmed rental rate it, once", async () => {
+    const admin = await as(ADMIN);
+    const created = await request(app).post("/api/bookings").send(booking({ start: "2026-12-20", end: "2026-12-22", extras: [] })).expect(201);
+    const b = ((await admin.get("/api/admin/bookings")).body as { id: string; ref: string; reviewToken: string }[]).find((x) => x.ref === created.body.ref)!;
+    expect(b.reviewToken).toMatch(/^[0-9a-f]{64}$/);
+
+    // Not confirmed: closed. Confirmed but not over yet: too early.
+    expect((await request(app).get(`/api/reviews/${b.reviewToken}`).expect(200)).body.state).toBe("closed");
+    await admin.patch(`/api/admin/bookings/${b.id}`).send({ status: "confirmed" }).expect(200);
+    expect((await request(app).get(`/api/reviews/${b.reviewToken}`)).body.state).toBe("early");
+    await request(app).post(`/api/reviews/${b.reviewToken}`).send({ rating: 5 }).expect(409);
+    await admin.post(`/api/admin/bookings/${b.id}/review-request`).expect(409);
+
+    // The rental is over.
+    await db.orm.update(bookings).set({ start: "2026-10-10", end: "2026-10-14" }).where(eq(bookings.id, b.id));
+    await admin.post(`/api/admin/bookings/${b.id}/review-request`).expect(200);
+    expect(sent).toContain(`review:${b.ref}`);
+    const ctx = (await request(app).get(`/api/reviews/${b.reviewToken}`)).body;
+    expect(ctx).toMatchObject({ state: "open", name: "Amra", vanSlug: "toyota-proace-verso" });
+    await request(app).post(`/api/reviews/${b.reviewToken}`).send({ rating: 7 }).expect(400);
+    const done = await request(app).post(`/api/reviews/${b.reviewToken}`).send({ rating: 4, comment: "Čist kombi, ljubazan vlasnik." }).expect(201);
+    expect(done.body.state).toBe("done");
+    await request(app).post(`/api/reviews/${b.reviewToken}`).send({ rating: 1 }).expect(409);
+    await request(app).get(`/api/reviews/${"0".repeat(64)}`).expect(404);
+
+    const page = (await request(app).get("/api/vans/toyota-proace-verso")).body;
+    expect(page.reviews).toMatchObject({ count: 1, average: 4, items: [{ rating: 4, name: "Amra", comment: "Čist kombi, ljubazan vlasnik." }] });
+    const card = (await request(app).get("/api/search")).body.items.find((v: { slug: string }) => v.slug === "toyota-proace-verso");
+    expect(card.rating).toEqual({ average: 4, count: 1 });
+
+    // An admin can hide it; owners can't.
+    const [r] = (await admin.get("/api/admin/reviews").expect(200)).body as { id: string }[];
+    await (await as(AMIR)).patch(`/api/admin/reviews/${r!.id}`).send({ hidden: true }).expect(403);
+    await admin.patch(`/api/admin/reviews/${r!.id}`).send({ hidden: true }).expect(200);
+    expect((await request(app).get("/api/vans/toyota-proace-verso")).body.reviews.count).toBe(0);
   });
 });

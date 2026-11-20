@@ -33,6 +33,10 @@ export function JsonLd({ path = "/", fromPrice, van, locale = "bs" }: { path?: s
               fuelType: FUEL[van.fuel],
               vehicleTransmission: van.gearbox === "Automatski" ? "Automatic" : "Manual",
               vehicleModelDate: String(van.year),
+              // Ratings from customers with a finished rental (shown on the page too).
+              aggregateRating: van.reviews?.count
+                ? { "@type": "AggregateRating", ratingValue: van.reviews.average, reviewCount: van.reviews.count, bestRating: 5, worstRating: 1 }
+                : undefined,
             },
           }
         : undefined,

@@ -57,11 +57,21 @@ export function TermsForm({ van, onSaved }: { van: OwnerVan; onSaved: (v: OwnerV
           {field("documents", "Dokumenti", <input value={t.documents} onChange={(e) => set("documents", e.target.value)} />)}
           {field("fuel", "Gorivo", <input value={t.fuel} onChange={(e) => set("fuel", e.target.value)} />)}
           {field("border", "Prelazak granice", <input value={t.border} placeholder="npr. Dozvoljeno uz zeleni karton (HR, ME, RS)" onChange={(e) => set("border", e.target.value)} />)}
+          {field(
+            "kasko",
+            "Kasko osiguranje",
+            <select value={t.kasko ?? ""} onChange={(e) => set("kasko", e.target.value as Terms["kasko"])}>
+              <option value="">Ne navodim</option>
+              <option value="included">Uključeno u cijenu</option>
+              <option value="extra">Moguće uz doplatu</option>
+              <option value="no">Nije dostupno</option>
+            </select>,
+          )}
         </div>
         {field(
           "included",
           "Uključeno u cijenu (jedno po redu)",
-          <textarea rows={4} value={included} placeholder={"Osiguranje\nPDV\nNeograničena kilometraža"} onChange={(e) => setIncluded(e.target.value)} />,
+          <textarea rows={4} value={included} placeholder={"Obavezno osiguranje (AO)\nPomoć na putu 0–24h"} onChange={(e) => setIncluded(e.target.value)} />,
         )}
         {field(
           "notes",

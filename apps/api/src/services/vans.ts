@@ -5,6 +5,7 @@ import {
   contractTermsSchema,
   PLAN_INFO,
   kindOf,
+  planAllows,
   planVans,
   DEFAULT_TERMS,
   MAX_PHOTOS,
@@ -23,11 +24,13 @@ import {
   type Terms,
   type VanCard,
   type VanDetails,
+  type VanLimits,
   type VanSearch,
   type VehicleKind,
   type VanStatus,
 } from "@kombi/shared";
 import { schema, type Database, type Executor } from "../db";
+import { ratingsOf } from "./reviews";
 import { lockVanCalendar } from "./availability";
 import type { SpinPhoto, StoredPhoto, UserRow, VanRow } from "../db/schema";
 import { HttpError } from "../errors";
@@ -78,9 +81,28 @@ export async function getPublicVan(db: Executor, by: { slug: string } | { id: st
 
 /** The name a van's owner shows on their profile; null for vans the platform runs itself. */
 export async function ownerNameOf(db: Executor, van: VanRow): Promise<string | null> {
+  return (await ownerOf(db, van))?.name ?? null;
+}
+
+/** What the public page says about a van's owner: profile name and VAT status. Null for the platform's own vans. */
+export async function ownerOf(db: Executor, van: VanRow): Promise<{ name: string | null; vat: boolean } | null> {
   if (!van.ownerId) return null;
-  const [row] = await db.select({ name: users.name }).from(users).where(eq(users.id, van.ownerId));
-  return row?.name?.trim() || null;
+  const [row] = await db.select({ name: users.name, vat: users.vatRegistered }).from(users).where(eq(users.id, van.ownerId));
+  return row ? { name: row.name?.trim() || null, vat: row.vat } : null;
+}
+
+/**
+ * Mileage and damage terms for the public page. Only what the owner actually
+ * saved for the contract: the sample contract's defaults are not shown as theirs.
+ */
+export function publicLimits(van: Pick<VanRow, "contract">): VanLimits {
+  const c = contractTermsOf(van);
+  const set = (k: keyof VanLimits) => k in van.contract;
+  return {
+    kmPerDay: set("kmPerDay") ? c.kmPerDay : undefined,
+    extraKm: set("extraKm") && c.extraKm ? c.extraKm : undefined,
+    damageFee: set("damageFee") ? c.damageFee : undefined,
+  };
 }
 
 /** Vans a user manages: their own, or every van for an admin. */
@@ -157,26 +179,21 @@ export async function saveVanContract(db: Executor, van: VanRow, input: unknown)
   return row!;
 }
 
-/** The categories that count as the same kind (vans or cars) for a package. */
-const sameKind = (kind: VehicleKind) => (kind === "car" ? eq(vans.category, "car") : sql`${vans.category} <> 'car'`);
-
 /**
- * An owner's package limits how many of their vans, and separately how many
- * of their cars, can be published at once. Vans the platform runs itself, and
- * admins, have no limit.
+ * An owner's package limits how many vehicles can be published at once: on
+ * Free one van and one car, on the paid ones a number of vehicles of either
+ * kind. Vans the platform runs itself, and admins, have no limit.
  */
 async function checkPlanLimit(db: Executor, ownerId: string | null, exceptVanId: string, kind: VehicleKind): Promise<void> {
   if (!ownerId) return;
   const [owner] = await db.select().from(users).where(eq(users.id, ownerId));
   if (!owner || owner.role === "admin") return;
-  const max = PLAN_INFO[owner.plan].maxVans;
-  if (max === null) return;
-  const [row] = await db
-    .select({ n: count() })
-    .from(vans)
-    .where(and(eq(vans.ownerId, ownerId), eq(vans.status, "published"), sameKind(kind), sql`${vans.id} <> ${exceptVanId}`));
-  if ((row?.n ?? 0) >= max) {
-    const other = kind === "car" ? "drugi auto" : "drugi kombi";
+  if (!PLAN_INFO[owner.plan].limit) return;
+  const live = await publishedCount(db, ownerId, exceptVanId);
+  live[kind] += 1;
+  if (!planAllows(owner.plan, live)) {
+    const each = "each" in (PLAN_INFO[owner.plan].limit ?? {});
+    const other = each ? (kind === "car" ? "drugi auto" : "drugi kombi") : "neko drugo vozilo";
     throw new HttpError(
       403,
       "plan_limit",
@@ -186,11 +203,11 @@ async function checkPlanLimit(db: Executor, ownerId: string | null, exceptVanId:
 }
 
 /** Published vans and published cars of an owner, for checking a package change. */
-export async function publishedCount(db: Executor, ownerId: string): Promise<Record<VehicleKind, number>> {
+export async function publishedCount(db: Executor, ownerId: string, exceptVanId?: string): Promise<Record<VehicleKind, number>> {
   const rows = await db
     .select({ category: vans.category, n: count() })
     .from(vans)
-    .where(and(eq(vans.ownerId, ownerId), eq(vans.status, "published")))
+    .where(and(eq(vans.ownerId, ownerId), eq(vans.status, "published"), exceptVanId ? sql`${vans.id} <> ${exceptVanId}` : undefined))
     .groupBy(vans.category);
   const counts = { van: 0, car: 0 };
   for (const r of rows) counts[kindOf(r.category)] += r.n;
@@ -421,7 +438,8 @@ export async function searchVans(db: Executor, storage: PhotoStorage, q: VanSear
 
   type Card = ReturnType<typeof toCard>;
   const bookable = (c: Card) => c.available !== false && !c.quote?.errors.length;
-  let cards: Card[] = rows.map(({ van }) => toCard(storage, van));
+  const ratings = await ratingsOf(db, rows.map(({ van }) => van.id));
+  let cards: Card[] = rows.map(({ van }) => ({ ...toCard(storage, van), rating: ratings.get(van.id) }));
   let free = cards.length;
   if (q.start && q.end) {
     const dates = { start: q.start, end: q.end };
