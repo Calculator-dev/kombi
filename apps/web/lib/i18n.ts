@@ -379,7 +379,7 @@ const bs = {
     doneText: (channel: string, within: string) =>
       `Čuvamo ga dok ga ne potvrdimo. Potvrdu i dogovor oko preuzimanja šaljemo na ${channel} u roku od ${within}.`,
     channels: { email: "email", phone: "telefon", viber: "Viber", whatsapp: "WhatsApp" } as Record<string, string>,
-    replyWithin: "[2 sata]",
+    replyWithin: "2 sata",
     backHome: "Nazad na početnu",
     otherDates: "Odaberite druge datume",
     privacyBefore: "Slanjem upita vaše podatke dobija vlasnik vozila, da potvrdi rezervaciju i pripremi ugovor. Više u",
@@ -784,7 +784,7 @@ const en: Dict = {
     doneText: (channel: string, within: string) =>
       `We hold them until we confirm. We'll send the confirmation and pickup details by ${channel} within ${within}.`,
     channels: { email: "email", phone: "phone", viber: "Viber", whatsapp: "WhatsApp" },
-    replyWithin: "[2 hours]",
+    replyWithin: "2 hours",
     backHome: "Back to the homepage",
     otherDates: "Pick other dates",
     privacyBefore: "When you send the request, the vehicle's owner receives your details to confirm the booking and prepare the contract. More in the",

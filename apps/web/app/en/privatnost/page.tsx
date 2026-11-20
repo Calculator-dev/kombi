@@ -104,7 +104,7 @@ export default function PrivacyPage() {
         <h2>How long we keep data</h2>
         <ul>
           <li>A request that isn't confirmed is deleted when no longer needed, at the latest a year after the requested dates.</li>
-          <li>Booking and contract data is kept for {SITE.keepBookings} after the rental ends, for accounting and possible disputes (e.g. damage or fines).</li>
+          <li>Booking and contract data is kept for {SITE.keepBookingsEn} after the rental ends, for accounting and possible disputes (e.g. damage or fines).</li>
           <li>An owner's account is kept until the owner closes it.</li>
         </ul>
 

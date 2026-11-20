@@ -10,11 +10,12 @@ export const SITE = {
   url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://kombi.ba",
   city: "Sarajevo",
   email: "info@kombi.ba",
-  replyWithin: "[2 sata]",
+  replyWithin: "2 sata",
   /** Who runs the platform: shown in the privacy policy as the data controller. */
   operator: "Obrtnička djelatnost Staze Kotromanića, vl. Bakir Hadžiahmetović, Geteova 15, Sarajevo, ID 4304350010002",
   /** How long booking data is kept after the rental ends. */
-  keepBookings: "[5 godina]",
+  keepBookings: "5 godina",
+  keepBookingsEn: "5 years",
 };
 
 export const FAQ = dict("bs").faq.items;
