@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { createContext, useContext, useEffect, useState } from "react";
-import { HANDOVER_LABELS, HANDOVER_SIDES, HANDOVER_STAGES, type ContractData } from "@kombi/shared";
+import { HANDOVER_LABELS, HANDOVER_SIDES, type ContractData, type HandoverVideo } from "@kombi/shared";
+import { VideoUpload } from "./VideoUpload";
 import { ApiError, adminApi } from "@/lib/api";
 import { PREAMBLE, contractArticles, dotDate, lessorRows, placeOf, renterRows, type Block } from "@/lib/contract";
 
@@ -74,15 +75,15 @@ export function ContractView({ bookingId }: { bookingId: string }) {
 }
 
 /** The customer's read-only copy, opened from the link in the confirmation email. */
-export function RenterContract({ data }: { data: ContractData }) {
+export function RenterContract({ data, token }: { data: ContractData; token: string }) {
   return (
     <ReadOnly.Provider value>
-      <ContractSheet data={data} renter />
+      <ContractSheet data={data} renter token={token} />
     </ReadOnly.Provider>
   );
 }
 
-export function ContractSheet({ data, renter }: { data: ContractData; renter?: boolean }) {
+export function ContractSheet({ data, renter, token }: { data: ContractData; renter?: boolean; token?: string }) {
   const missing = [
     ...lessorRows(data).filter(([, v]) => !v).map(([l]) => `${l.toLowerCase()} (najmodavac)`),
     ...renterRows(data).filter(([, v]) => !v).map(([l]) => l),
@@ -91,6 +92,8 @@ export function ContractSheet({ data, renter }: { data: ContractData; renter?: b
     !data.terms.color && "boja",
     data.total === null && "cijena najma",
   ].filter(Boolean);
+
+  const filmNow = Boolean(renter && token && data.renterRecording?.open);
 
   return (
     <main className="contract-page">
@@ -116,6 +119,9 @@ export function ContractSheet({ data, renter }: { data: ContractData; renter?: b
         )}
         <button type="button" className="btn-dark" onClick={() => window.print()}>Štampaj / sačuvaj PDF</button>
       </div>
+
+      {/* While the customer can film the return, that comes first; the contract is below. */}
+      {filmNow && <HandoverRecord data={data} token={token} />}
 
       <article className="contract">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -147,29 +153,100 @@ export function ContractSheet({ data, renter }: { data: ContractData; renter?: b
         </div>
       </article>
 
-      {data.handover && data.handover.length > 0 && (
-        <section className="contract-handover" aria-labelledby="handover-h">
-          <h2 id="handover-h" className="display h-md">Zapisnik o stanju vozila</h2>
-          <p className="caption">Najmodavac je snimio vozilo sa svih strana pri predaji i povratku. Videi se ne štampaju.</p>
-          {HANDOVER_STAGES.map((stage) => {
-            const list = HANDOVER_SIDES.flatMap((side) => data.handover!.filter((v) => v.stage === stage && v.side === side));
-            if (!list.length) return null;
-            return (
-              <div key={stage} className="handover-stage">
-                <h3>{HANDOVER_LABELS[stage]}</h3>
-                <div className="handover-grid">
-                  {list.map((v) => (
-                    <figure key={v.id}>
-                      <video src={v.url} controls playsInline preload="metadata" />
-                      <figcaption>{HANDOVER_LABELS[v.side]} · {new Date(v.createdAt).toLocaleString("bs-BA", { timeZone: "Europe/Sarajevo", dateStyle: "short", timeStyle: "short" })}</figcaption>
-                    </figure>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </section>
-      )}
+      {!filmNow && <HandoverRecord data={data} token={renter ? token : undefined} />}
     </main>
+  );
+}
+
+const fmt = (iso: string) => iso.split("-").reverse().join(".") + ".";
+
+/**
+ * Videos of the vehicle's sides: the owner's at pickup and return, and the
+ * customer's at return. On the customer's link, while the return is open, the
+ * customer films each side here (on a phone the camera opens straight away).
+ */
+function HandoverRecord({ data, token }: { data: ContractData; token?: string }) {
+  const [videos, setVideos] = useState<HandoverVideo[]>(data.handover ?? []);
+  const rec = data.renterRecording;
+  const canFilm = Boolean(token && rec?.open);
+  const groups = [
+    { key: "owner-pickup", title: "Najmodavac, pri preuzimanju", list: videos.filter((v) => v.by === "owner" && v.stage === "pickup") },
+    { key: "owner-return", title: "Najmodavac, pri povratku", list: videos.filter((v) => v.by === "owner" && v.stage === "return") },
+    { key: "renter-return", title: token ? "Vi, pri povratku" : "Najmoprimac, pri povratku", list: videos.filter((v) => v.by === "renter") },
+  ].map((g) => ({ ...g, list: HANDOVER_SIDES.flatMap((side) => g.list.filter((v) => v.side === side)) }));
+  const renterGroup = groups[2]!;
+  if (!videos.length && !canFilm && !(token && rec)) return null;
+
+  return (
+    <section className="contract-handover" aria-labelledby="handover-h">
+      <h2 id="handover-h" className="display h-md">Zapisnik o stanju vozila</h2>
+      <p className="caption">Video snimci svake strane vozila pri predaji i povratku. Ne štampaju se s ugovorom.</p>
+
+      {token && rec && (
+        <div className="renter-film">
+          <h3>Snimite vozilo kad ga vraćate</h3>
+          {canFilm ? (
+            <>
+              <p>
+                Na mjestu povratka snimite telefonom kratak video svake strane vozila (5–10 sekundi, polako, s dovoljno
+                svjetla). To je vaš dokaz o stanju u kojem ste vozilo vratili; vlasnik dobija obavijest kad snimite sve
+                četiri. Snimati možete do {fmt(rec.until)}
+              </p>
+              <div className="handover-grid">
+                {HANDOVER_SIDES.map((side) => {
+                  const v = renterGroup.list.find((x) => x.side === side);
+                  const path = `/contracts/${token}/handover/${side}`;
+                  return (
+                    <div key={side} className="handover-side">
+                      <span className="dim">{HANDOVER_LABELS[side]}{v ? " ✓" : ""}</span>
+                      <VideoUpload<HandoverVideo[]>
+                        path={path}
+                        publicPath
+                        label="Snimi"
+                        capture
+                        current={v}
+                        onDone={(renterList) => setVideos((all) => [...all.filter((x) => x.by !== "renter"), ...renterList])}
+                        onRemove={async () => {
+                          const res = await fetch(`/api${path}`, { method: "DELETE" });
+                          const body = await res.json().catch(() => null);
+                          if (!res.ok) throw new Error(body?.message ?? "Nije obrisano.");
+                          setVideos((all) => [...all.filter((x) => x.by !== "renter"), ...(body as HandoverVideo[])]);
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="caption">{renterGroup.list.length} od {HANDOVER_SIDES.length} strana snimljeno.</p>
+            </>
+          ) : (
+            <p className="caption">
+              {new Date().toISOString().slice(0, 10) < rec.from
+                ? `Snimanje se otvara na dan preuzimanja, ${fmt(rec.from)}`
+                : `Rok za snimanje je istekao ${fmt(rec.until)}`}
+            </p>
+          )}
+        </div>
+      )}
+
+      {groups.map((g) =>
+        g.list.length && !(canFilm && g.key === "renter-return") ? (
+          <div key={g.key} className="handover-stage">
+            <h3>{g.title}</h3>
+            <div className="handover-grid">
+              {g.list.map((v) => (
+                <figure key={v.id}>
+                  <video src={v.url} controls playsInline preload="metadata" />
+                  <figcaption>
+                    {HANDOVER_LABELS[v.side]} ·{" "}
+                    {new Date(v.createdAt).toLocaleString("bs-BA", { timeZone: "Europe/Sarajevo", dateStyle: "short", timeStyle: "short" })}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </div>
+        ) : null,
+      )}
+    </section>
   );
 }

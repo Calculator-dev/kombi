@@ -7,7 +7,7 @@ import { getBooking, type Booking } from "./bookings";
 import { contractTermsOf, pricingOf, termsOf } from "./vans";
 import { getUser } from "./users";
 import type { PhotoStorage } from "./storage";
-import { handoverOf } from "./videos";
+import { handoverOf, renterRecording } from "./videos";
 import { logoUrl } from "./vans";
 
 const { bookings, vans } = schema;
@@ -55,6 +55,7 @@ async function fill(db: Executor, storage: PhotoStorage, b: Omit<Booking, "vanNa
       logo: logoUrl(storage, owner?.logo),
     },
     handover: (await handoverOf(db, storage, [b.id])).get(b.id) ?? [],
+    renterRecording: renterRecording(b, today),
     renter: {
       name: b.name,
       jmb: b.jmb ?? "",

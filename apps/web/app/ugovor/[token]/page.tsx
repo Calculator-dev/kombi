@@ -22,5 +22,5 @@ export default async function RenterContractPage({ params }: Props) {
   const res = await fetch(`${API_URL}/api/contracts/${token}`, { cache: "no-store", signal: AbortSignal.timeout(15000) });
   if (res.status === 404) notFound();
   if (!res.ok) throw new Error(`API answered ${res.status} for a contract`);
-  return <RenterContract data={(await res.json()) as ContractData} />;
+  return <RenterContract data={(await res.json()) as ContractData} token={token} />;
 }

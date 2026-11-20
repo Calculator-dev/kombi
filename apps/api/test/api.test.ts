@@ -72,6 +72,7 @@ beforeAll(async () => {
     bookingRequested: async (b, owner) => void sent.push(`requested:${b.ref}:${owner ?? "platform"}`),
     bookingConfirmed: async (b) => void sent.push(`confirmed:${b.ref}`),
     reviewRequest: async (b) => void sent.push(`review:${b.ref}`),
+    renterFilmedReturn: async (b, owner) => void sent.push(`filmed:${b.ref}:${owner ?? "platform"}`),
   };
   app = createApp({ db, config, notifier, storage, now: () => NOW, authKeys: createLocalJWKSet({ keys: [jwk] }) });
   firstVanId = (await request(app).get("/api/vans").expect(200)).body[0].id;
@@ -910,5 +911,82 @@ describe("makes, company page, logo, service history and videos", () => {
     expect(await purgeHandover(db.orm, storage, "2027-06-01")).toBe(0);
     expect(await purgeHandover(db.orm, storage, "2028-06-01")).toBe(1);
     expect([...storage.files.keys()].some((k) => k.startsWith(`handover/${b.id}/`))).toBe(false);
+  });
+});
+
+describe("the customer films the return", () => {
+  const video = Buffer.alloc(32 * 1024, 3);
+
+  it("takes the customer's four sides from the contract link, only around the rental, and tells the owner", async () => {
+    const amir = await as(AMIR);
+    const [mine] = (await amir.get("/api/admin/vans")).body as { id: string }[];
+    const created = await request(app)
+      .post("/api/bookings")
+      .field("data", JSON.stringify(booking({ vanId: mine!.id, start: "2026-10-16", end: "2026-10-18", extras: [] })))
+      .attach("id", await photo(), "id.jpg")
+      .expect(201);
+    const b = ((await amir.get("/api/admin/bookings")).body as { id: string; ref: string; contractToken: string }[]).find((x) => x.ref === created.body.ref)!;
+    const put = (side: string) => request(app).put(`/api/contracts/${b.contractToken}/handover/${side}`).set("Content-Type", "video/mp4").send(video);
+
+    // Not confirmed yet: no contract link.
+    await put("front").expect(404);
+    await amir.patch(`/api/admin/bookings/${b.id}`).send({ status: "confirmed" }).expect(200);
+    const contract = (await request(app).get(`/api/contracts/${b.contractToken}`)).body;
+    expect(contract.renterRecording).toEqual({ open: true, from: "2026-10-16", until: "2026-10-21" });
+
+    // The owner's own video of the same side stays separate.
+    await amir.put(`/api/admin/bookings/${b.id}/handover/return/front`).set("Content-Type", "video/mp4").send(video).expect(200);
+    for (const side of ["front", "right", "back"]) await put(side).expect(200);
+    expect(sent).not.toContain(`filmed:${b.ref}:${AMIR.email}`);
+    const all = (await put("left").expect(200)).body as { by: string }[];
+    expect(all).toHaveLength(4);
+    expect(all.every((v) => v.by === "renter")).toBe(true);
+    expect(sent).toContain(`filmed:${b.ref}:${AMIR.email}`);
+    // Replacing one doesn't email again.
+    const count = sent.filter((e) => e === `filmed:${b.ref}:${AMIR.email}`).length;
+    await put("left").expect(200);
+    expect(sent.filter((e) => e === `filmed:${b.ref}:${AMIR.email}`).length).toBe(count);
+
+    const listed = ((await amir.get("/api/admin/bookings")).body as { id: string; handover: { by: string }[] }[]).find((x) => x.id === b.id)!;
+    expect(listed.handover.filter((v) => v.by === "renter")).toHaveLength(4);
+    expect(listed.handover.filter((v) => v.by === "owner")).toHaveLength(1);
+    // The owner deleting their video leaves the customer's.
+    await amir.delete(`/api/admin/bookings/${b.id}/handover/return/front`).expect(200);
+    expect((await request(app).get(`/api/contracts/${b.contractToken}`)).body.handover).toHaveLength(4);
+
+    // Too early or too late: closed.
+    await db.orm.update(bookings).set({ start: "2026-10-20", end: "2026-10-22" }).where(eq(bookings.id, b.id));
+    await put("front").expect(409);
+    await db.orm.update(bookings).set({ start: "2026-10-05", end: "2026-10-10" }).where(eq(bookings.id, b.id));
+    await put("front").expect(409);
+    await request(app).delete(`/api/contracts/${b.contractToken}/handover/front`).expect(409);
+    await request(app).put(`/api/contracts/${"0".repeat(64)}/handover/front`).set("Content-Type", "video/mp4").send(video).expect(404);
+  });
+});
+
+describe("cards and quick filters", () => {
+  it("shows deposit, minimum days, discount and pickup places on cards, and filters by them", async () => {
+    const all = (await request(app).get("/api/search")).body;
+    const toyota = all.items.find((v: { slug: string }) => v.slug === "toyota-proace-verso");
+    expect(toyota).toMatchObject({ deposit: 500, minDays: 1, weeklyDiscountPct: 10, airport: true, delivery: true });
+
+    // A week: the card says how much the discount takes off.
+    const dated = (await request(app).get("/api/search?start=2027-02-01&end=2027-02-08")).body;
+    const week = dated.items.find((v: { slug: string }) => v.slug === "toyota-proace-verso");
+    expect(week.quote.discount).toBeGreaterThan(0);
+
+    expect((await request(app).get("/api/search?airport=1")).body.total).toBe(all.total);
+    const amir = await as(AMIR);
+    const [mine] = (await amir.get("/api/admin/vans")).body as { id: string; slug: string; pricing: { pickup: { id: string; enabled: boolean }[] } }[];
+    await amir
+      .put(`/api/admin/vans/${mine!.id}/pricing`)
+      .send({ ...mine!.pricing, deposit: 0, pickup: mine!.pricing.pickup.map((p) => ({ ...p, enabled: p.id === "office" })) })
+      .expect(200);
+    const noDeposit = (await request(app).get("/api/search?noDeposit=1")).body.items.map((v: { slug: string }) => v.slug);
+    expect(noDeposit).toContain(mine!.slug);
+    expect(noDeposit).not.toContain("toyota-proace-verso");
+    const airport = (await request(app).get("/api/search?airport=1")).body.items.map((v: { slug: string }) => v.slug);
+    expect(airport).not.toContain(mine!.slug);
+    expect(airport).toContain("toyota-proace-verso");
   });
 });
