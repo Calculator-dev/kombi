@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { profileSchema } from "@kombi/shared";
+import { DOCUMENT_KINDS, DOCUMENT_LABELS, KEEP_DOCUMENTS_DAYS, NO_DOCUMENTS, profileSchema, type DocumentRule, type DocumentRules } from "@kombi/shared";
 import { ApiError, adminApi } from "@/lib/api";
 import type { Me } from "./types";
 
@@ -12,6 +12,7 @@ export function ProfileForm({ me, onSaved }: { me: Me; onSaved: (m: Me) => void 
   const [companyId, setCompanyId] = useState(me.companyId ?? "");
   const [representative, setRepresentative] = useState(me.representative ?? "");
   const [vatRegistered, setVatRegistered] = useState(Boolean(me.vatRegistered));
+  const [documents, setDocuments] = useState<DocumentRules>(me.documents ?? NO_DOCUMENTS);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -19,7 +20,7 @@ export function ProfileForm({ me, onSaved }: { me: Me; onSaved: (m: Me) => void 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
-    const r = profileSchema.safeParse({ name, phone, address, companyId, representative, vatRegistered });
+    const r = profileSchema.safeParse({ name, phone, address, companyId, representative, vatRegistered, documents });
     if (!r.success) {
       setErrors(Object.fromEntries(r.error.issues.map((i) => [String(i.path[0]), i.message])));
       return;
@@ -72,6 +73,25 @@ export function ProfileForm({ me, onSaved }: { me: Me; onSaved: (m: Me) => void 
         Na oglasu piše „Cijene uključuju PDV" ili „Iznajmljivač nije u sistemu PDV-a", zavisno od ovoga. Stavka „PDV" u
         listi „Uključeno u cijenu" prikazuje se samo ako ste obveznik.
       </p>
+      <fieldset className="doc-rules">
+        <legend>Dokumenti uz upit za rezervaciju</legend>
+        <p className="caption">
+          Kupac uz upit šalje fotografiju dokumenta. Vidite je samo vi, u rezervaciji. Fotografije se čuvaju šifrovane i
+          brišu se same kad odbijete ili otkažete upit, odnosno {KEEP_DOCUMENTS_DAYS} dana nakon povratka vozila.
+        </p>
+        <div className="fields">
+          {DOCUMENT_KINDS.map((k) => (
+            <label key={k} className="field">
+              {DOCUMENT_LABELS[k]}
+              <select value={documents[k]} onChange={(e) => setDocuments((d) => ({ ...d, [k]: e.target.value as DocumentRule }))}>
+                <option value="off">Ne tražim</option>
+                <option value="optional">Neobavezno: kupac može poslati</option>
+                <option value="required">Obavezno: bez toga nema upita</option>
+              </select>
+            </label>
+          ))}
+        </div>
+      </fieldset>
       {msg && <p className="ok-box" role="status">{msg}</p>}
       <button className="btn-dark" type="submit" disabled={busy} style={{ alignSelf: "flex-start" }}>
         {busy ? "Spremam…" : "Sačuvaj"}

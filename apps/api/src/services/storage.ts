@@ -1,12 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { DeleteObjectsCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectsCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 import type { Config } from "../config";
 import type { StoredPhoto } from "../db/schema";
 import { HttpError } from "../errors";
 
 export interface PhotoStorage {
-  put(key: string, body: Buffer, contentType: string): Promise<void>;
+  /** `private`: not to be cached anywhere (customers' documents). */
+  put(key: string, body: Buffer, contentType: string, opts?: { private?: boolean }): Promise<void>;
+  /** The stored bytes, or null when there is no such file. */
+  get(key: string): Promise<Buffer | null>;
   remove(keys: string[]): Promise<void>;
   url(key: string): string;
 }
@@ -22,7 +25,7 @@ export function backblazeStorage(config: Config): PhotoStorage {
   const host = new URL(config.BACKBLAZE_ENDPOINT!).host; // s3.<region>.backblazeb2.com
   const base = (config.BACKBLAZE_PUBLIC_URL ?? `https://${bucket}.${host}`).replace(/\/$/, "");
   return {
-    async put(key, body, contentType) {
+    async put(key, body, contentType, opts) {
       await client.send(
         new PutObjectCommand({
           Bucket: bucket,
@@ -30,9 +33,18 @@ export function backblazeStorage(config: Config): PhotoStorage {
           Body: body,
           ContentType: contentType,
           // Keys are unique per upload, so browsers and CDNs may keep them forever.
-          CacheControl: "public, max-age=31536000, immutable",
+          CacheControl: opts?.private ? "private, no-store" : "public, max-age=31536000, immutable",
         }),
       );
+    },
+    async get(key) {
+      try {
+        const out = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+        return out.Body ? Buffer.from(await out.Body.transformToByteArray()) : null;
+      } catch (e) {
+        if ((e as { name?: string }).name === "NoSuchKey") return null;
+        throw e;
+      }
     },
     async remove(keys) {
       if (!keys.length) return;
@@ -49,6 +61,9 @@ export function memoryStorage(): PhotoStorage & { files: Map<string, Buffer> } {
     files,
     async put(key, body) {
       files.set(key, body);
+    },
+    async get(key) {
+      return files.get(key) ?? null;
     },
     async remove(keys) {
       for (const k of keys) files.delete(k);

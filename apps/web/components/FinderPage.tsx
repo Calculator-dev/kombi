@@ -4,7 +4,6 @@ import { dict, type Locale } from "@/lib/i18n";
 import { Footer } from "./Footer";
 import { Header } from "./Header";
 import { JsonLd } from "./JsonLd";
-import { SearchBox } from "./SearchBox";
 import { SearchTicket } from "./SearchTicket";
 import { Hero, PageBody } from "./Sections";
 import { VanGrid } from "./VanGrid";
@@ -20,7 +19,7 @@ export function FinderPage({
   guide,
 }: {
   title: ReactNode;
-  intro: string;
+  intro: string | readonly string[];
   vans: VanCard[];
   path?: string;
   locale?: Locale;
@@ -40,7 +39,6 @@ export function FinderPage({
         <Hero
           title={title}
           intro={intro}
-          search={<SearchBox locale={locale} />}
           specs={[
             [t.specVans, String(vans.length || "—")],
             [t.specFrom, from ? t.kmPerDay(from) : "—"],

@@ -18,7 +18,6 @@ import { api } from "@/lib/api";
 import { track, trackEcommerce } from "@/lib/analytics";
 import { shortDate } from "@/lib/format";
 import { useLocale } from "@/lib/useLocale";
-import { BookingWidget } from "./BookingWidget";
 import { VanCardView } from "./VanCardView";
 
 const SEAT_OPTIONS = [5, 7, 8, 9, 12, 15, 20];
@@ -42,10 +41,7 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
   const [more, setMore] = useState(false);
   const [error, setError] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [datesOpen, setDatesOpen] = useState(false);
   const first = useRef(true);
-  const [text, setText] = useState(q.q ?? "");
-  useEffect(() => setText(q.q ?? ""), [q.q]);
 
   // New results whenever the address changes (the server already rendered the first ones).
   useEffect(() => {
@@ -197,30 +193,6 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
       </aside>
 
       <section className="results" aria-labelledby="results-h" aria-busy={loading}>
-        <form
-          role="search"
-          className="search-box"
-          onSubmit={(e) => {
-            e.preventDefault();
-            update({ q: text.trim() || undefined });
-          }}
-        >
-          <label htmlFor="kombiji-q" className="sr-only">{d.search.label}</label>
-          <input
-            id="kombiji-q"
-            type="search"
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              if (!e.target.value && q.q) update({ q: undefined });
-            }}
-            placeholder={d.search.placeholder}
-            maxLength={80}
-            autoComplete="off"
-            enterKeyHint="search"
-          />
-          <button type="submit" className="btn-dark">{d.search.submit}</button>
-        </form>
         <div className="results-bar">
           <div>
             <h1 id="results-h" className="display h-md">
@@ -233,9 +205,12 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
             <p className="caption" aria-live="polite">{error ? t.loadFailed : summary}</p>
           </div>
           <div className="results-tools">
-            <button type="button" className="small-btn" onClick={() => setDatesOpen((o) => !o)} aria-expanded={datesOpen}>
-              {dates ? t.changeDates : t.pickDates}
-            </button>
+            <DateRange
+              start={q.start}
+              end={q.end}
+              labels={{ from: t.pickup, to: t.dropoff, clear: t.clearDates }}
+              onChange={(start, end) => update({ start, end, taken: start ? q.taken : undefined })}
+            />
             <button type="button" className="small-btn filters-toggle" onClick={() => setFiltersOpen(true)}>
               {t.filters}{active ? ` (${active})` : ""}
             </button>
@@ -247,12 +222,6 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
             </label>
           </div>
         </div>
-
-        {datesOpen && (
-          <div className="dates-panel">
-            <BookingWidget initialStart={q.start} initialEnd={q.end} onSearched={() => setDatesOpen(false)} />
-          </div>
-        )}
 
         {dates && (
           <label className="check show-taken">
@@ -317,5 +286,91 @@ function NumberInput({ label, value, onChange }: { label: string; value?: number
       <span className="sr-only">{label}</span>
       <input inputMode="numeric" placeholder={label} value={text} onChange={(e) => setText(e.target.value.replace(/\D/g, "").slice(0, 6))} />
     </label>
+  );
+}
+
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const dayAfter = (date: string) => {
+  const d = new Date(`${date}T12:00:00`);
+  d.setDate(d.getDate() + 1);
+  return iso(d);
+};
+
+/**
+ * Pickup and return as two plain date fields. The list follows as soon as both
+ * are set; picking a pickup after the return clears the return and opens it.
+ */
+function DateRange({
+  start,
+  end,
+  labels,
+  onChange,
+}: {
+  start?: string;
+  end?: string;
+  labels: { from: string; to: string; clear: string };
+  onChange: (start?: string, end?: string) => void;
+}) {
+  const [from, setFrom] = useState(start ?? "");
+  const [to, setTo] = useState(end ?? "");
+  useEffect(() => setFrom(start ?? ""), [start]);
+  useEffect(() => setTo(end ?? ""), [end]);
+  const toRef = useRef<HTMLInputElement>(null);
+  const today = iso(new Date());
+
+  const apply = (f: string, e: string) => {
+    if (f && e && e > f) onChange(f, e);
+  };
+
+  return (
+    <div className="date-range" role="group" aria-label={`${labels.from} – ${labels.to}`}>
+      <label className="field">
+        {labels.from}
+        <input
+          type="date"
+          value={from}
+          min={today}
+          onChange={(ev) => {
+            const f = ev.target.value;
+            setFrom(f);
+            if (to && f && to <= f) {
+              setTo("");
+              toRef.current?.focus();
+              try {
+                toRef.current?.showPicker();
+              } catch {}
+            } else apply(f, to);
+          }}
+        />
+      </label>
+      <label className="field">
+        {labels.to}
+        <input
+          ref={toRef}
+          type="date"
+          value={to}
+          min={from ? dayAfter(from) : dayAfter(today)}
+          onChange={(ev) => {
+            setTo(ev.target.value);
+            apply(from, ev.target.value);
+          }}
+        />
+      </label>
+      {(start || end || from || to) && (
+        <button
+          type="button"
+          className="date-clear"
+          aria-label={labels.clear}
+          title={labels.clear}
+          onClick={() => {
+            setFrom("");
+            setTo("");
+            if (start || end) onChange(undefined, undefined);
+          }}
+        >
+          ✕
+        </button>
+      )}
+    </div>
   );
 }

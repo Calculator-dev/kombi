@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { NO_DOCUMENTS, documentRulesSchema, type DocumentRules } from "./documents";
 import { isIsoDate } from "./dates";
 import type { Quote } from "./pricing";
 import type { Settings } from "./settings";
@@ -122,6 +123,8 @@ export const profileSchema = z.object({
   vatRegistered: z.boolean().default(false),
   /** Who signs for a company, e.g. "zastupana po vlasniku obrta …". */
   representative: z.string().trim().max(200).default(""),
+  /** Photos of documents the customer uploads with a booking request. */
+  documents: documentRulesSchema.default(NO_DOCUMENTS),
 });
 export type Profile = z.infer<typeof profileSchema>;
 
@@ -148,6 +151,8 @@ export interface PublicVan extends VanDetails {
   vat?: boolean | null;
   /** Mileage and damage terms, as far as the owner has filled them in for the contract. */
   limits?: VanLimits;
+  /** Which document photos the owner asks for with a booking request. */
+  documents?: DocumentRules;
   /** Ratings from finished rentals. */
   reviews?: ReviewSummary;
 }

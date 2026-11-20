@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ApiError, adminApi } from "@/lib/api";
+import { DOCUMENT_LABELS } from "@kombi/shared";
+import { ApiError, adminApi, adminBlob } from "@/lib/api";
 import { km, shortDate } from "@/lib/format";
 import type { AdminBooking } from "./types";
 
@@ -73,6 +74,7 @@ export function BookingRow({
           {b.licenseSince ? `, vozačka od ${b.licenseSince}.` : ""}
         </div>
         {b.notes && <div className="meta dim">„{b.notes}"</div>}
+        {b.documents?.length > 0 && <Documents b={b} />}
       </div>
       <div className="btns">
         {(b.status === "pending" || b.status === "confirmed") && (
@@ -106,5 +108,45 @@ export function BookingRow({
         )}
       </div>
     </article>
+  );
+}
+
+/**
+ * Links to the photos of the customer's documents. They are fetched with the
+ * login (never a public address) and opened in a new tab.
+ */
+function Documents({ b }: { b: AdminBooking }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  async function open(id: string) {
+    // Opened right away, while the click still counts, so pop-up blockers let it through.
+    const tab = window.open("", "_blank");
+    setBusy(id);
+    try {
+      const url = URL.createObjectURL(await adminBlob(`/bookings/${b.id}/documents/${id}`));
+      if (tab) tab.location.href = url;
+      else window.location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e) {
+      tab?.close();
+      alert(e instanceof ApiError ? e.message : "Dokument se ne može otvoriti.");
+    } finally {
+      setBusy(null);
+    }
+  }
+  return (
+    <div className="meta doc-links">
+      <span className="dim">Dokumenti:</span>
+      {b.documents.map((d, i) => {
+        const same = b.documents.filter((x) => x.kind === d.kind);
+        const n = same.length > 1 ? ` ${same.indexOf(d) + 1}` : "";
+        return (
+          <button key={d.id} type="button" className="link" disabled={busy === d.id} onClick={() => void open(d.id)}>
+            {DOCUMENT_LABELS[d.kind]}
+            {n}
+            {i < b.documents.length - 1 ? "," : ""}
+          </button>
+        );
+      })}
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-import type { BookingStatus, ContractTerms, PhotoUrls, Plan, PublicVan, Quote, UserRole, UserStatus, VanStatus } from "@kombi/shared";
+import type { BookingStatus, ContractTerms, DocumentKind, DocumentRules, PhotoUrls, Plan, PublicVan, Quote, UserRole, UserStatus, VanStatus } from "@kombi/shared";
 
 export interface Me {
   id: string;
@@ -9,6 +9,8 @@ export interface Me {
   companyId: string;
   representative: string;
   vatRegistered: boolean;
+  /** Which document photos customers upload with a booking request. */
+  documents: DocumentRules;
   role: UserRole;
   status: UserStatus;
   plan: Plan;
@@ -56,6 +58,8 @@ export interface AdminBooking {
   reviewToken: string;
   /** When the customer was asked to rate the rental; null = not yet. */
   reviewRequestedAt: string | null;
+  /** Photos of the customer's documents, while they are kept. */
+  documents: { id: string; kind: DocumentKind }[];
   createdAt: string;
 }
 

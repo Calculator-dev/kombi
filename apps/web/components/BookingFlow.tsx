@@ -3,8 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
+  DOCUMENT_KINDS,
+  KEEP_DOCUMENTS_DAYS,
+  MAX_DOCUMENT_BYTES,
+  MAX_FILES_PER_DOCUMENT,
   bookingRequestSchema,
   findPickup,
+  type DocumentKind,
   quote,
   type ContactChannel,
   type PublicVan,
@@ -73,6 +78,9 @@ export function BookingFlow({ van, start, end }: Props) {
     website: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Photos of documents the owner asks for, by kind.
+  const [docs, setDocs] = useState<Record<DocumentKind, File[]>>({ id: [], license: [] });
+  const asked = DOCUMENT_KINDS.filter((k) => van.documents && van.documents[k] !== "off");
   const [failure, setFailure] = useState<{ message: string; taken?: boolean } | null>(null);
   const [sending, setSending] = useState(false);
   // The API can take a while to wake up; after a few seconds, say so.
@@ -140,10 +148,22 @@ export function BookingFlow({ van, start, end }: Props) {
       }
       return;
     }
-    if (!validate(["name", "email", "phone", "birthDate", "licenseSince", "address", "jmb", "idNumber", "licenseNumber", "notes", "acceptTerms"])) return;
+    const formOk = validate(["name", "email", "phone", "birthDate", "licenseSince", "address", "jmb", "idNumber", "licenseNumber", "notes", "acceptTerms"]);
+    const missing = asked.filter((k) => van.documents![k] === "required" && !docs[k].length);
+    if (missing.length) setErrors((e) => ({ ...e, ...Object.fromEntries(missing.map((k) => [`doc_${k}`, t.docMissing])) }));
+    if (!formOk || missing.length) return;
     setSending(true);
     try {
-      const res = await api<{ ref: string; total: number }>("/bookings", { method: "POST", json: payload() });
+      const files = asked.flatMap((k) => docs[k].map((f) => [k, f] as const));
+      let init: RequestInit & { json?: unknown } = { method: "POST", json: payload() };
+      if (files.length) {
+        // With photos: the form as JSON in "data", each photo under its kind.
+        const body = new FormData();
+        body.append("data", JSON.stringify(payload()));
+        for (const [k, f] of files) body.append(k, f, f.name);
+        init = { method: "POST", body };
+      }
+      const res = await api<{ ref: string; total: number }>("/bookings", init);
       setDone(res);
       setStep(3);
       // A request, not a payment: GA4's "generate_lead". The booking number is not personal data.
@@ -312,6 +332,28 @@ export function BookingFlow({ van, start, end }: Props) {
                   {field("licenseNumber", t.licenseNumber, <input autoComplete="off" value={form.licenseNumber} onChange={(e) => set("licenseNumber", e.target.value)} />)}
                 </div>
               </div>
+              {asked.length > 0 && (
+                <div>
+                  <h2 className="display h-md" style={{ marginBottom: 6 }}>{t.docsTitle}</h2>
+                  <p style={{ margin: "0 0 16px", fontSize: 15, color: "var(--muted)" }}>{t.docsNote(KEEP_DOCUMENTS_DAYS)}</p>
+                  <div className="fields">
+                    {asked.map((k) => (
+                      <DocumentInput
+                        key={k}
+                        label={`${t.docKinds[k]} (${van.documents![k] === "required" ? t.docRequired : t.docOptional})`}
+                        files={docs[k]}
+                        error={errors[`doc_${k}`]}
+                        texts={t}
+                        onChange={(files) => {
+                          setDocs((d) => ({ ...d, [k]: files }));
+                          setErrors(({ [`doc_${k}`]: _, ...rest }) => rest);
+                        }}
+                        onError={(msg) => setErrors((e) => ({ ...e, [`doc_${k}`]: msg }))}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
               {field("notes", t.notes, <textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} />)}
               <div className="hp" aria-hidden="true">
                 <label>
@@ -433,5 +475,68 @@ export function BookingFlow({ van, start, end }: Props) {
         </aside>
       </div>
     </>
+  );
+}
+
+/** Up to two photos of one document (front and back), with a small preview of each. */
+function DocumentInput({
+  label,
+  files,
+  error,
+  texts,
+  onChange,
+  onError,
+}: {
+  label: string;
+  files: File[];
+  error?: string;
+  texts: { docAdd: string; docAddBack: string; docRemove: string; docNotImage: string; docTooBig: string };
+  onChange: (files: File[]) => void;
+  onError: (message: string) => void;
+}) {
+  const [urls, setUrls] = useState<string[]>([]);
+  useEffect(() => {
+    const u = files.map((f) => URL.createObjectURL(f));
+    setUrls(u);
+    return () => u.forEach((x) => URL.revokeObjectURL(x));
+  }, [files]);
+
+  return (
+    <div className="field doc-input" data-invalid={Boolean(error)}>
+      <span>{label}</span>
+      {files.length > 0 && (
+        <ul className="doc-files">
+          {files.map((f, i) => (
+            <li key={`${f.name}-${i}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {urls[i] && <img src={urls[i]} alt="" />}
+              <span className="doc-name">{f.name}</span>
+              <button type="button" className="link" onClick={() => onChange(files.filter((_, j) => j !== i))}>
+                {texts.docRemove}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {files.length < MAX_FILES_PER_DOCUMENT && (
+        <label className="small-btn doc-add">
+          {files.length ? texts.docAddBack : texts.docAdd}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (!f) return;
+              if (!/^image\/(jpeg|png|webp)$/.test(f.type)) return onError(texts.docNotImage);
+              if (f.size > MAX_DOCUMENT_BYTES) return onError(texts.docTooBig);
+              onChange([...files, f]);
+            }}
+          />
+        </label>
+      )}
+      {error && <span className="field-error">{error}</span>}
+    </div>
   );
 }

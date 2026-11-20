@@ -7,6 +7,8 @@ export class HttpError extends Error {
     public status: number,
     public code: string,
     message: string,
+    /** Per-field messages, like a validation error's. */
+    public fields?: Record<string, string>,
   ) {
     super(message);
   }
@@ -22,7 +24,7 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     return;
   }
   if (err instanceof HttpError) {
-    res.status(err.status).json({ error: err.code, message: err.message });
+    res.status(err.status).json({ error: err.code, message: err.message, ...(err.fields ? { fields: err.fields } : {}) });
     return;
   }
   if (err instanceof MulterError) {

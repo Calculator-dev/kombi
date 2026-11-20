@@ -46,7 +46,7 @@ export async function ensureUser(
 export async function updateProfile(db: Executor, id: string, p: Profile): Promise<UserRow> {
   const [row] = await db
     .update(users)
-    .set({ name: p.name, phone: p.phone, address: p.address, companyId: p.companyId, representative: p.representative, vatRegistered: p.vatRegistered, updatedAt: sql`now()` })
+    .set({ name: p.name, phone: p.phone, address: p.address, companyId: p.companyId, representative: p.representative, vatRegistered: p.vatRegistered, documentRules: p.documents, updatedAt: sql`now()` })
     .where(eq(users.id, id))
     .returning();
   return row!;

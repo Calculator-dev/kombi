@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { KEEP_DOCUMENTS_DAYS } from "@kombi/shared";
 import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ const DATA: [string, string, string][] = [
   ["Date of birth and the year you got your driving licence", "To check the owner's requirements (driver's minimum age and experience).", "Every request"],
   ["Dates, pickup place, extras and your note", "The booking and the price.", "Every request"],
   ["Address, JMB, ID card number, driving licence number", "Filling in the rental contract.", "Only if you enter them; you can also give them at pickup"],
+  ["Photo of your ID card or passport and driving licence", "The owner checks your identity and licence before confirming the booking.", "Only for owners who ask for it; the form says whether it is required"],
   ["Name, email, phone, address and company ID of the vehicle's owner", "The owner's account, listing the vehicle and the rental contract (the owner is the lessor).", "Owner sign-up"],
 ];
 
@@ -23,7 +25,7 @@ const PROCESSORS: [string, string, string][] = [
   // who, what for, where
   ["Render", "Servers that run the website and the app", "Germany (Frankfurt)"],
   ["Supabase", "Database and owner sign-in", "The region chosen when the project was set up"],
-  ["Backblaze", "Van photos (no personal data)", "EU"],
+  ["Backblaze", "Vehicle photos, and photos of customers' documents, encrypted before they are stored", "EU"],
   ["Resend", "Emails about requests and bookings", "USA"],
   ["Google Maps", "The map with the vehicle's location; loads only when you click “Show map”", "USA and EU"],
   ["Google (Tag Manager, Analytics)", "Visit statistics, only with your cookie consent, without names or contacts", "USA and EU"],
@@ -101,8 +103,16 @@ export default function PrivacyPage() {
           details. The link is yours only and shouldn't be forwarded. The contract page doesn't appear on Google.
         </p>
 
+        <h2>Photos of documents</h2>
+        <p>
+          Some owners ask for a photo of your ID card or passport and driving licence with the request. Before storing it
+          we shrink the photo and strip everything but the picture (e.g. location and phone details), then encrypt it. Only
+          the owner of the vehicle you are asking about sees it, in their panel after signing in; there is no public link to it.
+        </p>
+
         <h2>How long we keep data</h2>
         <ul>
+          <li>Photos of documents are deleted {KEEP_DOCUMENTS_DAYS} days after the vehicle is returned, and right away if the owner declines the request or cancels the booking.</li>
           <li>A request that isn't confirmed is deleted when no longer needed, at the latest a year after the requested dates.</li>
           <li>Booking and contract data is kept for {SITE.keepBookingsEn} after the rental ends, for accounting and possible disputes (e.g. damage or fines).</li>
           <li>An owner's account is kept until the owner closes it.</li>

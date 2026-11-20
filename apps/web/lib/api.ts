@@ -35,6 +35,19 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown;
   return data as T;
 }
 
+/** A file from the admin API (e.g. a photo of a customer's document), as the logged-in user. */
+export async function adminBlob(path: string): Promise<Blob> {
+  const { supabase } = await import("./supabase");
+  const { data } = await supabase().auth.getSession();
+  if (!data.session) throw new ApiError(401, "unauthorized", "Prijavite se ponovo.");
+  const res = await fetch(`/api/admin${path}`, { headers: { Authorization: `Bearer ${data.session.access_token}` }, cache: "no-store" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, body.error ?? "error", body.message ?? "Dokument se ne može otvoriti.");
+  }
+  return res.blob();
+}
+
 /** Calls the admin API as the logged-in Supabase user. */
 export async function adminApi<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
   const { supabase } = await import("./supabase");
