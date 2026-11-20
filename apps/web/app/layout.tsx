@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Suspense } from "react";
 import { Analytics } from "@/components/Analytics";
 import { CookieConsent } from "@/components/CookieConsent";
+import { SPLASH_SCRIPT, Splash } from "@/components/Splash";
 import { THEME_SCRIPT } from "@/components/ThemeToggle";
 import { CONSENT_DEFAULT_SCRIPT } from "@/lib/consent";
 import { SITE } from "@/lib/site";
@@ -43,6 +44,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Script id="consent-default" strategy="beforeInteractive">
           {CONSENT_DEFAULT_SCRIPT}
         </Script>
+        {/* The logo with its van driving, until the page has loaded. */}
+        <Splash />
+        <Script id="splash-hide" strategy="beforeInteractive">
+          {SPLASH_SCRIPT}
+        </Script>
+        <noscript>
+          <style>{"#splash{display:none}"}</style>
+        </noscript>
         {children}
         <Suspense>
           <Analytics />

@@ -767,3 +767,53 @@ button:disabled { cursor: not-allowed; }
   .carousel-tools .pager { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .carousel-track { scroll-behavior: auto; } }
+
+/* ---- Splash: the logo's van drives across while the page loads (components/Splash.tsx) ---- */
+.splash {
+  position: fixed; inset: 0; z-index: 1000;
+  display: grid; place-items: center;
+  background: var(--paper);
+  transition: opacity .35s ease, visibility 0s linear .35s;
+  /* In case "load" never comes (a stuck request), it goes away by itself. */
+  animation: splash-giveup 0s linear 8s forwards;
+}
+:root.loaded .splash { opacity: 0; visibility: hidden; pointer-events: none; }
+:root.splash-gone .splash { display: none; }
+@keyframes splash-giveup { to { opacity: 0; visibility: hidden; pointer-events: none; } }
+.splash-logo { position: relative; width: min(320px, 70vw); aspect-ratio: 640 / 191; }
+.splash-logo > span:not(.splash-road) { position: absolute; inset: 0; }
+.splash-logo img { display: block; width: 100%; height: auto; }
+.splash .logo-dark, :root[data-theme="dark"] .splash .logo-light { display: none; }
+:root[data-theme="dark"] .splash .logo-dark { display: block; }
+/* The van: the outline above the lettering, plus its nose down the right-hand side. */
+.splash-van {
+  clip-path: polygon(25% 0, 100% 0, 100% 73.3%, 97.2% 73.3%, 97.2% 42.9%, 25% 42.9%);
+  animation: splash-drive 1.8s cubic-bezier(.45, 0, .3, 1) infinite;
+}
+/* The lettering, swoosh and stars: everything else. */
+.splash-text {
+  clip-path: polygon(0 0, 25% 0, 25% 42.9%, 97.2% 42.9%, 97.2% 73.3%, 100% 73.3%, 100% 100%, 0 100%);
+}
+/* Speed lines behind the van while it moves. */
+.splash-road {
+  position: absolute; left: 6%; top: 14%; width: 16%; height: 22%;
+  background: repeating-linear-gradient(to bottom, var(--ink) 0 2px, transparent 2px 9px);
+  border-radius: 2px; opacity: 0;
+  animation: splash-wind 1.8s ease-in-out infinite;
+}
+@keyframes splash-drive {
+  0%   { transform: translateX(-70%); opacity: 0; }
+  30%  { transform: translateX(0); opacity: 1; }
+  34%  { transform: translateX(0) translateY(-1.5%); }
+  38%, 62% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(75%); opacity: 0; }
+}
+@keyframes splash-wind {
+  0%, 62% { opacity: 0; transform: translateX(0) scaleX(.4); transform-origin: right; }
+  80%  { opacity: .35; transform: translateX(80%) scaleX(1); }
+  100% { opacity: 0; transform: translateX(170%) scaleX(.6); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .splash-van, .splash-road { animation: none; }
+  .splash-road { display: none; }
+}
