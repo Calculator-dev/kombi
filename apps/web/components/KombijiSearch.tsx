@@ -44,8 +44,6 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [datesOpen, setDatesOpen] = useState(false);
   const first = useRef(true);
-  const [text, setText] = useState(q.q ?? "");
-  useEffect(() => setText(q.q ?? ""), [q.q]);
 
   // New results whenever the address changes (the server already rendered the first ones).
   useEffect(() => {
@@ -197,30 +195,6 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
       </aside>
 
       <section className="results" aria-labelledby="results-h" aria-busy={loading}>
-        <form
-          role="search"
-          className="search-box"
-          onSubmit={(e) => {
-            e.preventDefault();
-            update({ q: text.trim() || undefined });
-          }}
-        >
-          <label htmlFor="kombiji-q" className="sr-only">{d.search.label}</label>
-          <input
-            id="kombiji-q"
-            type="search"
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              if (!e.target.value && q.q) update({ q: undefined });
-            }}
-            placeholder={d.search.placeholder}
-            maxLength={80}
-            autoComplete="off"
-            enterKeyHint="search"
-          />
-          <button type="submit" className="btn-dark">{d.search.submit}</button>
-        </form>
         <div className="results-bar">
           <div>
             <h1 id="results-h" className="display h-md">

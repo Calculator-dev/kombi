@@ -685,11 +685,18 @@ button:disabled { cursor: not-allowed; }
 }
 .search-box input:focus { border-color: var(--accent); outline: 2px solid var(--accent-soft); outline-offset: 0; }
 .search-box .btn-dark { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; flex: none; }
-.results .search-box { flex: none; margin-bottom: 20px; max-width: 40em; }
+/* In the header, between the logo and the links */
+.header-search { flex: 1 1 260px; max-width: 460px; }
+.header-search input { height: 44px; font-size: 16px; }
+.header-search .btn-dark { min-height: 44px; padding-top: 0; padding-bottom: 0; }
+/* Narrower screens: the search gets its own row under the logo and the links */
+@media (max-width: 1180px) {
+  .header-search { order: 1; flex-basis: 100%; max-width: none; margin-bottom: 12px; }
+}
 
 /* Phones and small tablets: the links fold into a menu under the header */
 @media (max-width: 860px) {
-  .header .wrap { position: relative; flex-wrap: nowrap; }
+  .header .wrap { position: relative; }
   .header-end { gap: 10px; }
   .menu-btn {
     display: inline-flex; align-items: center; justify-content: center; flex: none; width: 44px; height: 44px; padding: 0;

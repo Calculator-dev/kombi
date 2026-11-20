@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { dict, localePath, type Locale } from "@/lib/i18n";
 import { HeaderNav } from "./HeaderNav";
+import { HeaderSearch } from "./HeaderSearch";
 
 export function Logo({ href = "/", label = "kombi.ba početna" }: { href?: string; label?: string }) {
   return (
@@ -14,7 +16,8 @@ export function Logo({ href = "/", label = "kombi.ba početna" }: { href?: strin
   );
 }
 
-export function Header({ locale = "bs" }: { locale?: Locale }) {
+/** `search={false}` on pages that already have a big search box of their own (homepage, landing pages). */
+export function Header({ locale = "bs", search = true }: { locale?: Locale; search?: boolean }) {
   const t = dict(locale).header;
   return (
     <>
@@ -30,6 +33,11 @@ export function Header({ locale = "bs" }: { locale?: Locale }) {
       <header className="header">
         <div className="wrap">
           <Logo href={localePath(locale, "/")} label={t.home} />
+          {search && (
+            <Suspense>
+              <HeaderSearch locale={locale} />
+            </Suspense>
+          )}
           <HeaderNav locale={locale} />
         </div>
       </header>

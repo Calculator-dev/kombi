@@ -35,7 +35,7 @@ export function FinderPage({
   const cities = [...new Set(vans.map((v) => v.location))];
   return (
     <>
-      <Header locale={locale} />
+      <Header locale={locale} search={false} />
       <main id="sadrzaj">
         <Hero
           title={title}
