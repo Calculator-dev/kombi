@@ -18,7 +18,8 @@ export function Hero({
   children,
 }: {
   title: ReactNode;
-  intro: string;
+  /** One paragraph, or several. */
+  intro: string | readonly string[];
   specs: [string, string][];
   /** Shown above everything else, e.g. a van's photos. */
   media?: ReactNode;
@@ -34,7 +35,9 @@ export function Hero({
           <h1 id="hero-title" className="display h-xl">
             {title}
           </h1>
-          <p className="lead">{intro}</p>
+          {(typeof intro === "string" ? [intro] : intro).map((p) => (
+            <p key={p} className="lead">{p}</p>
+          ))}
           {search}
           <dl className="specs">
             {specs.map(([t, d]) => (

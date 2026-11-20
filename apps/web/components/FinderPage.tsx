@@ -20,7 +20,7 @@ export function FinderPage({
   guide,
 }: {
   title: ReactNode;
-  intro: string;
+  intro: string | readonly string[];
   vans: VanCard[];
   path?: string;
   locale?: Locale;

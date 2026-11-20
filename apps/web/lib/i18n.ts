@@ -108,9 +108,12 @@ const bs = {
     submit: "Traži",
   },
   home: {
-    title: ["Auto ili kombi", "za svaki put"],
-    intro:
-      "Najam auta i kombija, bez vozača. Za grad, na more, na Jahorinu, na svadbu ili po goste na aerodrom. Odaberite datume i odmah vidite koja su auta i kombiji slobodni. Gdje je vlasnik objavio cijenu, vidite i tačan iznos za vaše dane; ostalo je na upit.",
+    title: ["Auto ili kombi?", "Na pravom ste mjestu"],
+    intro: [
+      "Bilo da idete na more s rajom, planirate porodični izlet, vikend na Bjelašnici, svadbu ili trebate dočekati goste na aerodromu – na kombi.ba možete pronaći vozilo baš po svojoj mjeri.",
+      "Odaberite datume, provjerite koja su vozila slobodna i pronađite ponudu koja vam odgovara. Cijene su prikazane tamo gdje su dostupne, a za ostala vozila jednostavno pošaljite upit.",
+      "Bez komplikacija, bez suvišne priče. Izaberite, rezervišite i pravac na put!",
+    ],
     specVans: "Vozila",
     specFrom: "Od",
     specCities: "Gradovi",
@@ -513,9 +516,12 @@ const en: Dict = {
     submit: "Search",
   },
   home: {
-    title: ["A car or a van", "for every trip"],
-    intro:
-      "Car and van rental, self-drive. Around town, to the seaside, to Jahorina, to a wedding or to pick up guests at the airport. Pick your dates and instantly see which cars and vans are free. Where the owner lists a price you see the exact total for your dates; the rest are on request.",
+    title: ["A car or a van?", "You're in the right place"],
+    intro: [
+      "Whether you're heading to the seaside with friends, planning a family trip, a weekend on Bjelašnica, a wedding or need to meet guests at the airport – on kombi.ba you'll find a vehicle that fits.",
+      "Pick your dates, see which vehicles are free and find the offer that suits you. Prices are shown where available; for the other vehicles, just send a request.",
+      "No hassle, no small print. Choose, book and hit the road!",
+    ],
     specVans: "Vehicles",
     specFrom: "From",
     specCities: "Cities",
