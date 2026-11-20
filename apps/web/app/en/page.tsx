@@ -6,9 +6,9 @@ import { getVans } from "@/lib/vans";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: { absolute: "Car and van rental in Bosnia and Herzegovina — free vehicles and prices instantly | kombi.ba" },
+  title: { absolute: "Car and van rental in Bosnia and Herzegovina — available vehicles and prices in one place | kombi.ba" },
   description:
-    "Rent a car or a van, self-drive. Pick your dates and instantly see available cars and vans and the exact price. Pay at pickup.",
+    "Rent a car or a van, self-drive. Pick your dates and instantly see available cars and vans and, where the owner lists a price, the exact total. Pay at pickup.",
   alternates: { canonical: "/en", languages: { bs: "/", en: "/en" } },
   openGraph: { type: "website", locale: "en_US", siteName: "kombi.ba" },
 };

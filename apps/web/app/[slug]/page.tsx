@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { FinderPage } from "@/components/FinderPage";
+import { LandingGuide } from "@/components/LandingGuide";
 import { LANDINGS } from "@/lib/site";
 import { getVans } from "@/lib/vans";
 
@@ -28,9 +29,11 @@ export default async function LandingPage({ params }: Props) {
   const { slug } = await params;
   const page = LANDINGS[slug];
   if (!page) notFound();
+  const vans = (await getVans()).filter((v) => (!page.category || v.category === page.category) && v.seats >= (page.minSeats ?? 0));
   return (
     <FinderPage
-      vans={(await getVans()).filter((v) => !page.category || v.category === page.category)}
+      vans={vans}
+      guide={<LandingGuide page={page} vans={vans} />}
       path={`/${slug}`}
       category={page.category}
       intro={page.intro}

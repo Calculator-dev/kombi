@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { ApiError, adminApi } from "@/lib/api";
 import { km, shortDate } from "@/lib/format";
 import type { AdminBooking } from "./types";
 
@@ -29,6 +31,22 @@ export function BookingRow({
   onStatus: (id: string, s: "confirmed" | "declined" | "cancelled") => void;
 }) {
   const s = b.status === "pending" && b.holdExpired ? "expired" : b.status;
+  // A confirmed rental whose return day has come can be rated by the customer.
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Sarajevo" });
+  const over = b.status === "confirmed" && b.end <= today;
+  const [asked, setAsked] = useState(Boolean(b.reviewRequestedAt));
+  const [busy, setBusy] = useState(false);
+  async function askReview() {
+    setBusy(true);
+    try {
+      await adminApi(`/bookings/${b.id}/review-request`, { method: "POST" });
+      setAsked(true);
+    } catch (e) {
+      alert(e instanceof ApiError ? e.message : "Email nije poslan. Pokušajte ponovo.");
+    } finally {
+      setBusy(false);
+    }
+  }
   const extras = b.quote.extraLines.map((l) => l.label);
   return (
     <article className="req">
@@ -66,7 +84,18 @@ export function BookingRow({
             <button type="button" className="small-btn dark" onClick={() => onStatus(b.id, "confirmed")}>Potvrdi</button>
           </>
         )}
-        {b.status === "confirmed" && (
+        {over && (
+          <button
+            type="button"
+            className="small-btn"
+            disabled={busy}
+            title="Kupcu šaljemo email s linkom za ocjenu. Ocjena se objavljuje na stranici vozila."
+            onClick={() => (!asked || confirm("Ocjena je već zatražena. Poslati email ponovo?")) && void askReview()}
+          >
+            {asked ? "Ocjena zatražena ✓" : "Zatraži ocjenu"}
+          </button>
+        )}
+        {b.status === "confirmed" && !over && (
           <button
             type="button"
             className="small-btn"

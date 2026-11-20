@@ -8,6 +8,7 @@ export interface Me {
   address: string;
   companyId: string;
   representative: string;
+  vatRegistered: boolean;
   role: UserRole;
   status: UserStatus;
   plan: Plan;
@@ -51,6 +52,10 @@ export interface AdminBooking {
   quote: Quote;
   total: number;
   holdExpired: boolean;
+  /** Secret of the customer's review link. */
+  reviewToken: string;
+  /** When the customer was asked to rate the rental; null = not yet. */
+  reviewRequestedAt: string | null;
   createdAt: string;
 }
 

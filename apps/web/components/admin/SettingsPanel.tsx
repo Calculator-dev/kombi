@@ -50,7 +50,7 @@ export function SettingsPanel({ settings, onSave }: { settings: Settings; onSave
       <label className="check">
         <input type="checkbox" checked={s.priceOnRequest} onChange={(e) => top("priceOnRequest", e.target.checked)} />
         <span>
-          <strong>Cijena po dogovoru.</strong> Na stranici se ne prikazuje cijena najma; dogovarate je s kupcem nakon upita.
+          <strong>Cijena po dogovoru.</strong> Na stranici se ne prikazuje cijena najma; dogovarate je s kupcem nakon upita. Savjet: kupci češće biraju vozila s objavljenom cijenom, a ona se u pretrazi prikazuju prva.
         </span>
       </label>
 

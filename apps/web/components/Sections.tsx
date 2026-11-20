@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { PublicVan, Settings, Terms } from "@kombi/shared";
+import { FREE_TRIAL_DAYS, type PublicVan, type ReviewSummary, type Settings, type Terms, type VanLimits } from "@kombi/shared";
 import { km } from "@/lib/format";
 import { dict, ownerText, type Locale } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
@@ -87,8 +87,23 @@ export function VanDetails({ van, locale = "bs" }: { van: PublicVan; locale?: Lo
   );
 }
 
-export function Prices({ settings, included, locale = "bs" }: { settings: Settings; included: string[]; locale?: Locale }) {
+/** "PDV" in the included list only holds when the owner is in the VAT system. */
+const isVat = (item: string) => /^\s*(pdv|vat)\s*$/i.test(item);
+
+export function Prices({
+  settings,
+  included,
+  vat,
+  locale = "bs",
+}: {
+  settings: Settings;
+  included: string[];
+  /** The owner's VAT status; null/undefined when not known. */
+  vat?: boolean | null;
+  locale?: Locale;
+}) {
   const t = dict(locale).prices;
+  const items = vat === false ? included.filter((i) => !isVat(i)) : included;
   const weekly = Math.round(settings.dailyRate * (1 - settings.weeklyDiscountPct / 100));
   const extra = (e: Settings["extras"][number]) =>
     e.perDay !== undefined ? t.kmDay(e.perDay) : `${e.flat} KM`;
@@ -138,7 +153,8 @@ export function Prices({ settings, included, locale = "bs" }: { settings: Settin
                 <div className="line" key={p.id}><span>{ownerText(p.label, locale)}</span><span className="fill" /><b>{p.fee} KM</b></div>
               ))}
           </div>
-          {included.length > 0 && <p className="included">{t.included}: {included.map((i) => ownerText(i, locale)).join(", ")}</p>}
+          {items.length > 0 && <p className="included">{t.included}: {items.map((i) => ownerText(i, locale)).join(", ")}</p>}
+          {vat != null && <p className="included">{vat ? t.vatIn : t.vatOut}</p>}
         </div>
       </div>
     </section>
@@ -146,11 +162,25 @@ export function Prices({ settings, included, locale = "bs" }: { settings: Settin
 }
 
 /** A van's rental terms, as its owner set them. */
-export function Rules({ terms, settings, locale = "bs" }: { terms: Terms; settings: Settings; locale?: Locale }) {
+export function Rules({
+  terms,
+  settings,
+  limits = {},
+  locale = "bs",
+}: {
+  terms: Terms;
+  settings: Settings;
+  limits?: VanLimits;
+  locale?: Locale;
+}) {
   const t = dict(locale).rules;
   const rules: [string, string][] = [
     [t.driver, t.driverText(terms.minDriverAge, terms.minLicenseYears)],
     [t.documents, ownerText(terms.documents, locale)],
+    [t.mileage, limits.kmPerDay !== undefined ? t.mileageText(limits.kmPerDay) : ""],
+    [t.extraKm, limits.kmPerDay && limits.extraKm ? limits.extraKm.split("\n").map((l) => l.trim()).filter(Boolean).join("; ") + "." : ""],
+    [t.kasko, terms.kasko ? (t.kaskoText[terms.kasko] ?? "") : ""],
+    [t.damage, limits.damageFee ? t.damageText(km(limits.damageFee)) : ""],
     [t.fuel, ownerText(terms.fuel, locale)],
     [t.border, ownerText(terms.border, locale)],
     [t.deposit, t.depositText(km(settings.deposit))],
@@ -174,6 +204,54 @@ export function Rules({ terms, settings, locale = "bs" }: { terms: Terms; settin
                 <p>{d}</p>
               </li>
             ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+/** Stars as text, for screen readers too: "★★★★☆". */
+export function Stars({ rating, label }: { rating: number; label: string }) {
+  const full = Math.round(rating);
+  return (
+    <span className="stars" role="img" aria-label={label}>
+      {"★".repeat(full)}
+      <span aria-hidden="true">{"★".repeat(5 - full)}</span>
+    </span>
+  );
+}
+
+/** Ratings from customers who really rented this vehicle. Nothing is shown until the first one. */
+export function Reviews({ reviews, locale = "bs" }: { reviews?: ReviewSummary; locale?: Locale }) {
+  if (!reviews?.count) return null;
+  const t = dict(locale).reviews;
+  const avg = reviews.average.toLocaleString(locale === "en" ? "en-GB" : "bs-BA", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const date = (iso: string) => iso.split("-").reverse().join(".") + ".";
+  return (
+    <section id="ocjene" className="section" aria-labelledby="ocjene-h">
+      <div className="wrap split">
+        <div>
+          <h2 id="ocjene-h" className="display h-lg">
+            {t.title[0]}
+            <br />
+            {t.title[1]}
+          </h2>
+          <p className="review-score">
+            <Stars rating={reviews.average} label={t.stars(reviews.average)} /> {t.summary(avg, reviews.count)}
+          </p>
+          <p className="note">{t.verified}</p>
+        </div>
+        <ul className="review-list">
+          {reviews.items.map((r, i) => (
+            <li key={i}>
+              <div className="review-head">
+                <Stars rating={r.rating} label={t.stars(r.rating)} />
+                <strong>{r.name}</strong>
+                <span className="caption">{date(r.date)}</span>
+              </div>
+              {r.comment && <p>{r.comment}</p>}
+            </li>
+          ))}
         </ul>
       </div>
     </section>
@@ -221,6 +299,7 @@ export function Plans({ locale = "bs" }: { locale?: Locale }) {
             {t.basics.map((b) => <li key={b}>{b}</li>)}
           </ul>
         </div>
+        <p className="plans-trial">{t.trial(FREE_TRIAL_DAYS)}</p>
         <PlanList locale={locale} />
         <p className="caption plans-foot">
           {t.footBefore} <a href={`mailto:${SITE.email}`}>{SITE.email}</a> {t.footAfter}

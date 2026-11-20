@@ -9,6 +9,7 @@ import {
   isIsoDate,
   optionId,
   quote,
+  reviewSchema,
   todayIn,
   vanSearchSchema,
   type VanCard,
@@ -18,9 +19,10 @@ import { HttpError } from "../errors";
 import { busyVans, unavailableDates } from "../services/availability";
 import { createBooking } from "../services/bookings";
 import { contractByToken } from "../services/contract";
+import { ratingsOf, reviewContext, reviewSummary, submitReview } from "../services/reviews";
 import { recordVanEvent } from "../services/stats";
 import { getUser } from "../services/users";
-import { getPublicVan, listPublicVans, ownerNameOf, pricingOf, searchVans, toCard, toPublicVan } from "../services/vans";
+import { getPublicVan, listPublicVans, ownerOf, pricingOf, publicLimits, searchVans, toCard, toPublicVan } from "../services/vans";
 
 const isoDate = z.string().refine(isIsoDate, "Neispravan datum");
 const slug = z.string().regex(/^[a-z0-9-]{1,80}$/);
@@ -47,7 +49,8 @@ export function publicRoutes({ db, config, notifier, storage, now }: Deps): Rout
       .optional()
       .parse(req.query.start || req.query.end ? { start: req.query.start, end: req.query.end } : undefined);
     const vans = await listPublicVans(db.orm);
-    let cards: VanCard[] = vans.map((v) => toCard(storage, v));
+    const ratings = await ratingsOf(db.orm, vans.map((v) => v.id));
+    let cards: VanCard[] = vans.map((v) => ({ ...toCard(storage, v), rating: ratings.get(v.id) }));
     if (dates) {
       const busy = await busyVans(db.orm, vans.map((v) => v.id), dates.start, dates.end);
       cards = vans.map((v, i) => {
@@ -71,7 +74,8 @@ export function publicRoutes({ db, config, notifier, storage, now }: Deps): Rout
   r.get("/vans/:slug", async (req, res) => {
     res.set("Cache-Control", "public, max-age=60");
     const van = await publicVan(req.params.slug);
-    res.json({ ...toPublicVan(storage, van), owner: await ownerNameOf(db.orm, van) });
+    const [owner, reviews] = await Promise.all([ownerOf(db.orm, van), reviewSummary(db.orm, van.id)]);
+    res.json({ ...toPublicVan(storage, van), owner: owner?.name ?? null, vat: owner ? owner.vat : null, limits: publicLimits(van), reviews });
   });
 
   r.get("/vans/:slug/availability", async (req, res) => {
@@ -135,6 +139,24 @@ export function publicRoutes({ db, config, notifier, storage, now }: Deps): Rout
     if (!token.success) throw new HttpError(404, "not_found", "Ugovor ne postoji.");
     res.set("Cache-Control", "private, no-store");
     res.json(await contractByToken(db.orm, token.data, today()));
+  });
+
+  const reviewToken = (t: unknown) => {
+    const token = z.string().regex(/^[0-9a-f]{64}$/).safeParse(t);
+    if (!token.success) throw new HttpError(404, "not_found", "Link za ocjenu ne postoji.");
+    return token.data;
+  };
+
+  /** The page behind the review link the customer gets after the rental. */
+  r.get("/reviews/:token", contractLimiter, async (req, res) => {
+    res.set("Cache-Control", "private, no-store");
+    res.json(await reviewContext(db.orm, reviewToken(req.params.token), today()));
+  });
+
+  r.post("/reviews/:token", contractLimiter, async (req, res) => {
+    const token = reviewToken(req.params.token);
+    await submitReview(db.orm, token, reviewSchema.parse(req.body), today());
+    res.status(201).json(await reviewContext(db.orm, token, today()));
   });
 
   r.post("/bookings", bookingLimiter, async (req, res) => {

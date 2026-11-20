@@ -11,6 +11,7 @@ export function ProfileForm({ me, onSaved }: { me: Me; onSaved: (m: Me) => void 
   const [address, setAddress] = useState(me.address ?? "");
   const [companyId, setCompanyId] = useState(me.companyId ?? "");
   const [representative, setRepresentative] = useState(me.representative ?? "");
+  const [vatRegistered, setVatRegistered] = useState(Boolean(me.vatRegistered));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -18,7 +19,7 @@ export function ProfileForm({ me, onSaved }: { me: Me; onSaved: (m: Me) => void 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
-    const r = profileSchema.safeParse({ name, phone, address, companyId, representative });
+    const r = profileSchema.safeParse({ name, phone, address, companyId, representative, vatRegistered });
     if (!r.success) {
       setErrors(Object.fromEntries(r.error.issues.map((i) => [String(i.path[0]), i.message])));
       return;
@@ -63,6 +64,14 @@ export function ProfileForm({ me, onSaved }: { me: Me; onSaved: (m: Me) => void 
           <input placeholder="npr. zastupana po vlasniku obrta Imenu Prezimenu" value={representative} onChange={(e) => setRepresentative(e.target.value)} />
         </label>
       </div>
+      <label className="check">
+        <input type="checkbox" checked={vatRegistered} onChange={(e) => setVatRegistered(e.target.checked)} />
+        U sistemu sam PDV-a: cijene mojih vozila uključuju PDV
+      </label>
+      <p className="caption" style={{ marginTop: -16 }}>
+        Na oglasu piše „Cijene uključuju PDV" ili „Iznajmljivač nije u sistemu PDV-a", zavisno od ovoga. Stavka „PDV" u
+        listi „Uključeno u cijenu" prikazuje se samo ako ste obveznik.
+      </p>
       {msg && <p className="ok-box" role="status">{msg}</p>}
       <button className="btn-dark" type="submit" disabled={busy} style={{ alignSelf: "flex-start" }}>
         {busy ? "Spremam…" : "Sačuvaj"}

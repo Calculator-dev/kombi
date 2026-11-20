@@ -25,6 +25,8 @@ export const users = pgTable(
     address: text("address"),
     companyId: text("company_id"),
     representative: text("representative"),
+    /** In the VAT system: prices on their vans include PDV. */
+    vatRegistered: boolean("vat_registered").notNull().default(false),
     role: text("role").$type<UserRole>().notNull().default("owner"),
     status: text("status").$type<UserStatus>().notNull().default("pending"),
     /** The owner's package: how many vans they may publish, and whether they see analytics. */
@@ -141,6 +143,13 @@ export const bookings = pgTable(
       .notNull()
       .unique()
       .default(sql`replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '')`),
+    /** Secret in the link the customer gets to rate the rental once it is over. */
+    reviewToken: text("review_token")
+      .notNull()
+      .unique()
+      .default(sql`replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '')`),
+    /** When the customer was asked for a review; null = not yet. */
+    reviewRequestedAt: timestamp("review_requested_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [
@@ -182,6 +191,34 @@ export const vanStats = pgTable(
   (t) => [primaryKey({ columns: [t.vanId, t.day] })],
 ).enableRLS();
 
+/**
+ * A customer's rating of a finished rental. Only a confirmed booking whose
+ * return day has passed can be rated, once, through the link sent to the customer.
+ */
+export const reviews = pgTable(
+  "reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .unique()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+    vanId: uuid("van_id")
+      .notNull()
+      .references(() => vans.id, { onDelete: "cascade" }),
+    /** 1–5 stars. */
+    rating: integer("rating").notNull(),
+    comment: text("comment").notNull().default(""),
+    /** The customer's first name, as shown with the review. */
+    name: text("name").notNull(),
+    /** Hidden by a platform admin (abuse, personal data); kept for the record. */
+    hidden: boolean("hidden").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("reviews_van_idx").on(t.vanId), check("reviews_rating_check", sql`${t.rating} between 1 and 5`)],
+).enableRLS();
+
+export type ReviewRow = typeof reviews.$inferSelect;
 export type BookingRow = typeof bookings.$inferSelect;
 export type NewBooking = typeof bookings.$inferInsert;
 export type BlockRow = typeof blockedRanges.$inferSelect;

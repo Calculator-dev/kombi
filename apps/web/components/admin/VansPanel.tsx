@@ -63,11 +63,13 @@ export function VansPanel({ me, vans, onChange }: Props) {
       {me.role !== "admin" && (
         <p className="caption">
           Paket {PLAN_INFO[me.plan].label}: na stranici može biti {planVans(me.plan)}
-          {PLAN_INFO[me.plan].maxVans !== null && (() => {
+          {PLAN_INFO[me.plan].limit && (() => {
             const live = vans.filter((v) => v.status === "published" && v.ownerId === me.id);
             const cars = live.filter((v) => kindOf(v.category) === "car").length;
-            const max = PLAN_INFO[me.plan].maxVans;
-            return ` (objavljeno: kombija ${live.length - cars} od ${max}, auta ${cars} od ${max})`;
+            const limit = PLAN_INFO[me.plan].limit!;
+            return "each" in limit
+              ? ` (objavljeno: kombija ${live.length - cars} od ${limit.each}, auta ${cars} od ${limit.each})`
+              : ` (objavljeno: ${live.length} od ${limit.total})`;
           })()}.
           {me.plan !== "gold" && " Za više vozila pogledajte pakete u Profilu."}
         </p>

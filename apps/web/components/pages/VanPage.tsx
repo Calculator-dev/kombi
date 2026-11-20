@@ -7,7 +7,7 @@ import { Footer } from "../Footer";
 import { Gallery } from "../Gallery";
 import { Header } from "../Header";
 import { JsonLd } from "../JsonLd";
-import { Contact, Faq, Hero, Prices, Rules, VanDetails } from "../Sections";
+import { Contact, Faq, Hero, Prices, Reviews, Rules, VanDetails } from "../Sections";
 import { VanTicket } from "../VanTicket";
 
 export async function vanMetadata(slug: string, locale: Locale): Promise<Metadata> {
@@ -71,6 +71,7 @@ export async function VanPage({ slug, locale }: { slug: string; locale: Locale }
             van.category === "cargo" && van.cargoM3 ? [d.cargo.space, d.cargo.m3(van.cargoM3)] : [t.seats, String(van.seats)],
             [t.gearbox, gearbox],
             [d.owner.label, van.owner || d.owner.platform],
+            ...(van.reviews?.count ? [[d.reviews.title.join(" "), `★ ${van.reviews.average} (${van.reviews.count})`] as [string, string]] : []),
             [t.payment, t.paymentValue],
           ]}
         >
@@ -81,8 +82,9 @@ export async function VanPage({ slug, locale }: { slug: string; locale: Locale }
           </Suspense>
         </Hero>
         <VanDetails van={van} locale={locale} />
-        <Prices settings={van.pricing} included={van.terms.included} locale={locale} />
-        <Rules terms={van.terms} settings={van.pricing} locale={locale} />
+        <Prices settings={van.pricing} included={van.terms.included} vat={van.vat} locale={locale} />
+        <Rules terms={van.terms} settings={van.pricing} limits={van.limits} locale={locale} />
+        <Reviews reviews={van.reviews} locale={locale} />
         <Faq locale={locale} />
         <Contact locale={locale} />
       </main>

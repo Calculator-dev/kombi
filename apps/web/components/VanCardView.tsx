@@ -52,6 +52,11 @@ export function VanCardView({
         </div>
         <div className="van-info">
           <h3>{c.name}</h3>
+          {c.rating && (
+            <p className="van-rating" aria-label={t.reviews.summary(String(c.rating.average), c.rating.count)}>
+              <span className="stars" aria-hidden="true">★</span> {c.rating.average.toFixed(1)} <span>({c.rating.count})</span>
+            </p>
+          )}
           <p className="mono">{specs.join(" · ")}</p>
           {c.features.length > 0 && (
             <p className="van-features">{c.features.slice(0, 4).map((f) => t.features[f] ?? f).join(" · ")}{c.features.length > 4 ? " …" : ""}</p>
