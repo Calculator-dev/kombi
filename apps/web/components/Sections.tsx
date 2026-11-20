@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { FREE_TRIAL_DAYS, type PublicVan, type ReviewSummary, type Settings, type Terms, type VanLimits, type VanService, type VideoUrl } from "@kombi/shared";
+import { FREE_TRIAL_DAYS, isAirportPickup, isDeliveryPickup, type PublicVan, type ReviewSummary, type Settings, type Terms, type VanLimits, type VanService, type VideoUrl } from "@kombi/shared";
 import { km } from "@/lib/format";
 import { dict, ownerText, type Locale } from "@/lib/i18n";
 import { SITE } from "@/lib/site";
@@ -15,6 +15,7 @@ export function Hero({
   specs,
   media,
   search,
+  below,
   children,
 }: {
   title: ReactNode;
@@ -25,6 +26,8 @@ export function Hero({
   media?: ReactNode;
   /** Shown under the intro, e.g. the search box. */
   search?: ReactNode;
+  /** Shown under the specs. */
+  below?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -44,6 +47,7 @@ export function Hero({
               <div key={t}><dt>{t}</dt><dd>{d}</dd></div>
             ))}
           </dl>
+          {below}
         </div>
         {children}
       </div>
@@ -258,6 +262,36 @@ export function Reviews({ reviews, locale = "bs" }: { reviews?: ReviewSummary; l
         </ul>
       </div>
     </section>
+  );
+}
+
+/** The best of a vehicle's terms as a checklist under its specs, from what the owner has set. */
+export function Highlights({ van, locale = "bs" }: { van: PublicVan; locale?: Locale }) {
+  const t = dict(locale).highlights;
+  const p = van.pricing;
+  const on = p.pickup.filter((x) => x.enabled);
+  const airport = on.find(isAirportPickup);
+  const delivery = on.find(isDeliveryPickup);
+  const items = [
+    t.noPrepay,
+    airport && t.airport(airport.fee),
+    delivery && t.delivery(delivery.fee),
+    !p.priceOnRequest && (p.deposit === 0 ? t.noDeposit : t.deposit(p.deposit)),
+    t.cancel(van.terms.cancellationDays),
+    van.terms.kasko === "included" && t.kasko,
+    van.limits?.kmPerDay === 0 && t.unlimited,
+    p.extras.some((e) => e.enabled && (e.id === "crossBorder" || /granic|border/i.test(e.label))) && t.border,
+    !p.priceOnRequest && p.weeklyDiscountPct > 0 && t.weekly(p.weeklyDiscountPct),
+  ].filter((x): x is string => Boolean(x));
+  return (
+    <ul className="highlights" aria-label={t.label}>
+      {items.map((x) => (
+        <li key={x}>
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor" opacity="0.15" /><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          {x}
+        </li>
+      ))}
+    </ul>
   );
 }
 

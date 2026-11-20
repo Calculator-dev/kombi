@@ -963,3 +963,30 @@ describe("the customer films the return", () => {
     await request(app).put(`/api/contracts/${"0".repeat(64)}/handover/front`).set("Content-Type", "video/mp4").send(video).expect(404);
   });
 });
+
+describe("cards and quick filters", () => {
+  it("shows deposit, minimum days, discount and pickup places on cards, and filters by them", async () => {
+    const all = (await request(app).get("/api/search")).body;
+    const toyota = all.items.find((v: { slug: string }) => v.slug === "toyota-proace-verso");
+    expect(toyota).toMatchObject({ deposit: 500, minDays: 1, weeklyDiscountPct: 10, airport: true, delivery: true });
+
+    // A week: the card says how much the discount takes off.
+    const dated = (await request(app).get("/api/search?start=2027-02-01&end=2027-02-08")).body;
+    const week = dated.items.find((v: { slug: string }) => v.slug === "toyota-proace-verso");
+    expect(week.quote.discount).toBeGreaterThan(0);
+
+    expect((await request(app).get("/api/search?airport=1")).body.total).toBe(all.total);
+    const amir = await as(AMIR);
+    const [mine] = (await amir.get("/api/admin/vans")).body as { id: string; slug: string; pricing: { pickup: { id: string; enabled: boolean }[] } }[];
+    await amir
+      .put(`/api/admin/vans/${mine!.id}/pricing`)
+      .send({ ...mine!.pricing, deposit: 0, pickup: mine!.pricing.pickup.map((p) => ({ ...p, enabled: p.id === "office" })) })
+      .expect(200);
+    const noDeposit = (await request(app).get("/api/search?noDeposit=1")).body.items.map((v: { slug: string }) => v.slug);
+    expect(noDeposit).toContain(mine!.slug);
+    expect(noDeposit).not.toContain("toyota-proace-verso");
+    const airport = (await request(app).get("/api/search?airport=1")).body.items.map((v: { slug: string }) => v.slug);
+    expect(airport).not.toContain(mine!.slug);
+    expect(airport).toContain("toyota-proace-verso");
+  });
+});

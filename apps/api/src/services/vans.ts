@@ -11,6 +11,8 @@ import {
   MAX_PHOTOS,
   SEARCH_PAGE_SIZE,
   SPIN_SLOTS,
+  isAirportPickup,
+  isDeliveryPickup,
   quote,
   settingsSchema,
   slugify,
@@ -411,8 +413,21 @@ export function toCard(storage: PhotoStorage, v: VanRow): VanCard {
     powerHp: v.powerHp,
     features: v.features as VanDetails["features"],
     photo: v.photos[0] ? photoUrls(storage, v.photos[0]) : null,
-    dailyRate: pricingOf(v).dailyRate,
-    priceOnRequest: pricingOf(v).priceOnRequest,
+    ...cardTerms(pricingOf(v)),
+  };
+}
+
+/** The price and the conditions a card shows. */
+function cardTerms(p: Settings) {
+  const on = p.pickup.filter((x) => x.enabled);
+  return {
+    dailyRate: p.dailyRate,
+    priceOnRequest: p.priceOnRequest,
+    deposit: p.deposit,
+    minDays: p.minDays,
+    weeklyDiscountPct: p.weeklyDiscountPct,
+    airport: on.some(isAirportPickup),
+    delivery: on.some(isDeliveryPickup),
   };
 }
 
@@ -465,8 +480,14 @@ export async function searchVans(db: Executor, storage: PhotoStorage, q: VanSear
   ]);
 
   // The make filter applies last, so the list of makes shows what else there is.
-  const brands = brandCounts(all.map((r) => r.van));
-  const rows = q.brand ? all.filter((r) => r.van.brand === q.brand) : all;
+  // Quick filters on the price settings (JSON), checked here rather than in SQL.
+  const quick = all.filter(({ van }) => {
+    const p = pricingOf(van);
+    const on = p.pickup.filter((x) => x.enabled);
+    return (!q.airport || on.some(isAirportPickup)) && (!q.delivery || on.some(isDeliveryPickup)) && (!q.noDeposit || (p.deposit === 0 && !p.priceOnRequest));
+  });
+  const brands = brandCounts(quick.map((r) => r.van));
+  const rows = q.brand ? quick.filter((r) => r.van.brand === q.brand) : quick;
   type Card = ReturnType<typeof toCard>;
   const bookable = (c: Card) => c.available !== false && !c.quote?.errors.length;
   const ratings = await ratingsOf(db, rows.map(({ van }) => van.id));
@@ -477,7 +498,7 @@ export async function searchVans(db: Executor, storage: PhotoStorage, q: VanSear
     const busy = await busyVans(db, cards.map((c) => c.id), q.start, q.end);
     cards = rows.map(({ van }, i) => {
       const qt = quote(dates, pricingOf(van));
-      return { ...cards[i]!, available: !busy.has(van.id), quote: { days: qt.days, total: qt.total, errors: qt.errors } };
+      return { ...cards[i]!, available: !busy.has(van.id), quote: { days: qt.days, total: qt.total, discount: qt.discount, errors: qt.errors } };
     });
     free = cards.filter(bookable).length;
     if (!q.taken) cards = cards.filter(bookable);

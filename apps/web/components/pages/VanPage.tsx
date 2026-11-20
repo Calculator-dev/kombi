@@ -10,7 +10,7 @@ import { JsonLd } from "../JsonLd";
 import Link from "next/link";
 import { brandName } from "@kombi/shared";
 import { BrandLogo } from "../BrandLogo";
-import { Contact, Faq, Hero, Prices, Reviews, Rules, Services, SpinVideo, VanDetails } from "../Sections";
+import { Contact, Faq, Hero, Highlights, Prices, Reviews, Rules, Services, SpinVideo, VanDetails } from "../Sections";
 import { VanTicket } from "../VanTicket";
 
 export async function vanMetadata(slug: string, locale: Locale): Promise<Metadata> {
@@ -67,6 +67,7 @@ export async function VanPage({ slug, locale }: { slug: string; locale: Locale }
                 ? d.car.intro(van.seats, gearbox.toLowerCase(), onRequest)
                 : t.intro(van.seats, gearbox.toLowerCase(), onRequest))
           }
+          below={<Highlights van={van} locale={locale} />}
           media={van.photos.length > 0 && <Gallery photos={van.photos} name={van.name} spin={van.spin} />}
           specs={[
             [t.city, van.location],

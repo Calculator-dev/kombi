@@ -67,7 +67,7 @@ export function publicRoutes({ db, config, notifier, storage, now }: Deps): Rout
       const busy = await busyVans(db.orm, vans.map((v) => v.id), dates.start, dates.end);
       cards = vans.map((v, i) => {
         const q = quote(dates, pricingOf(v));
-        return { ...cards[i]!, available: !busy.has(v.id), quote: { days: q.days, total: q.total, errors: q.errors } };
+        return { ...cards[i]!, available: !busy.has(v.id), quote: { days: q.days, total: q.total, discount: q.discount, errors: q.errors } };
       });
       // Free vans first, then by price.
       cards.sort((a, b) => Number(b.available && !b.quote!.errors.length) - Number(a.available && !a.quote!.errors.length) || a.quote!.total - b.quote!.total);

@@ -107,8 +107,8 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
   }
 
   const dates = q.start && q.end ? { start: q.start, end: q.end } : null;
-  const active = [q.brand, q.type, q.seats, q.luggage, q.gearbox, q.fuel, q.city, q.priceMin, q.priceMax, q.yearMin, q.features?.length].filter(Boolean).length;
-  const clear = () => update({ brand: undefined, type: undefined, seats: undefined, luggage: undefined, gearbox: undefined, fuel: undefined, city: undefined, priceMin: undefined, priceMax: undefined, yearMin: undefined, features: undefined });
+  const active = [q.airport, q.delivery, q.noDeposit, q.brand, q.type, q.seats, q.luggage, q.gearbox, q.fuel, q.city, q.priceMin, q.priceMax, q.yearMin, q.features?.length].filter(Boolean).length;
+  const clear = () => update({ airport: undefined, delivery: undefined, noDeposit: undefined, brand: undefined, type: undefined, seats: undefined, luggage: undefined, gearbox: undefined, fuel: undefined, city: undefined, priceMin: undefined, priceMax: undefined, yearMin: undefined, features: undefined });
 
   const summary = loading
     ? t.searching
@@ -201,6 +201,24 @@ export function KombijiSearch({ initial }: { initial: SearchResult }) {
       </aside>
 
       <section className="results" aria-labelledby="results-h" aria-busy={loading}>
+        <ul className="quick-filters" aria-label={t.quickLabel}>
+          {(
+            [
+              ["airport", q.airport, () => update({ airport: q.airport ? undefined : true })],
+              ["automatic", q.gearbox === "Automatski", () => update({ gearbox: q.gearbox === "Automatski" ? undefined : "Automatski" })],
+              ["nine", q.seats === 9, () => update({ seats: q.seats === 9 ? undefined : 9 })],
+              ["noDeposit", q.noDeposit, () => update({ noDeposit: q.noDeposit ? undefined : true })],
+              ["delivery", q.delivery, () => update({ delivery: q.delivery ? undefined : true })],
+              ["cargo", q.type === "cargo", () => update({ type: q.type === "cargo" ? undefined : "cargo" })],
+            ] as const
+          ).map(([key, on, toggle]) => (
+            <li key={key}>
+              <button type="button" aria-pressed={Boolean(on)} onClick={toggle}>
+                {on ? "✓ " : ""}{t.quick[key]}
+              </button>
+            </li>
+          ))}
+        </ul>
         <div className="results-bar">
           <div>
             <h1 id="results-h" className="display h-md">

@@ -212,10 +212,22 @@ export interface VanCard
   rating?: { average: number; count: number };
   /** The owner's company logo, if they added one. */
   ownerLogo?: string | null;
+  /** What a renter wants to know at a glance; older APIs leave them out. */
+  deposit?: number;
+  minDays?: number;
+  weeklyDiscountPct?: number;
+  /** Pickup at the airport / delivery to an address on offer. */
+  airport?: boolean;
+  delivery?: boolean;
   /** Only when dates were given. */
   available?: boolean;
-  quote?: Pick<Quote, "days" | "total" | "errors">;
+  quote?: Pick<Quote, "days" | "total" | "errors"> & { discount?: number };
 }
+
+/** Whether a pickup option is the airport or a delivery to an address (by its id, or what it says). */
+export const isAirportPickup = (p: { id: string; label: string }) => p.id === "airport" || /aerodrom|airport/i.test(p.label);
+export const isDeliveryPickup = (p: { id: string; label: string; detailsLabel?: string }) =>
+  p.id === "address" || /dostav|adres/i.test(p.label) || /adres/i.test(p.detailsLabel ?? "");
 
 /** Turns "Toyota Proace Verso 8+1" into "toyota-proace-verso-8-1". */
 export function slugify(text: string): string {
@@ -275,6 +287,10 @@ export const vanSearchSchema = z
       .optional()
       .catch(undefined),
     sort: z.enum(SORTS.map(([s]) => s) as [Sort, ...Sort[]]).optional().catch(undefined),
+    /** Quick filters: pickup at the airport, delivery to an address, no deposit. */
+    airport: z.preprocess((v) => v === "1" || v === true, z.boolean()).optional().catch(undefined),
+    delivery: z.preprocess((v) => v === "1" || v === true, z.boolean()).optional().catch(undefined),
+    noDeposit: z.preprocess((v) => v === "1" || v === true, z.boolean()).optional().catch(undefined),
     /** With dates: also list vans that are taken then. */
     taken: z.preprocess((v) => v === "1" || v === true, z.boolean()).optional().catch(undefined),
     page: optInt(1, 1000).catch(undefined),

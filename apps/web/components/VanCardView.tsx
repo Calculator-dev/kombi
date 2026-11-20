@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import type { VanCard } from "@kombi/shared";
+import { kmToEur, type VanCard } from "@kombi/shared";
 import { trackEcommerce } from "@/lib/analytics";
 import { km } from "@/lib/format";
 import { translateQuoteError } from "@/lib/i18n";
 import { useLocale } from "@/lib/useLocale";
 import { BrandLogo } from "./BrandLogo";
+import { BagIcon, CargoIcon, FuelIcon, GearIcon, PinIcon, PlaneIcon, SeatIcon } from "./SpecIcons";
 import { VanDrawing } from "./VanDrawing";
 
 /** One van in a list: photo, key specs and the price (exact total when dates are picked). */
@@ -26,16 +27,22 @@ export function VanCardView({
   const unavailable = dates && c.quote && (c.available === false || c.quote.errors.length > 0);
   const query = dates ? `?start=${dates.start}&end=${dates.end}` : "";
   const cargo = c.category === "cargo";
-  const specs = [
-    cargo ? t.category.cargo : c.category === "car" ? t.category.car : null,
-    cargo && c.cargoM3 ? t.cargo.m3(c.cargoM3) : null,
-    cargo && c.payloadKg ? t.cargo.kg(c.payloadKg) : null,
-    t.card.seats(c.seats),
-    !cargo && c.luggage ? t.card.luggage(c.luggage) : null,
-    (t.gearboxes[c.gearbox] ?? c.gearbox).toLowerCase(),
-    c.powerHp ? t.card.hp(c.powerHp) : null,
-    String(c.year),
-  ].filter(Boolean);
+  // Four things people compare first, each with an icon.
+  const specs: [React.ReactNode, string, string][] = [
+    [<SeatIcon key="s" />, String(c.seats), t.card.seatsShort],
+    cargo && c.cargoM3
+      ? [<CargoIcon key="c" />, t.cargo.m3(c.cargoM3), c.payloadKg ? t.cargo.kg(c.payloadKg) : ""]
+      : [<BagIcon key="b" />, String(c.luggage || "—"), t.card.luggageShort],
+    [<GearIcon key="g" />, t.card.gearShort[c.gearbox] ?? c.gearbox, c.powerHp ? t.card.hp(c.powerHp) : ""],
+    [<FuelIcon key="f" />, t.fuels[c.fuel] ?? c.fuel, ""],
+  ];
+  // The conditions that decide it: deposit, minimum days, discount for a week.
+  const tags = [
+    c.deposit === undefined || c.priceOnRequest ? null : c.deposit === 0 ? { text: t.card.noDeposit, good: true } : { text: t.card.deposit(c.deposit) },
+    c.minDays && c.minDays > 1 ? { text: t.card.minDays(c.minDays) } : null,
+    c.weeklyDiscountPct && !c.priceOnRequest ? { text: t.card.weekly(c.weeklyDiscountPct), good: true } : null,
+  ].filter((x): x is { text: string; good?: boolean } => Boolean(x));
+  const was = c.quote?.discount ? c.quote.total + c.quote.discount : null;
   return (
     <li className="van-card" data-unavailable={unavailable || undefined}>
       <Link
@@ -49,7 +56,7 @@ export function VanCardView({
           ) : (
             <VanDrawing compact />
           )}
-          <span className="van-city">{c.location}</span>
+          <span className="van-year">{c.year}</span>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {c.ownerLogo && <img className="van-owner-logo" src={c.ownerLogo} alt="" width={40} height={40} loading="lazy" />}
         </div>
@@ -63,10 +70,26 @@ export function VanCardView({
               <span className="stars" aria-hidden="true">★</span> {c.rating.average.toFixed(1)} <span>({c.rating.count})</span>
             </p>
           )}
-          <p className="mono">{specs.join(" · ")}</p>
-          {c.features.length > 0 && (
-            <p className="van-features">{c.features.slice(0, 4).map((f) => t.features[f] ?? f).join(" · ")}{c.features.length > 4 ? " …" : ""}</p>
+          {(cargo || c.category === "car") && <p className="van-kind">{cargo ? t.category.cargo : t.category.car}</p>}
+          <ul className="van-specs">
+            {specs.map(([icon, value, note], i) => (
+              <li key={i}>
+                {icon}
+                <b>{value}</b>
+                {note && <small>{note}</small>}
+              </li>
+            ))}
+          </ul>
+          {tags.length > 0 && (
+            <ul className="van-tags">
+              {tags.map((x) => <li key={x.text} data-good={x.good || undefined}>{x.text}</li>)}
+            </ul>
           )}
+          <p className="van-where">
+            <PinIcon /> {c.location}
+            {c.airport && <><span aria-hidden="true">·</span><PlaneIcon /> {t.card.airport}</>}
+            {c.delivery && <><span aria-hidden="true">·</span>{t.card.delivery}</>}
+          </p>
           <div className="van-price">
             {dates && c.quote ? (
               unavailable ? (
@@ -79,9 +102,13 @@ export function VanCardView({
               ) : (
                 <>
                   <span>
-                    {c.quote.days} {t.days(c.quote.days)} · {km(c.dailyRate)}/{t.perDay}
+                    {c.quote.days} {t.days(c.quote.days)}
+                    <small>≈ {kmToEur(c.quote.total)} €</small>
                   </span>
-                  <strong>{km(c.quote.total)}</strong>
+                  <span className="van-total">
+                    {was && <s>{km(was)}</s>}
+                    <strong>{km(c.quote.total)}</strong>
+                  </span>
                 </>
               )
             ) : c.priceOnRequest ? (
@@ -91,7 +118,10 @@ export function VanCardView({
               </>
             ) : (
               <>
-                <span>{t.card.from}</span>
+                <span>
+                  {t.card.from}
+                  <small>≈ {kmToEur(c.dailyRate)} €/{t.perDay}</small>
+                </span>
                 <strong>{km(c.dailyRate)}/{t.perDay}</strong>
               </>
             )}
