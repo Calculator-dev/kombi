@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { MAX_VIDEO_BYTES } from "@kombi/shared";
-import { ApiError, adminUploadVideo } from "@/lib/api";
+import { ApiError, adminUploadVideo, uploadVideo } from "@/lib/api";
 
 /**
  * Picks (or, on a phone, records) one video and sends it with a progress bar.
@@ -15,6 +15,7 @@ export function VideoUpload<T>({
   onDone,
   onRemove,
   capture = false,
+  publicPath = false,
 }: {
   path: string;
   label: string;
@@ -24,6 +25,8 @@ export function VideoUpload<T>({
   onRemove?: () => Promise<void>;
   /** Opens the camera straight away on phones. */
   capture?: boolean;
+  /** `path` is a public API path (no login), e.g. under the customer's contract link. */
+  publicPath?: boolean;
 }) {
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +40,7 @@ export function VideoUpload<T>({
     }
     setProgress(0);
     try {
-      onDone(await adminUploadVideo<T>(path, file, setProgress));
+      onDone(await (publicPath ? uploadVideo<T>(path, file, setProgress) : adminUploadVideo<T>(path, file, setProgress)));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Video nije poslan.");
     } finally {

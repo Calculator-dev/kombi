@@ -8,6 +8,8 @@ export interface Notifier {
   bookingConfirmed(b: Booking): Promise<void>;
   /** After the rental: asks the customer to rate it. */
   reviewRequest(b: Booking): Promise<void>;
+  /** The customer has filmed all four sides at return. */
+  renterFilmedReturn(b: Pick<Booking, "ref" | "vanName" | "name" | "start" | "end">, ownerEmail: string | null): Promise<void>;
 }
 
 const CHANNEL: Record<string, string> = { viber: "Viber", whatsapp: "WhatsApp", email: "Email", phone: "Poziv" };
@@ -106,7 +108,16 @@ export function createNotifier(config: Config, fetchImpl: typeof fetch = fetch):
           `${b.quote.onRequest ? "Cijena: po dogovoru" : `Ukupno: ${b.total} KM`}, depozit ${b.quote.deposit} KM pri preuzimanju.\n` +
           `Javit ćemo vam se da dogovorimo tačno mjesto i vrijeme preuzimanja.\n\n` +
           `Ugovor o najmu možete pročitati prije preuzimanja (link je samo vaš, ne prosljeđujte ga):\n` +
-          `${config.WEB_ORIGIN}/ugovor/${b.contractToken}\n\nkombi.ba`,
+          `${config.WEB_ORIGIN}/ugovor/${b.contractToken}\n\n` +
+          `Kad vraćate vozilo, na istom linku snimite telefonom kratak video svake strane vozila. To je vaš dokaz o stanju u kojem ste ga vratili.\n\nkombi.ba`,
+      );
+    },
+    async renterFilmedReturn(b, ownerEmail) {
+      await send(
+        [ownerEmail, config.OWNER_EMAIL].filter((e): e is string => Boolean(e)),
+        `${b.ref}: kupac je snimio vozilo pri povratku`,
+        `${b.name} je snimio/la sve četiri strane vozila ${b.vanName} pri povratku (${fmt(b.start)} – ${fmt(b.end)}).\n` +
+          `Videi su u rezervaciji, pod „Zapisnik o stanju vozila”: ${config.WEB_ORIGIN}/admin`,
       );
     },
     async reviewRequest(b) {

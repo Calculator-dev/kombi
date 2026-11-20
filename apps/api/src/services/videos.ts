@@ -6,6 +6,9 @@ import {
   KEEP_HANDOVER_DAYS,
   MAX_VIDEO_BYTES,
   VIDEO_TYPES,
+  RENTER_RECORD_DAYS_AFTER,
+  addDays,
+  type HandoverBy,
   type HandoverSide,
   type HandoverStage,
   type HandoverVideo,
@@ -62,7 +65,7 @@ export async function removeSpinVideo(db: Executor, storage: PhotoStorage, van: 
   return row!;
 }
 
-/** Puts (or replaces) the video of one side of the vehicle, at pickup or return. */
+/** Puts (or replaces) the video of one side of the vehicle, at pickup or return, by the owner or the customer. */
 export async function setHandoverVideo(
   db: Executor,
   storage: PhotoStorage,
@@ -70,28 +73,34 @@ export async function setHandoverVideo(
   stage: HandoverStage,
   side: HandoverSide,
   req: Request,
+  by: HandoverBy = "owner",
 ): Promise<void> {
   const v = incomingVideo(req);
-  const key = `handover/${bookingId}/${stage}-${side}-${randomUUID()}.${v.ext}`;
+  const key = `handover/${bookingId}/${by}-${stage}-${side}-${randomUUID()}.${v.ext}`;
   await storage.putStream(key, v.body, v.length, v.contentType);
-  const [old] = await db
-    .select()
-    .from(handoverVideos)
-    .where(and(eq(handoverVideos.bookingId, bookingId), eq(handoverVideos.stage, stage), eq(handoverVideos.side, side)));
+  const which = and(eq(handoverVideos.bookingId, bookingId), eq(handoverVideos.stage, stage), eq(handoverVideos.side, side), eq(handoverVideos.by, by));
+  const [old] = await db.select().from(handoverVideos).where(which);
   await db
     .insert(handoverVideos)
-    .values({ bookingId, stage, side, key, contentType: v.contentType, size: v.length })
+    .values({ bookingId, stage, side, by, key, contentType: v.contentType, size: v.length })
     .onConflictDoUpdate({
-      target: [handoverVideos.bookingId, handoverVideos.stage, handoverVideos.side],
+      target: [handoverVideos.bookingId, handoverVideos.stage, handoverVideos.side, handoverVideos.by],
       set: { key, contentType: v.contentType, size: v.length, createdAt: sql`now()` },
     });
   if (old) await storage.remove([old.key]).catch((e) => console.error("[storage]", e));
 }
 
-export async function removeHandoverVideo(db: Executor, storage: PhotoStorage, bookingId: string, stage: HandoverStage, side: HandoverSide) {
+export async function removeHandoverVideo(
+  db: Executor,
+  storage: PhotoStorage,
+  bookingId: string,
+  stage: HandoverStage,
+  side: HandoverSide,
+  by: HandoverBy = "owner",
+) {
   const rows = await db
     .delete(handoverVideos)
-    .where(and(eq(handoverVideos.bookingId, bookingId), eq(handoverVideos.stage, stage), eq(handoverVideos.side, side)))
+    .where(and(eq(handoverVideos.bookingId, bookingId), eq(handoverVideos.stage, stage), eq(handoverVideos.side, side), eq(handoverVideos.by, by)))
     .returning();
   if (rows.length) await storage.remove(rows.map((r) => r.key)).catch((e) => console.error("[storage]", e));
 }
@@ -102,10 +111,16 @@ export async function handoverOf(db: Executor, storage: PhotoStorage, bookingIds
   if (!bookingIds.length) return out;
   const rows = await db.select().from(handoverVideos).where(inArray(handoverVideos.bookingId, bookingIds));
   for (const r of rows) {
-    const v: HandoverVideo = { id: r.id, stage: r.stage, side: r.side, url: storage.url(r.key), contentType: r.contentType, createdAt: r.createdAt.toISOString() };
+    const v: HandoverVideo = { id: r.id, stage: r.stage, side: r.side, by: r.by, url: storage.url(r.key), contentType: r.contentType, createdAt: r.createdAt.toISOString() };
     out.set(r.bookingId, [...(out.get(r.bookingId) ?? []), v]);
   }
   return out;
+}
+
+/** When the customer may film the vehicle at return: from the pickup day until a few days after the return day. */
+export function renterRecording(b: { status: string; start: string; end: string }, today: string) {
+  const until = addDays(b.end, RENTER_RECORD_DAYS_AFTER);
+  return { open: b.status === "confirmed" && today >= b.start && today <= until, from: b.start, until };
 }
 
 /** Deletes handover videos KEEP_HANDOVER_DAYS after the return. */

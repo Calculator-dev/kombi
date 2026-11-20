@@ -159,13 +159,18 @@ function Documents({ b }: { b: AdminBooking }) {
  * with the contract.
  */
 function Handover({ b }: { b: AdminBooking }) {
-  const [videos, setVideos] = useState<HandoverVideo[]>(b.handover ?? []);
+  const [all, setAll] = useState<HandoverVideo[]>(b.handover ?? []);
+  const videos = all.filter((v) => v.by !== "renter");
+  const renter = HANDOVER_SIDES.flatMap((side) => all.filter((v) => v.by === "renter" && v.side === side));
+  // The API answers with every video of the booking; keep the customer's from it too.
+  const setVideos = (list: HandoverVideo[]) => setAll(list);
   const [open, setOpen] = useState(false);
   const total = HANDOVER_STAGES.length * HANDOVER_SIDES.length;
   return (
     <div className="handover">
       <button type="button" className="link" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        Zapisnik o stanju vozila (video): {videos.length}/{total} {open ? "▴" : "▾"}
+        Zapisnik o stanju vozila (video): {videos.length}/{total}
+        {renter.length > 0 ? `, kupac ${renter.length}/${HANDOVER_SIDES.length}` : ""} {open ? "▴" : "▾"}
       </button>
       {open && (
         <>
@@ -196,6 +201,21 @@ function Handover({ b }: { b: AdminBooking }) {
               </div>
             </div>
           ))}
+          <div className="handover-stage">
+            <h4>Kupac, pri povratku</h4>
+            {renter.length ? (
+              <div className="handover-grid">
+                {renter.map((v) => (
+                  <div key={v.id} className="handover-side">
+                    <span className="dim">{HANDOVER_LABELS[v.side]}</span>
+                    <video src={v.url} controls playsInline preload="metadata" className="video-preview" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="caption" style={{ margin: 0 }}>Kupac snima na svom linku za ugovor kad vraća vozilo. Dobit ćete email kad snimi sve četiri strane.</p>
+            )}
+          </div>
         </>
       )}
     </div>

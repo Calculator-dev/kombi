@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { boolean, check, date, index, integer, jsonb, pgSequence, pgTable, primaryKey, real, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import type { BookingStatus, BrandId, Category, HandoverSide, HandoverStage, ContactChannel, ContractTerms, DocumentKind, DocumentRules, Plan, Quote, Settings, Terms, UserRole, UserStatus, VanStatus } from "@kombi/shared";
+import type { BookingStatus, BrandId, Category, HandoverBy, HandoverSide, HandoverStage, ContactChannel, ContractTerms, DocumentKind, DocumentRules, Plan, Quote, Settings, Terms, UserRole, UserStatus, VanStatus } from "@kombi/shared";
 
 // Row-Level Security is on for every table with no policies: on Supabase this keeps the
 // tables closed to its public REST API. The API connects as the table owner, which bypasses RLS.
@@ -208,13 +208,16 @@ export const handoverVideos = pgTable(
       .references(() => bookings.id, { onDelete: "cascade" }),
     stage: text("stage").$type<HandoverStage>().notNull(),
     side: text("side").$type<HandoverSide>().notNull(),
+    /** Who filmed it: the owner or the customer. */
+    by: text("recorded_by").$type<HandoverBy>().notNull().default("owner"),
     key: text("key").notNull(),
     contentType: text("content_type").notNull(),
     size: integer("size").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("handover_videos_side_idx").on(t.bookingId, t.stage, t.side),
+    uniqueIndex("handover_videos_side_by_idx").on(t.bookingId, t.stage, t.side, t.by),
+    check("handover_videos_by_check", sql`${t.by} in ('owner', 'renter')`),
     check("handover_videos_stage_check", sql`${t.stage} in ('pickup', 'return')`),
     check("handover_videos_side_check", sql`${t.side} in ('front', 'right', 'back', 'left')`),
   ],

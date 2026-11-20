@@ -345,6 +345,11 @@ export const HANDOVER_STAGES = ["pickup", "return"] as const;
 export type HandoverStage = (typeof HANDOVER_STAGES)[number];
 export const HANDOVER_SIDES = ["front", "right", "back", "left"] as const;
 export type HandoverSide = (typeof HANDOVER_SIDES)[number];
+/** Who filmed it: the owner (pickup and return) or the customer (at return, from their contract link). */
+export const HANDOVER_BY = ["owner", "renter"] as const;
+export type HandoverBy = (typeof HANDOVER_BY)[number];
+/** The customer can film the return from the pickup day until this many days after the return day. */
+export const RENTER_RECORD_DAYS_AFTER = 3;
 export const HANDOVER_LABELS = {
   pickup: "Pri preuzimanju",
   return: "Pri povratku",
@@ -357,6 +362,7 @@ export interface HandoverVideo extends VideoUrl {
   id: string;
   stage: HandoverStage;
   side: HandoverSide;
+  by: HandoverBy;
   createdAt: string;
 }
 

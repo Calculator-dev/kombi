@@ -4,6 +4,7 @@ import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import {
   DOCUMENT_KINDS,
+  HANDOVER_SIDES,
   MAX_DOCUMENT_BYTES,
   MAX_FILES_PER_DOCUMENT,
   MAX_EXTRAS,
@@ -19,7 +20,7 @@ import {
   vanSearchSchema,
   type VanCard,
 } from "@kombi/shared";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Deps } from "../app";
 import { schema } from "../db";
 import { HttpError } from "../errors";
@@ -32,6 +33,7 @@ import { recordVanEvent } from "../services/stats";
 import { getUser } from "../services/users";
 import { companyPage, ensureSlug } from "../services/company";
 import { servicesOf } from "../services/services";
+import { handoverOf, removeHandoverVideo, renterRecording, setHandoverVideo } from "../services/videos";
 import { getPublicVan, listPublicVans, logoUrl, ownerLogos, ownerOf, pricingOf, publicLimits, searchVans, toCard, toPublicVan } from "../services/vans";
 
 const isoDate = z.string().refine(isIsoDate, "Neispravan datum");
@@ -172,6 +174,46 @@ export function publicRoutes({ db, config, notifier, storage, now }: Deps): Rout
     if (!token.success) throw new HttpError(404, "not_found", "Ugovor ne postoji.");
     res.set("Cache-Control", "private, no-store");
     res.json(await contractByToken(db.orm, storage, token.data, today()));
+  });
+
+  /** The customer films each side of the vehicle when returning it, from their contract link. The body is the video. */
+  const confirmedByToken = async (t: unknown) => {
+    const token = z.string().regex(/^[0-9a-f]{64}$/).safeParse(t);
+    const [b] = token.success
+      ? await db.orm
+          .select({ b: schema.bookings, vanName: schema.vans.name, ownerId: schema.vans.ownerId })
+          .from(schema.bookings)
+          .innerJoin(schema.vans, eq(schema.vans.id, schema.bookings.vanId))
+          .where(and(eq(schema.bookings.contractToken, token.data), eq(schema.bookings.status, "confirmed")))
+      : [];
+    if (!b) throw new HttpError(404, "not_found", "Ugovor ne postoji.");
+    return b;
+  };
+  const renterVideos = async (bookingId: string) =>
+    ((await handoverOf(db.orm, storage, [bookingId])).get(bookingId) ?? []).filter((v) => v.by === "renter");
+
+  r.put("/contracts/:token/handover/:side", contractLimiter, async (req, res) => {
+    const { b, vanName, ownerId } = await confirmedByToken(req.params.token);
+    const side = z.enum(HANDOVER_SIDES).parse(req.params.side);
+    const window = renterRecording(b, today());
+    if (!window.open) {
+      throw new HttpError(409, "not_now", today() < window.from ? "Vozilo snimate kad ga vraćate, od dana preuzimanja." : "Rok za snimanje vozila je prošao.");
+    }
+    const before = (await renterVideos(b.id)).length;
+    await setHandoverVideo(db.orm, storage, b.id, "return", side, req, "renter");
+    const after = await renterVideos(b.id);
+    if (before < HANDOVER_SIDES.length && after.length === HANDOVER_SIDES.length) {
+      const owner = ownerId ? await getUser(db.orm, ownerId) : null;
+      void notifier.renterFilmedReturn({ ...b, vanName }, owner?.email ?? null);
+    }
+    res.json(after);
+  });
+
+  r.delete("/contracts/:token/handover/:side", contractLimiter, async (req, res) => {
+    const { b } = await confirmedByToken(req.params.token);
+    if (!renterRecording(b, today()).open) throw new HttpError(409, "not_now", "Rok za snimanje vozila je prošao.");
+    await removeHandoverVideo(db.orm, storage, b.id, "return", z.enum(HANDOVER_SIDES).parse(req.params.side), "renter");
+    res.json(await renterVideos(b.id));
   });
 
   const reviewToken = (t: unknown) => {

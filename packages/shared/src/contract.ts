@@ -52,8 +52,10 @@ export interface ContractData {
   /** The day the contract is made (YYYY-MM-DD). */
   date: string;
   lessor: { name: string; address: string; companyId: string; representative: string; phone: string; email: string; logo?: string | null };
-  /** Videos of the vehicle's sides the owner recorded at pickup and return. */
+  /** Videos of the vehicle's sides, by the owner (pickup and return) and the customer (return). */
   handover?: HandoverVideo[];
+  /** Whether the customer can film the return now, and until which day. */
+  renterRecording?: { open: boolean; from: string; until: string };
   renter: { name: string; jmb: string; idNumber: string; licenseNumber: string; address: string; phone: string; email: string };
   van: { name: string; year: number; location: string };
   start: string;

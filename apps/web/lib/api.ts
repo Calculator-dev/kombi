@@ -56,12 +56,17 @@ export async function adminUploadVideo<T>(path: string, file: File, onProgress: 
   const { supabase } = await import("./supabase");
   const { data } = await supabase().auth.getSession();
   if (!data.session) throw new ApiError(401, "unauthorized", "Prijavite se ponovo.");
+  return uploadVideo<T>(`/admin${path}`, file, onProgress, data.session.access_token);
+}
+
+/** The same without a login, e.g. from the customer's contract link (the token is in the path). */
+export function uploadVideo<T>(path: string, file: File, onProgress: (p: number) => void, token?: string): Promise<T> {
   const ext = file.name.split(".").pop()?.toLowerCase();
   const type = file.type || ({ mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm" } as Record<string, string>)[ext ?? ""] || "video/mp4";
   return new Promise<T>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("PUT", `/api/admin${path}`);
-    xhr.setRequestHeader("Authorization", `Bearer ${data.session!.access_token}`);
+    xhr.open("PUT", `/api${path}`);
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     xhr.setRequestHeader("Content-Type", type);
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
     xhr.onload = () => {
